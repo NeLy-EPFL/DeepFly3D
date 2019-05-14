@@ -13,22 +13,22 @@ import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.optim
 
-from drosoph3D.pose2d.progress.progress.bar import Bar
-from drosoph3D.pose2d.utils.logger import Logger, savefig
-from drosoph3D.pose2d.utils.evaluation import accuracy, AverageMeter, mse_acc
-from drosoph3D.pose2d.utils.misc import save_checkpoint, save_dict
-from drosoph3D.pose2d.utils.osutils import isfile, join, find_leaf_recursive
-from drosoph3D.pose2d.utils.imutils import save_image, drosophila_image_overlay
-from drosoph3D.pose2d.ArgParse import create_parser
-from drosoph3D.GUI.os_util import *
+from deepfly.pose2d.progress.progress.bar import Bar
+from deepfly.pose2d.utils.logger import Logger, savefig
+from deepfly.pose2d.utils.evaluation import accuracy, AverageMeter, mse_acc
+from deepfly.pose2d.utils.misc import save_checkpoint, save_dict
+from deepfly.pose2d.utils.osutils import isfile, join, find_leaf_recursive
+from deepfly.pose2d.utils.imutils import save_image, drosophila_image_overlay
+from deepfly.pose2d.ArgParse import create_parser
+from deepfly.GUI.os_util import *
 
-import drosoph3D.pose2d.datasets
-import drosoph3D.pose2d.models as models
-from drosoph3D.pose2d.utils.osutils import mkdir_p, isdir
+import deepfly.pose2d.datasets
+import deepfly.pose2d.models as models
+from deepfly.pose2d.utils.osutils import mkdir_p, isdir
 import os
-from drosoph3D.pose2d.utils.misc import get_time, to_numpy
-from drosoph3D.GUI.Camera import Camera
-import drosoph3D.GUI.skeleton as skeleton
+from deepfly.pose2d.utils.misc import get_time, to_numpy
+from deepfly.GUI.Camera import Camera
+import deepfly.GUI.skeleton as skeleton
 
 import cv2
 
@@ -128,7 +128,7 @@ def main(args):
                 max_img_id = None
             print("Unlabeled folder {} ".format(unlabeled_folder))
             unlabeled_loader = DataLoader(
-                drosoph3D.pose2d.datasets.Drosophila(data_folder=args.data_folder, train=False,
+                deepfly.pose2d.datasets.Drosophila(data_folder=args.data_folder, train=False,
                                                      sigma=args.sigma, label_type=args.label_type,
                                                      session_id_train_list=None,
                                                      folder_train_list=None,
@@ -533,7 +533,7 @@ def create_dataloader():
         test_folder_list))) == 0)
 
     train_loader = DataLoader(
-        drosoph3D.pose2d.datasets.Drosophila(data_folder=args.data_folder, train=True,
+        deepfly.pose2d.datasets.Drosophila(data_folder=args.data_folder, train=True,
                                              sigma=args.sigma, label_type=args.label_type,
                                              session_id_train_list=train_session_id_list,
                                              folder_train_list=args.train_folder_list, img_res=args.img_res,
@@ -543,7 +543,7 @@ def create_dataloader():
         batch_size=args.train_batch, shuffle=True,
         num_workers=args.workers, pin_memory=True, worker_init_fn=worker_init_fn)
     val_loader = DataLoader(
-        drosoph3D.pose2d.datasets.Drosophila(data_folder=args.data_folder, train=False,
+        deepfly.pose2d.datasets.Drosophila(data_folder=args.data_folder, train=False,
                                              sigma=args.sigma, label_type=args.label_type,
                                              session_id_train_list=test_session_id_list,
                                              folder_train_list=test_folder_list,

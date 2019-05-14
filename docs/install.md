@@ -2,8 +2,8 @@
 Drosophila-Pose requires Python3 and an Anaconda environment. First, install the packages described in environment.xml in the anaconda format. This can be done by first cloning the repository:
 
 ```
-git clone https://github.com/NeLy-EPFL/drosoph3D.git
-cd drosoph3D
+git clone https://github.com/NeLy-EPFL/DeepFly3D.git
+cd DeepFly3D
 ```
 Then installing the necessary dependencies:
 ```
@@ -23,7 +23,7 @@ This command creates a new environment called drosoph and installs all the depen
 source activate drosoph
 ```
 
-Once the environment is activated you need to install the drosoph3D package with the following command,
+Once the environment is activated you need to install the deepfly package with the following command,
 
 ```
 pip install -e .

@@ -2,13 +2,13 @@
 After installing the dependencies we can initiliza the GUI using:
 
 ```
-python -m drosoph3D.GUI.main /FULL/PATH/FOLDER NUM_IMAGES
+python -m deepfly.GUI.main /FULL/PATH/FOLDER NUM_IMAGES
 ```
 
 For example:
 
 ```
-python -m drosoph3D.GUI.main ./data/test/ 100
+python -m deepfly.GUI.main ./data/test/ 100
 ```
 
 Or simply with the command line entry point:

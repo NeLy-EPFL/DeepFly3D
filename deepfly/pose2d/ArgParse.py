@@ -1,7 +1,7 @@
 import argparse
 
-import drosoph3D.pose2d.models as models
-from drosoph3D.GUI import skeleton
+import deepfly.pose2d.models as models
+from deepfly.GUI import skeleton
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")

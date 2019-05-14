@@ -2,9 +2,9 @@ from __future__ import print_function, absolute_import
 
 import torch.utils.data as data
 
-from drosoph3D.GUI.os_util import *
-from drosoph3D.pose2d.utils.osutils import isfile
-from drosoph3D.pose2d.utils.transforms import *
+from deepfly.GUI.os_util import *
+from deepfly.pose2d.utils.osutils import isfile
+from deepfly.pose2d.utils.transforms import *
 
 FOLDER_NAME = 0
 IMAGE_NAME = 1

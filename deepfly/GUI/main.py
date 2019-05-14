@@ -331,9 +331,9 @@ class DrosophAnnot(QWidget):
 
     def pose2d_estimation(self):
         import os
-        from drosoph3D.pose2d import ArgParse
-        from drosoph3D.pose2d.utils.osutils import mkdir_p, isdir
-        from drosoph3D.pose2d.utils.misc import get_time
+        from deepfly.pose2d import ArgParse
+        from deepfly.pose2d.utils.osutils import mkdir_p, isdir
+        from deepfly.pose2d.utils.misc import get_time
         parser = ArgParse.create_parser()
         args, _ = parser.parse_known_args()
         args.checkpoint = os.path.join(args.checkpoint,
@@ -368,7 +368,7 @@ class DrosophAnnot(QWidget):
         # args.resume = '../../weights/sh8_manual.tar'
 
         # run the main, get back the heatmap
-        from drosoph3D.pose2d.drosophila import main
+        from deepfly.pose2d.drosophila import main
         args.max_img_id = self.cfg.num_images - 1
         val_hm, val_pred = main(args)
 

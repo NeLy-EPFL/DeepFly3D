@@ -8,8 +8,8 @@ import scipy.misc
 import torch.nn as nn
 from torchvision.transforms import ToPILImage, ToTensor, ColorJitter, RandomAffine
 
-import drosoph3D.GUI.skeleton as skeleton
-from drosoph3D.pose2d.utils.evaluation import get_preds
+import deepfly.GUI.skeleton as skeleton
+from deepfly.pose2d.utils.evaluation import get_preds
 from .misc import *
 
 
