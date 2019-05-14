@@ -1,4 +1,4 @@
-# Drosoph3D
+# DeepFly3D
 
 ![Alt text](images/gui.gif?raw=true "Title")
 
