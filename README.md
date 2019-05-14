@@ -14,10 +14,11 @@ Codes for data preparation and augmentation are brought from the [Stacked hourgl
 ### Finding Errenous Estimations Automatically
 
 ### Auto-Correction
-
+In the next iteration of training, you can use these examples for training the network.
 ### Helping Correction
 Auto-Correction is perfomed in case 2d pose estimation and calibration has completed. In the Correction mode, GUI tries to correct for errors using pictorial structures. In case you confirm the press ```T``` to make sure they are saved. Please check the paper for details.
 ![Alt text](images/correction.gif?raw=true "Title")
+In the next iteration of training, you can use these examples for training the network.
 
 ### Visualization
 To visualize the pose_result file which is saved in the same folder as the images, you can use the notebook at ```notebook_visualize/visualize.ipynb```, by replacing the image folder in the first cell. Visualization should output figures close to the figures in the paper.
