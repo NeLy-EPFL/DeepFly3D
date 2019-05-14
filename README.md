@@ -25,14 +25,6 @@ Auto-Correction is perfomed in case 2d pose estimation and calibration has compl
 In the next iteration of training, you can use these examples for training the network.
 
 ### Visualization
-To visualize the pose_result file which is saved in the same folder as the images, you can use the notebook at ```notebook_visualize/visualize.ipynb```, by replacing the image folder in the first cell. Visualization should output figures close to the figures in the paper.
-
-<img src="images/pose3D.png" width="960">
-
-To visualize the time series instead, use the notebook ```notebook_visualize/time_series.ipynb```. It should output 2D/3D pose, together with the few selected time series.
-
-<img src="images/time_series.png" width="960">
-
 In general, displaying the pose estimation results should be as easy as:
 
 ```python
@@ -48,3 +40,11 @@ and for displaying heatmaps:
 ```python
 plt.imshow(camNet[1].plot_2d())
 ```
+
+To create more complicated figures, and replicate the figures from the paper, you can use the the pose_result file which is saved in the same folder as the images. The notebook at ```notebook_visualize/visualize.ipynb``` shows you the steps for creating the following figure:
+
+<img src="images/pose3D.png" width="960">
+
+To visualize the time series instead, use the notebook ```notebook_visualize/time_series.ipynb```. It should output 2D/3D pose, together with the few selected time series.
+
+<img src="images/time_series.png" width="960">
