@@ -54,3 +54,16 @@ To visualize the time series instead, use the notebook ```notebook_visualize/tim
 <p align="center">
 <img src="images/time_series.png" width="640">
 </p>
+
+### References
+@inproceedings{Newell16Stacked,
+  author    = {Alejandro Newell and
+               Kaiyu Yang and
+               Jia Deng},
+  title     = {Stacked Hourglass Networks for Human Pose Estimation},
+  booktitle = {Computer Vision - {ECCV} 2016 - 14th European Conference, Amsterdam,
+               The Netherlands, October 11-14, 2016, Proceedings, Part {VIII}},
+  pages     = {483--499},
+  year      = {2016},
+  doi       = {10.1007/978-3-319-46484-8\_29},
+}
