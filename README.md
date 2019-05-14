@@ -32,3 +32,19 @@ To visualize the pose_result file which is saved in the same folder as the image
 To visualize the time series instead, use the notebook ```notebook_visualize/time_series.ipynb```. It should output 2D/3D pose, together with the few selected time series.
 
 <img src="images/time_series.png" width="960">
+
+In general, displaying the pose estimation results should be as easy as:
+
+```python
+import matplotlib.pyplot as plt
+from deepfly.GUI.CameraNetwork import CameraNetwork
+camNet = CameraNetwork(image_folder=image_folder)
+image_folder = './data/test'
+
+plt.imshow(camNet[1].plot_2d())
+```
+and for displaying heatmaps: 
+
+```python
+plt.imshow(camNet[1].plot_2d())
+```
