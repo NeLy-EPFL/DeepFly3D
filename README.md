@@ -1,7 +1,6 @@
 # DeepFly3D
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-DeepFly3D provides a GUI, 
 ![Alt text](images/pose3D.gif?raw=true "Title")
 
 Drosophila-GUI is a PyTorch and PyQT5 implementation of 2D-3D tethered Drosophila pose estimation. It aims to provide an interface for pose estimation and to permit further correction of 2D pose estimates, which are automatically converted to 3D pose.
