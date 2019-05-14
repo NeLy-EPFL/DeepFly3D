@@ -8,6 +8,7 @@ Codes for data preparation and augmentation are brought from the [Stacked hourgl
 
 * Installing DeepFly3D: [Installation](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/install.md)
 * Interacting with the GUI:  [GUI](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/gui.md)
+* In case you want to do everything on the terminal: [w/ Terminal](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/terminal.md)
 
 ## Auto-Correction
 Auto-Correction is perfomed in case 2d pose estimation and calibration has completed. In the Correction mode, GUI tries to correct for errors using pictorial structures. In case you confirm the press ```T``` to make sure they are saved. Please check the paper for details.
