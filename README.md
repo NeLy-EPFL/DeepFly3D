@@ -48,4 +48,4 @@ To create more complicated figures, or replicate the figures from the paper, you
 
 To visualize the time series instead, use the notebook ```notebook_visualize/time_series.ipynb```. It should output 2D/3D pose, along with a few selected time series.
 
-<img src="images/time_series.png" width="960">
+<img src="images/time_series.png" width="640">
