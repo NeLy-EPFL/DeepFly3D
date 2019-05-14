@@ -56,6 +56,7 @@ To visualize the time series instead, use the notebook ```notebook_visualize/tim
 </p>
 
 ### References
+```
 @inproceedings{Newell16Stacked,
   author    = {Alejandro Newell and
                Kaiyu Yang and
@@ -67,3 +68,4 @@ To visualize the time series instead, use the notebook ```notebook_visualize/tim
   year      = {2016},
   doi       = {10.1007/978-3-319-46484-8\_29},
 }
+```
