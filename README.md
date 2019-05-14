@@ -103,7 +103,7 @@ Auto-Correction is perfomed in case 2d pose estimation and calibration has compl
 To visualize the pose_result file which is saved in the same folder as the images, you can use the notebook at ```notebook_visualize/visualize.ipynb```, by replacing the image folder in the first cell. Visualization should output figures close to the figures in the paper.
 
 
-<img src="images/0.jpg" width="960">
+<img src="images/pose3D.png" width="960">
 
 ## 2D Pose Estimation on terminal
 If we want to just use the already trained weights for doing 2d pose estimation, and obtain heatmaps and prediction.
