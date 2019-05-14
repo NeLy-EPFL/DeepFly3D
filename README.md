@@ -1,6 +1,5 @@
 # DeepFly3D
 
-![Alt text](images/gui.gif?raw=true "Title")
 
 Drosophila-GUI is a PyTorch and PyQT5 implementation of the general processing of 2D-3D single tethered drosophila pose estimation. The aim is to provide the interface of estimation and further correction GUI for the 2D pose estimation, which is automatically converted to 3D pose.
 
@@ -11,6 +10,10 @@ Codes for data preparation and augmentation are brought from the [Stacked hourgl
 * In case you want to do everything on the terminal: [w/ Terminal](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/terminal.md)
 
 ## Niceties
+DeepFly3D provides nice GUI, 
+![Alt text](images/gui.gif?raw=true "Title")
+
+
 ### Finding Errenous Estimations Automatically
 
 ### Auto-Correction
