@@ -24,4 +24,6 @@ To visualize the pose_result file which is saved in the same folder as the image
 
 <img src="images/pose3D.png" width="960">
 
+To visualize the time series instead, use the notebook ```notebook_visualize/time_series.ipynb```. It should output 2D/3D pose, together with the few selected time series.
 
+<img src="images/time_series.png" width="960">
