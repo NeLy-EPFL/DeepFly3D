@@ -28,6 +28,7 @@ Auto-correction is perfomed if 2D pose estimation and calibration are complete. 
 In the next iteration of training, you can use these examples to train the network.
 
 ### Visualization
+And nice visualizations! Check the [Visualization](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/visual.md) doc for details.
 In general, displaying pose estimation results should be as easy as:
 
 ```python
