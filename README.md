@@ -11,6 +11,7 @@ Code for data preparation and augmentation are taken from the [Stacked hourglass
 * Interacting with the GUI:  [GUI](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/gui.md)
 * If you want to do everything on the terminal: [w/ Terminal](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/terminal.md)
 * Generating visualizations: [Visualization](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/visual.md)
+* If you are interested in the online annotation tool instead: [DeepFly3DAnnotation](https://github.com/NeLy-EPFL/DeepFly3DAnnotation)
 
 ## GUI
 DeepFly3D provides a GUI, 
