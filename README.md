@@ -5,7 +5,7 @@
 
 Drosophila-GUI is a PyTorch and PyQT5 implementation of 2D-3D tethered Drosophila pose estimation. It aims to provide an interface for pose estimation and to permit further correction of 2D pose estimates, which are automatically converted to 3D pose.
 
-Code for data preparation and augmentation are taken from the [Stacked hourglass network](https://github.com/anewell/pose-hg-train).  We also use the Stacked Hourglass model for 2D pose estimation. We implement custom advances (e.g., GUI) using PyQT5.
+Code for data preparation and augmentation are taken from the [Stacked hourglass network](https://github.com/anewell/pose-hg-train). We also use the Stacked Hourglass model for 2D pose estimation. We implement custom advances (e.g., GUI) using PyQT5.
 
 * Installing DeepFly3D: [Installation](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/install.md)
 * Interacting with the GUI:  [GUI](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/gui.md)
@@ -14,9 +14,20 @@ Code for data preparation and augmentation are taken from the [Stacked hourglass
 * If you are interested in the online annotation tool instead: [DeepFly3DAnnotation](https://github.com/NeLy-EPFL/DeepFly3DAnnotation)
 
 ## GUI
-DeepFly3D provides a GUI, 
-![Alt text](images/gui.gif?raw=true "Title")
+DeepFly3D provides a nice GUI to interact with the data. Using DeepFly3D GUI, you can visualize:
 
+* Raw data
+* Probability maps
+* Raw predictions
+* Automatic corrections
+
+And you can perform:
+
+* 2D pose estimation
+* Calibration
+* Saving the final 3D estimations
+
+![Alt text](images/gui.gif?raw=true "Title")
 
 ### Identifying erroneous estimates automatically
 
