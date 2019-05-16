@@ -21,6 +21,7 @@ setup(
                           'skimage',
                           'matplotlib',
                           'torchvision',
+                          'opencv-python>=3.4.0.12',
                         ]
         )
 
