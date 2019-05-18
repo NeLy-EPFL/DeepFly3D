@@ -73,12 +73,12 @@ To visualize the time series instead, use the notebook ```notebook_visualize/tim
 ### References
 ```
 @inproceedings{Gunel19DeepFly3D,
-  author    = {Gunel Semih and
-               Rhodin Helge and
-               Morales Daniel and
-               Compagnolo João and
-               Ramdya Pavan and
-               Fua Pascal},
+  author    = {Semih Gunel and
+               Helge Rhodin and
+               Daniel Morales and
+               João Compagnolo and
+               Pavan Ramdya and
+               Pascal Fua},
   title     = {DeepFly3D: A deep learning-based approach for 3D limb and appendage tracking in tethered, adult Drosophila},
   bookTitle = {bioRxiv}
   year      = {2019}
