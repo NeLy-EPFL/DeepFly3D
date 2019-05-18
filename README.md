@@ -14,7 +14,7 @@ Code for data preparation and augmentation are taken from the [Stacked hourglass
 * If you are interested in the online annotation tool instead: [DeepFly3DAnnotation](https://github.com/NeLy-EPFL/DeepFly3DAnnotation)
 
 ## GUI
-![Alt text](../images/gui2.png?raw=true "Title")
+![Alt text](images/gui2.png?raw=true "Title")
 DeepFly3D provides a nice GUI to interact with the data. Using DeepFly3D GUI, you can visualize:
 
 * Raw data
