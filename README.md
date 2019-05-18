@@ -29,7 +29,6 @@ And you can perform:
 * Saving the final 3D estimations
 
 ### Identifying erroneous estimates automatically
-![Alt text](images/gui.gif?raw=true "Title")
 DeepFly3D can automatically detect when 2D pose estimation is failed. 
 
 ### Auto-correction
