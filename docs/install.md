@@ -21,6 +21,8 @@ This command creates a new environment called drosoph and installs all the depen
 
 ```
 source activate drosoph
+conda install ipykernel
+conda install jupyter
 ```
 
 Once the environment is activated you need to install the deepfly package with the following command,
