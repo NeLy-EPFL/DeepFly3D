@@ -97,4 +97,4 @@ To visualize the time series instead, use the notebook ```notebook_visualize/tim
 }
 ```
 
-We want to thank to Florian Aymanns for testing early versions of the software and for his helpful comments.
+We want to thank to Florian Aymanns for testing of the software and for his helpful comments.
