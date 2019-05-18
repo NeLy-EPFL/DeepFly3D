@@ -304,52 +304,19 @@ class DrosophAnnot(QWidget):
 
         parser = ArgParse.create_parser()
         args, _ = parser.parse_known_args()
-        args.checkpoint = os.path.join(
-            args.checkpoint,
-            get_time()
-            + "_{}_{}_{}_{}_{}_{}_{}".format(
-                "predict" if args.unlabeled else "training",
-                args.arch,
-                args.stacks,
-                args.img_res,
-                args.blocks,
-                "mv" if args.multiview else "",
-                "temp" if args.multiview else "",
-                args.name,
-            ),
-        )
-        args.checkpoint = (
-            args.checkpoint.replace(" ", "_").replace("(", "_").replace(")", "_")
-        )
-        args.checkpoint = args.checkpoint.replace("__", "_").replace("--", "-")
-        print("Checkpoint dir: {}".format(args.checkpoint))
-        args.checkpoint_image_dir = os.path.join(args.checkpoint, "./images/")
 
-        # create checkpoint dir and image dir
-        if not isdir(args.checkpoint):
-            mkdir_p(args.checkpoint)
-        if not isdir(args.checkpoint_image_dir):
-            mkdir_p(args.checkpoint_image_dir)
-        if args.carry and not isdir(
-            os.path.join(args.annotation_path, args.unlabeled + "_network")
-        ):
-            mkdir_p(os.path.join(args.annotation_path, args.unlabeled + "_network"))
-        if args.carry and not isdir(
-            os.path.join(args.data_folder, args.unlabeled + "_network")
-        ):
-            mkdir_p(os.path.join(args.data_folder, args.unlabeled + "_network"))
+        args.checkpoint = False
 
         args.unlabeled = self.folder
 
         curr_path = os.path.abspath(os.path.dirname(__file__))
         args.resume = os.path.join(curr_path, "../../weights/sh8_deepfly.tar")
-        # args.resume = '../../weights/sh8_manual.tar'
 
         # run the main, get back the heatmap
         from deepfly.pose2d.drosophila import main
 
         args.max_img_id = self.cfg.num_images - 1
-        val_hm, val_pred = main(args)
+        _, _ = main(args)
 
         calib = read_calib(self.folder)
         self.camNetAll = CameraNetwork(

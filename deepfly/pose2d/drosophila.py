@@ -121,19 +121,20 @@ def main(args):
             raise FileNotFoundError
 
     # prepare loggers
-    logger = Logger(join(args.checkpoint, "log.txt"), title=title)
-    logger.set_names(
-        [
-            "Epoch",
-            "LR",
-            "Train Loss",
-            "Val Loss",
-            "Train Acc",
-            "Val Acc",
-            "Val Mse",
-            "Val Jump",
-        ]
-    )
+    if not args.unlabeled:
+        logger = Logger(join(args.checkpoint, "log.txt"), title=title)
+        logger.set_names(
+            [
+                "Epoch",
+                "LR",
+                "Train Loss",
+                "Val Loss",
+                "Train Acc",
+                "Val Acc",
+                "Val Mse",
+                "Val Jump",
+            ]
+        )
 
     #cudnn.benchmark = True
     print(
@@ -214,12 +215,6 @@ def main(args):
                     args.data_folder,
                     "/{}".format(unlabeled_folder),
                     "./preds_{}.pkl".format(unlabeled_folder_replace),
-                ),
-            )
-            save_dict(
-                val_pred,
-                os.path.join(
-                    args.checkpoint, "./preds_{}.pkl".format(unlabeled_folder_replace)
                 ),
             )
 
