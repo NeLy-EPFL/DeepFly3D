@@ -5,8 +5,9 @@ with open("README.md", "r") as fh:
 
 setup(
     name="deepfly",
+    version='0.1',
     packages=["deepfly"],
-    entry_points={"console_scripts": ["deepfly = deepfly.GUI.main:main"]},
+    entry_points={"console_scripts": ["deepfly3d = deepfly.GUI.main:main"]},
     author="Semih Gunel",
     author_email="semih.gunel@epfl.ch",
     description="GUI and 3D pose estimation pipeline for tethered Drosophila.",

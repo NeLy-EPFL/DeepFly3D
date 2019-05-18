@@ -8,7 +8,7 @@ from .optimLM import project_on_last, energy_drosoph
 
 
 class LegBP:
-    def __init__(self, camera_network, img_id, j_id_list, bone_param, num_peak=10, prior=None, upper_bound=400,
+    def __init__(self, camera_network, img_id, j_id_list, bone_param, num_peak=10, prior=None, upper_bound=200,
                  image_shape=(960, 480)):
         self.camera_network = camera_network
         self.cam_list = self.camera_network.cam_list
@@ -60,7 +60,7 @@ class LegBP:
             # find 3d proposals by triangulating with all the visible cameras
             for p2d_prop in list(itertools.product(*p2d_list)):
                 if j.get_num_candid() > self.upper_bound:
-                    print("Hit upper bound of 3d proposals {}".format(self.upper_bound))
+                    # print("Hit upper bound of 3d proposals {}".format(self.upper_bound))
                     continue
 
                 p2d_list_iter = list()

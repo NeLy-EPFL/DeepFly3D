@@ -81,3 +81,5 @@ To visualize the time series instead, use the notebook ```notebook_visualize/tim
   doi       = {10.1007/978-3-319-46484-8\_29},
 }
 ```
+
+We want to thank to Florian Ayymans for testing early versions of the software and for his helpful comments.

@@ -75,24 +75,16 @@ class CameraNetwork:
                     #                       dtype=float)
                     pred_cam = np.zeros(shape=(num_images_in_pred, num_joints, 2), dtype=float)
                     if cam_id > 3:
-                        #heatmap_cam[:num_images_in_pred, num_joints // 2:, :] = heatmap[cam_id_read,
-                        #                                                        :num_images_in_pred]
                         pred_cam[:num_images_in_pred, num_joints // 2:, :] = pred[cam_id_read, :num_images_in_pred] * [
                             960, 480]
                     elif cam_id == 3:
-                        #heatmap_cam[:num_images_in_pred, :num_joints // 2, :] = heatmap[cam_id_read,
-                        #                                                        :num_images_in_pred]
                         pred_cam[:num_images_in_pred, :num_joints // 2, :] = pred[cam_id_read, :num_images_in_pred] * [
                             960, 480]
                         cam_id_mirror = 7
-                        #heatmap_cam[:num_images_in_pred, num_joints // 2:, :] = heatmap[cam_id_mirror,
-                        #                                                        :num_images_in_pred]
                         pred_cam[:num_images_in_pred, num_joints // 2:, :] = pred[cam_id_mirror,
                                                                              :num_images_in_pred] * [960,
                                                                                                      480]
                     elif cam_id < 3:
-                        #heatmap_cam[:num_images_in_pred, :num_joints // 2, :] = heatmap[cam_id_read,
-                        #                                                        :num_images_in_pred]
                         pred_cam[:num_images_in_pred, :num_joints // 2, :] = pred[cam_id_read, :num_images_in_pred] * [
                             960, 480]
                     else:
@@ -105,12 +97,6 @@ class CameraNetwork:
                     Camera(cid=cam_id, cid_read=cam_id_read, image_folder=image_folder, json_path=None, hm=heatmap,
                            points2d=pred_cam))
 
-            '''
-            for cam in self.cam_list:
-                if cam.points2d is None and cam.hm is not None:
-                    warnings.warn("Calculating Camera {} 2d points from heatmaps".format(cam.cam_id))
-                    cam.points2d = Camera.hm_to_pred(cam.hm, scale=(960, 480), threshold_abs=0.0, num_pred=1)
-            '''
 
         if calibration is not None:
             _ = self.load_network(calibration)
@@ -314,8 +300,6 @@ class CameraNetwork:
     def bundle_adjust(self, cameras_involved=None, ignore_joint_list=skeleton.ignore_joint_id,
                       unique=True,
                       prior=False):
-        # TODO iteratively remove high residual points
-        # TODO huber loss
         if cameras_involved is None:
             cameras_involved = range(self.num_cameras)
 
@@ -364,7 +348,10 @@ class CameraNetwork:
                 chain_list.append(LegBP(camera_network=self, img_id=img_id, j_id_list=j_id_l, bone_param=bone_param,
                                         num_peak=num_peak, prior=prior))
             else:
-                print("Joints {} is not visible from at least two cameras".format(j_id_l))
+                pass
+                # print("Joints {} is not visible from at least two cameras".format(j_id_l))
+
+
 
         print([[len(leg[i].candid_list) for i in range(len(leg.jointbp))] for leg in chain_list])
         for chain in chain_list:
@@ -470,38 +457,3 @@ class CameraNetwork:
         ax.set_xlabel('X')
         ax.set_ylabel('Y')
         ax.set_zlabel('Z')
-
-    '''
-    PLOT
-    '''
-
-    '''
-    def plot_drosoph(self, img_id, draw_joints=[2, 3, 4]):
-        pose_overlay_list = []
-        for cam in self.cam_list:
-            pose_overlay_list.append(cam.plot_2d(img_id=img_id, draw_joints=draw_joints))
-        pose_overlay_stack = np.hstack(pose_overlay_list)
-
-        heatmap_overlay_list = []
-        for cam in self.cam_list:
-            heatmap_overlay_list.append(cam.plot_heatmap(img_id=img_id, concat=True, draw_joints=draw_joints))
-        heatmap_overlay_stack = np.vstack(heatmap_overlay_list)
-
-        heatmap_overlay_stack = scipy.misc.imresize(heatmap_overlay_stack,
-                                                    pose_overlay_stack.shape[1] / heatmap_overlay_stack.shape[1])
-
-        img = np.vstack([pose_overlay_stack, heatmap_overlay_stack])
-        img = cv2.putText(img, "{}".format(img_id), (img.shape[1] - 200, 100), cv2.FONT_HERSHEY_PLAIN, 4, (255, 0, 0),
-                          5, cv2.LINE_AA)
-        return img
-
-    def plot_2d(self, img_id, draw_joints=(2, 3, 4)):
-        pose_overlay_list = []
-        for cam in self.cam_list:
-            pose_overlay_list.append(cam.plot_2d(img_id=img_id, draw_joints=draw_joints))
-        img = np.hstack(pose_overlay_list)
-
-        img = cv2.putText(img, "{}".format(img_id), (img.shape[1] - 200, 100), cv2.FONT_HERSHEY_PLAIN, 4, (255, 0, 0),
-                          5, cv2.LINE_AA)
-        return img
-    '''
