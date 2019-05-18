@@ -1,5 +1,5 @@
 ## Installing
-Drosophila-Pose requires Python3 and an Anaconda environment. First, install the packages described in environment.xml in the anaconda format. This can be done by first cloning the repository:
+Drosophila-Pose requires Python3 and an Anaconda environment and __only tested on Ubuntu__. First, install the packages described in environment.xml in the anaconda format. This can be done by first cloning the repository:
 
 ```
 git clone https://github.com/NeLy-EPFL/DeepFly3D.git
