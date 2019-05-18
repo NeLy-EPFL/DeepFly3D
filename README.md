@@ -30,7 +30,7 @@ And you can perform:
 * Saving the final 3D estimations
 
 ### Identifying erroneous estimates automatically
-DeepFly3D can automatically detect and show the user if any 2D pose estimation is failed. 
+DeepFly3D can automatically detect when 2D pose estimation is failed. 
 
 ### Auto-correction
 DeepFly3D will try to fix these mistaked using multi-view geometry and pictorial structures. In the next iteration of training, you can use these examples to train the network.
@@ -83,4 +83,4 @@ To visualize the time series instead, use the notebook ```notebook_visualize/tim
 }
 ```
 
-We want to thank to Florian Ayymans for testing early versions of the software and for his helpful comments.
+We want to thank to Florian Aymanns for testing early versions of the software and for his helpful comments.
