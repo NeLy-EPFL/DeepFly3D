@@ -33,6 +33,7 @@ And you can perform:
 DeepFly3D can automatically detect when 2D pose estimation is failed. 
 
 ### Auto-correction
+![Alt text](images/gui_correction.gif?raw=true "Title")
 DeepFly3D will try to fix these mistaked using multi-view geometry and pictorial structures. In the next iteration of training, you can use these examples to train the network.
 
 ### Assisting manual correction
