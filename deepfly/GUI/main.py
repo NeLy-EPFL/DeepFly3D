@@ -412,7 +412,7 @@ class DrosophAnnot(QWidget):
             self.set_pose(self.cfg.img_id)
         self.update_()
 
-        """
+
         for b in self.button_list_modes:
             b.setChecked(False)
         if self.cfg.mode == Mode.HEATMAP:
@@ -423,7 +423,7 @@ class DrosophAnnot(QWidget):
             self.button_image_mode.setChecked(True)
         elif self.cfg.mode == Mode.CORRECTION:
             self.button_correction_mode.setChecked(True)
-        """
+
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Return:
