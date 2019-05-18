@@ -887,7 +887,6 @@ class ImagePose(QWidget):
                     if skeleton.camera_see_joint(self.cam.cam_id, j)
                 ]
             )
-            print(self.cam.cam_id, draw_joints)
             im = self.cam.plot_heatmap(
                 img_id=self.cfg.img_id, concat=False, scale=2, draw_joints=draw_joints
             )

@@ -4,7 +4,7 @@ import time
 
 import matplotlib as mpl
 
-mpl.use("Agg")
+# mpl.use("Agg")
 import matplotlib.pyplot as plt
 
 import torch
@@ -318,7 +318,7 @@ def train(train_loader, epoch, model, optimizer, criterion, args):
             if torch.cuda.is_available()
             else torch.autograd.Variable(inputs)
         )
-        target_var = torch.autograd.Variable(target.cuda(async=True))
+        target_var = torch.autograd.Variable(target.cuda(non_blocking=True))
 
         # compute output
         output = model(input_var)
@@ -499,7 +499,7 @@ def validate(val_loader, epoch, model, criterion, args, save_path=False):
         # measure data loading time
         data_time.update(time.time() - end)
 
-        target = target.cuda(async=True)
+        target = target.cuda(non_blocking=True)
         input_var = torch.autograd.Variable(inputs.cuda())
         target_var = torch.autograd.Variable(target)
 
