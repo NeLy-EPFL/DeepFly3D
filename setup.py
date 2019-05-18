@@ -17,8 +17,8 @@ setup(
     install_requires=[
         "PyQt5",
         "sklearn",
-        "numpy",
-        "scipy",
+        "numpy<=1.14.1",
+        "scipy<1.2",
         "scikit-video",
         "scikit-image",
         "matplotlib",

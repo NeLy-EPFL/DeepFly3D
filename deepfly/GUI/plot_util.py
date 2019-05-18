@@ -128,7 +128,7 @@ def plot_drosophila_3d(ax_3d, points3d, cam_id, bones=skeleton.bones, ang=None, 
     # ax_3d.yaxis.pane.fill = False
     # ax_3d.zaxis.pane.fill = False
 
-    ax_3d.set_aspect('equal')
+    # ax_3d.set_aspect('equal')
     # ax_3d.axis('off')
     # ax_3d.axes.get_xaxis().set_visible(False)
 
