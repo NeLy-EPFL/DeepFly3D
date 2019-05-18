@@ -35,7 +35,7 @@ DeepFly3D can automatically detect when 2D pose estimation is failed.
 ### Auto-correction
 DeepFly3D will try to fix these mistaked using multi-view geometry and pictorial structures. In the next iteration of training, you can use these examples to train the network.
 
-### Assisting correction
+### Assisting manual correction
 Auto-correction is perfomed if 2D pose estimation and calibration are complete. In the 'Correction' mode, the GUI tries to correct errors using pictorial structures. To save these corrections, press ```T```. Please check the associated manuscript (Günel et al. 2019) for implementation details.
 ![Alt text](images/correction.gif?raw=true "Title")
 In the next iteration of training, you can use these examples to train the network.
