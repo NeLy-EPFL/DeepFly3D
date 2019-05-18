@@ -14,6 +14,8 @@ Code for data preparation and augmentation are taken from the [Stacked hourglass
 * If you are interested in the online annotation tool instead: [DeepFly3DAnnotation](https://github.com/NeLy-EPFL/DeepFly3DAnnotation)
 
 ## GUI
+![Alt text](images/gui.gif?raw=true "Title")
+
 DeepFly3D provides a nice GUI to interact with the data. Using DeepFly3D GUI, you can visualize:
 
 * Raw data
@@ -27,12 +29,11 @@ And you can perform:
 * Calibration
 * Saving the final 3D estimations
 
-![Alt text](images/gui.gif?raw=true "Title")
-
 ### Identifying erroneous estimates automatically
+DeepFly3D can automatically detect and show the user if any 2D pose estimation is failed. 
 
 ### Auto-correction
-In the next iteration of training, you can use these examples to train the network.
+DeepFly3D will try to fix these mistaked using multi-view geometry and pictorial structures. In the next iteration of training, you can use these examples to train the network.
 
 ### Assisting correction
 Auto-correction is perfomed if 2D pose estimation and calibration are complete. In the 'Correction' mode, the GUI tries to correct errors using pictorial structures. To save these corrections, press ```T```. Please check the associated manuscript (Günel et al. 2019) for implementation details.
