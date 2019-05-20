@@ -725,17 +725,18 @@ if __name__ == "__main__":
     args.checkpoint_image_dir = os.path.join(args.checkpoint, "./images/")
 
     # create checkpoint dir and image dir
-    if not isdir(args.checkpoint):
-        mkdir_p(args.checkpoint)
-    if not isdir(args.checkpoint_image_dir):
-        mkdir_p(args.checkpoint_image_dir)
-    if args.carry and not isdir(
-        os.path.join(args.annotation_path, args.unlabeled + "_network")
-    ):
-        mkdir_p(os.path.join(args.annotation_path, args.unlabeled + "_network"))
-    if args.carry and not isdir(
-        os.path.join(args.data_folder, args.unlabeled + "_network")
-    ):
-        mkdir_p(os.path.join(args.data_folder, args.unlabeled + "_network"))
+    if args.unlabeled is None:
+        if not isdir(args.checkpoint):
+            mkdir_p(args.checkpoint)
+        if not isdir(args.checkpoint_image_dir):
+            mkdir_p(args.checkpoint_image_dir)
+        if args.carry and not isdir(
+            os.path.join(args.annotation_path, args.unlabeled + "_network")
+        ):
+            mkdir_p(os.path.join(args.annotation_path, args.unlabeled + "_network"))
+        if args.carry and not isdir(
+            os.path.join(args.data_folder, args.unlabeled + "_network")
+        ):
+            mkdir_p(os.path.join(args.data_folder, args.unlabeled + "_network"))
 
     main(args)

@@ -177,7 +177,7 @@ class Drosophila(data.Dataset):
                         self.annotation_dict[key] = pts
 
         elif self.unlabeled:
-            image_folder_path = os.path.join(self.data_folder, self.unlabeled)
+            image_folder_path = os.path.join(self.unlabeled)
             cidread2cid, cid2cidread = read_camera_order(image_folder_path)
             self.cidread2cid[self.unlabeled] = cidread2cid
 
