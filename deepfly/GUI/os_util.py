@@ -9,13 +9,16 @@ import glob
 
 def get_max_img_id(path):
     img_path_list = os.listdir(path)
-    img_id_list = [int(os.path.basename(p).split('_')[-1].replace('.jpg', '')) for p in img_path_list if
-                   p.endswith('.jpg')]
+    img_id_list = [
+        int(os.path.basename(p).split("_")[-1].replace(".jpg", ""))
+        for p in img_path_list
+        if p.endswith(".jpg")
+    ]
     return max(img_id_list)
 
 
 def read_camera_order(folder):
-    path = os.path.join(folder, 'cam_order.npy')
+    path = os.path.join(folder, "cam_order.npy")
     if os.path.isfile(path):
         order = np.load(path)
     else:
@@ -32,13 +35,12 @@ def read_camera_order(folder):
 
 
 def write_camera_order(folder, cidread2cid):
-    path = os.path.join(folder, 'cam_order')
-    #print("Saving camera order {}: {}".format(path, cidread2cid))
+    path = os.path.join(folder, "cam_order")
+    # print("Saving camera order {}: {}".format(path, cidread2cid))
     try:
         np.save(path, cidread2cid)
     except:
         return
-
 
 
 def read_calib(folder):
@@ -47,7 +49,7 @@ def read_calib(folder):
         calibration_path = calibration_path[0]
         calib = np.load(calibration_path)
     else:
-        #print("Cannot read calibration file from the folder {}".format(folder))
+        # print("Cannot read calibration file from the folder {}".format(folder))
         calibration_path = None
         calib = None
 
@@ -55,7 +57,7 @@ def read_calib(folder):
 
 
 def parse_img_name(name):
-    return int(name.split("_")[1]), int(name.split("_")[3].replace('.jpg', ''))
+    return int(name.split("_")[1]), int(name.split("_")[3].replace(".jpg", ""))
 
 
 def constr_img_name(cid, pid, pad=True):

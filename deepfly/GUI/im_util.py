@@ -11,9 +11,9 @@ def gauss(x, a, b, c, d=0):
 def color_heatmap(x):
     # x = to_numpy(x)
     color = np.zeros((x.shape[0], x.shape[1], 3))
-    color[:, :, 0] = gauss(x, .5, .6, .2) + gauss(x, 1, .8, .3)
-    color[:, :, 1] = gauss(x, 1, .5, .3)
-    color[:, :, 2] = gauss(x, 1, .2, .3)
+    color[:, :, 0] = gauss(x, 0.5, 0.6, 0.2) + gauss(x, 1, 0.8, 0.3)
+    color[:, :, 1] = gauss(x, 1, 0.5, 0.3)
+    color[:, :, 2] = gauss(x, 1, 0.2, 0.3)
     color[color > 1] = 1
     color = (color * 255).astype(np.uint8)
     return color
@@ -33,12 +33,13 @@ def rgb2qimage(rgb):
         raise ValueError("rgb2QImage can only convert 3D arrays")
     if rgb.shape[2] not in (3, 4):
         raise ValueError(
-            "rgb2QImage can expects the last dimension to contain exactly three (R,G,B) or four (R,G,B,A) channels")
+            "rgb2QImage can expects the last dimension to contain exactly three (R,G,B) or four (R,G,B,A) channels"
+        )
 
     h, w, channels = rgb.shape
 
     # Qt expects 32bit BGRA data for color images:
-    bgra = np.empty((h, w, 4), np.uint8, 'C')
+    bgra = np.empty((h, w, 4), np.uint8, "C")
     bgra[..., 0] = rgb[..., 2]
     bgra[..., 1] = rgb[..., 1]
     bgra[..., 2] = rgb[..., 0]
@@ -65,9 +66,9 @@ def image_overlay_heatmap(inp, hm):
     hm_resized = transform.resize(hm, [inp.shape[0], inp.shape[1]])
     hm_resized = hm_resized.astype(float)
 
-    img = img.copy() * .3
+    img = img.copy() * 0.3
     hm_color = color_heatmap(hm_resized)
-    img += hm_color * .7
+    img += hm_color * 0.7
     return img.astype(np.uint8)
 
 
@@ -77,20 +78,22 @@ def hm_to_pred(hm, num_pred=1, image_size=(1, 1)):
     """
     pred = []
     if hm.ndim == 2:
-        pred = feature.peak_local_max(hm, min_distance=1, threshold_abs=0.01, num_peaks=num_pred)
+        pred = feature.peak_local_max(
+            hm, min_distance=1, threshold_abs=0.01, num_peaks=num_pred
+        )
 
-        if len(pred)==0: # in case hm is zero array
-            pred = np.array([0,0])
-        if num_pred==1:
+        if len(pred) == 0:  # in case hm is zero array
+            pred = np.array([0, 0])
+        if num_pred == 1:
             pred = np.squeeze(pred)
         pred = pred / [hm.shape[0], hm.shape[1]]
         pred *= image_size
         pred = np.array(pred)
         if pred.ndim == 1:
-            pred = pred[np.newaxis,:]
-        tmp = pred[:,1].copy()
-        pred[:,1] = pred[:,0]
-        pred[:,0] = tmp
+            pred = pred[np.newaxis, :]
+        tmp = pred[:, 1].copy()
+        pred[:, 1] = pred[:, 0]
+        pred[:, 0] = tmp
         return pred
     else:
         for hm_ in hm:
