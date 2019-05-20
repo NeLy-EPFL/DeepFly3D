@@ -1,5 +1,5 @@
 ## Running GUI
-![Alt text](images/gui.gif?raw=true "Title")
+![Alt text](../images/gui.gif?raw=true "Title")
 
 
 After installing the dependencies we can initiliza the GUI using:
