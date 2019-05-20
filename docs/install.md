@@ -1,5 +1,5 @@
 ## Installing
-DeepFly3D requires Python3 and an Anaconda environment and CUDA drivers for installation and __only tested on Ubuntu__. First, clone the repository:
+DeepFly3D requires Python3, Anaconda environment and CUDA drivers for installation. It is __only tested on Ubuntu__. First, clone the repository:
 
 ```
 git clone https://github.com/NeLy-EPFL/DeepFly3D.git
