@@ -111,6 +111,14 @@ def create_parser():
         help="path to save checkpoint (default: checkpoint)",
     )
     parser.add_argument(
+        "--json-file",
+        default=os.path.join(file_path, "../../data/drosophilaimaging-export.json"),
+        dest='json_file',
+        type=str,
+        metavar="PATH",
+        help="path to save checkpoint (default: checkpoint)",
+    )
+    parser.add_argument(
         "--data-folder",
         dest="data_folder",
         default="./data/drosophila/",

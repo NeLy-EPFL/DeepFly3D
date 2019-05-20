@@ -34,7 +34,7 @@ class Drosophila(data.Dataset):
         self.train = train
         self.data_folder = data_folder  # root image folders
         self.data_corr_folder = data_corr_folder
-        self.json_file = os.path.join("../../data/", jsonfile)
+        self.json_file = os.path.join(jsonfile)
         self.is_train = train  # training set or test set
         self.img_res = img_res
         self.hm_res = hm_res
@@ -70,9 +70,6 @@ class Drosophila(data.Dataset):
         if not self.unlabeled and isfile(self.json_file):
             json_data = json.load(open(self.json_file, "r"))
             for session_id in json_data.keys():
-                if session_id not in self.session_id_train_list:
-                    print("Ignoring session id: {}".format(session_id))
-                    continue
                 for folder_name in json_data[session_id]["data"].keys():
                     if folder_name not in self.folder_train_list:
                         continue

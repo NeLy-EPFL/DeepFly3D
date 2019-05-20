@@ -658,6 +658,7 @@ def create_dataloader():
             multi_view=args.multiview,
             temporal=args.temporal,
             num_classes=args.num_classes,
+            jsonfile=args.json_file
         ),
         batch_size=args.train_batch,
         shuffle=True,
@@ -680,6 +681,7 @@ def create_dataloader():
             temporal=args.temporal,
             evaluation=True,
             num_classes=args.num_classes,
+            jsonfile=args.json_file
         ),
         batch_size=args.test_batch,
         shuffle=False,
