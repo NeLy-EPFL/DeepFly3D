@@ -13,7 +13,7 @@ python -m deepfly.GUI.main ./data/test/ 100
 
 Or simply with the command line entry point:
 ```
-drosoph ./data/test/ 100
+deepfly3d ./data/test/ 100
 ```
 
 This should start the GUI:
