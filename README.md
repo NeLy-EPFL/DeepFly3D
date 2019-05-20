@@ -5,7 +5,7 @@
 
 DeepFly3D is a PyTorch and PyQT5 implementation of 2D-3D tethered Drosophila pose estimation. It aims to provide an interface for pose estimation and to permit further correction of 2D pose estimates, which are automatically converted to 3D pose. 
 
-DeepFly3D **does not require a calibration pattern**, it enforces **geometric constraints using pictorial structure**, which corrects most of the erros, and the **remaining errors can be dealt with easily with GUI assistance**.
+DeepFly3D **does not require a calibration pattern**, it enforces **geometric constraints using pictorial structure**, which corrects most of the erros, and the **remaining errors are automatically detected can be dealt with easily with GUI assistance**.
 
 Code for data preparation and augmentation are taken from the [Stacked hourglass network](https://github.com/anewell/pose-hg-train). We also use the Stacked Hourglass model for 2D pose estimation. We implement custom advances (e.g., GUI) using PyQT5.
 
