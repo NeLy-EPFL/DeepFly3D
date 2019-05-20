@@ -56,7 +56,7 @@ class Drosophila(data.Dataset):
         )  # self eval then not augmentation
         assert not self.unlabeled or evaluation  # if unlabeled then evaluation
 
-        manual_path_list = ['../data/test']
+        manual_path_list = ["../data/test"]
 
         """
         if not os.path.exists(self.data_folder):
