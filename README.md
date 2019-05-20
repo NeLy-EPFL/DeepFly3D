@@ -28,8 +28,9 @@ DeepFly3D provides a nice GUI to interact with the data. Using DeepFly3D GUI, yo
 And you can perform:
 
 * 2D pose estimation
-* Calibration
+* Calibration without calibration pattern
 * Saving the final 3D estimations
+* Manual Correction
 
 ### Identifying erroneous estimates automatically
 ![Alt text](images/gui_finderror.gif?raw=true "Title")
