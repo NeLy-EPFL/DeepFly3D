@@ -11,7 +11,7 @@ Code for data preparation and augmentation are taken from the [Stacked hourglass
 
 * Installing DeepFly3D: [Installation](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/install.md)
 * Interacting with the GUI:  [GUI](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/gui.md)
-* If you want to do everything on the terminal: [w/ Terminal](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/terminal.md)
+* If you want to train 2D estimator instead: [2D Pose](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/terminal.md)
 * Generating visualizations: [Visualization](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/visual.md)
 * If you are interested in the online annotation tool instead: [DeepFly3DAnnotation](https://github.com/NeLy-EPFL/DeepFly3DAnnotation)
 * To get more data: [Data](https://www.dropbox.com/sh/w53dbs0qp39hlag/AADPBbQdE_OFYeUMRpwiIfq-a?dl=0a)
