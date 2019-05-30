@@ -13,9 +13,38 @@ class Tracked(Enum):
     TARSUS_TIP = 4
     ANTENNA = 5
     STRIPE = 6
+    ANKLE = 7
+    HEAD = 8
+    SHOULDER = 9
+    WRIST = 10
+    KNEE = 11
+    EYE = 12
+    NOSE = 13
+    HIP = 14
+    ELBOW = 15
 
 
 tracked_points = [
+    Tracked.EYE,
+    Tracked.EYE,
+    Tracked.NOSE,
+    Tracked.SHOULDER,
+    Tracked.ELBOW,
+    Tracked.WRIST,
+    Tracked.SHOULDER,
+    Tracked.ELBOW,
+    Tracked.WRIST,
+    Tracked.HIP,
+    Tracked.KNEE,
+    Tracked.ANKLE,
+    Tracked.HIP,
+    Tracked.KNEE,
+    Tracked.ANKLE,
+]
+
+limb_id = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4]
+
+tracked_points_fly = [
     Tracked.BODY_COXA,
     Tracked.COXA_FEMUR,
     Tracked.FEMUR_TIBIA,
@@ -55,8 +84,7 @@ tracked_points = [
     Tracked.STRIPE,
     Tracked.STRIPE,
 ]
-
-limb_id = [
+limb_id_fly = [
     0,
     0,
     0,
@@ -97,13 +125,52 @@ limb_id = [
     9,
 ]
 
-__limb_visible_left = [True, True, True, True, True, False, False, False, False, False]
+__limb_visible_left_fly = [
+    True,
+    True,
+    True,
+    True,
+    True,
+    False,
+    False,
+    False,
+    False,
+    False,
+]
 
-__limb_visible_right = [False, False, False, False, False, True, True, True, True, True]
+__limb_visible_right_fly = [
+    False,
+    False,
+    False,
+    False,
+    False,
+    True,
+    True,
+    True,
+    True,
+    True,
+]
 
-__limb_visible_mid = [True, True, False, True, False, True, True, False, True, False]
+__limb_visible_mid_fly = [
+    True,
+    True,
+    False,
+    True,
+    False,
+    True,
+    True,
+    False,
+    True,
+    False,
+]
 
-bones = [
+__limb_visible_left = [True, True, True, True, True]
+
+__limb_visible_right = [True, True, True, True, True]
+
+__limb_visible_mid = [True, True, True, True, True]
+
+bones_fly = [
     [0, 1],
     [1, 2],
     [2, 3],
@@ -132,6 +199,20 @@ bones = [
     [32, 33],
     [35, 36],
     [36, 37],
+]
+
+bones = [
+    [0, 1],
+    [1, 2],
+    [0, 2],
+    [3, 4],
+    [4, 5],
+    [6, 7],
+    [7, 8],
+    [9, 10],
+    [10, 11],
+    [12, 13],
+    [13, 14],
 ]
 
 # bones3d = [[15, 34], [15, 16], [34, 16]]

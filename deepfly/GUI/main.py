@@ -869,9 +869,20 @@ class ImagePose(QWidget):
                 draw_joints=draw_joints,
             )
         im = im.astype(np.uint8)
+        #import cv2
+        #im = cv2.resize(im, (960, 480))
+
+        #import matplotlib.pyplot as plt
+        #plt.imshow(im)
+        #plt.show()
+
         height, width, channel = im.shape
+        #print(width, height)
+        #print(height, width, channel)
+
+        #print(width, height)
         bytesPerLine = 3 * width
-        qIm = QImage(im.data, width, height, bytesPerLine, QImage.Format_RGB888)
+        qIm = QImage(im, width, height, bytesPerLine, QImage.Format_RGB888)
         self.im = QPixmap.fromImage(qIm)
 
         self.update()
@@ -995,7 +1006,9 @@ def main():
     screen = app.primaryScreen()
     size = screen.size()
     height, width = size.height(), size.width()
-    hw_ratio = 960 * 2 / 360.0
+    #hw_ratio = 960 * 2 / 360.0
+    from deepfly.GUI.Config import image_shape
+    hw_ratio = image_shape[0]*3 / image_shape[1]
     app_width = width
     app_height = int(app_width / hw_ratio)
     window.resize(app_width, app_height)

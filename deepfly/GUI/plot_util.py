@@ -4,11 +4,9 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
+import deepfly.GUI.Config as Config
 
 from . import skeleton
-
-
-# this is important else throws error
 
 
 def plot_drosophila_2d(
@@ -25,7 +23,7 @@ def plot_drosophila_2d(
     if colors is None:
         colors = skeleton.colors
     if thickness is None:
-        thickness = [2] * 10
+        thickness = [2] * Config.thickness
     if draw_joints is None:
         draw_joints = np.arange(skeleton.num_joints)
     if draw_limbs is None:
@@ -47,14 +45,14 @@ def plot_drosophila_2d(
             continue
 
         color = colors[limb_id]
-        r = (
-            5
-            if joint_id != skeleton.num_joints - 1
-            and joint_id != ((skeleton.num_joints // 2) - 1)
-            else 8
-        )
-        cv2.circle(img, (pts[joint_id, 0], pts[joint_id, 1]), r, color, -1)
+        r = Config.r
 
+        print((pts[joint_id, 0], pts[joint_id, 1]), r, color)
+        cv2.circle(img, (pts[joint_id, 0], pts[joint_id, 1]), r, color, thickness=-1)
+        # plt.imshow(img)
+        # plt.show()
+
+        """
         # TODO replace this with skeleton.bones
         if (
             (not skeleton.is_tarsus_tip(joint_id))
@@ -63,13 +61,17 @@ def plot_drosophila_2d(
             and (joint_id != (skeleton.num_joints // 2 - 1))
             and (not (pts[joint_id + 1, 0] == 0 and pts[joint_id + 1, 1] == 0))
         ):
-            cv2.line(
-                img,
-                (pts[joint_id][0], pts[joint_id][1]),
-                (pts[joint_id + 1][0], pts[joint_id + 1][1]),
-                color=color,
-                thickness=thickness[limb_id],
-            )
+        """
+
+        for bone in skeleton.bones:
+            if bone[0] == joint_id:
+                cv2.line(
+                    img,
+                    (pts[bone[0]][0], pts[bone[0]][1]),
+                    (pts[bone[1]][0], pts[bone[1]][1]),
+                    color=color,
+                    thickness=thickness[limb_id],
+                )
 
     if circle_color is not None:
         img = cv2.circle(

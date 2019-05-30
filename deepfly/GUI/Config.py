@@ -1,6 +1,13 @@
 from . import skeleton
 from enum import Enum
 
+#image_shape = [960, 480]
+#heatmap_shape = [64, 128]
+image_shape = [950,950]
+heatmap_shape = [128,128]
+thickness = 6
+r = 3
+
 
 class Config:
     def __init__(self, folder):
@@ -17,15 +24,19 @@ class Config:
         self.already_corrected = False
         self.correction_skip = True  # Correction Skip
 
-        self.num_cameras = 7
+
         self.num_images = None
         self.num_joints = skeleton.num_joints
 
-        self.image_shape = [960, 480]
-        self.heatmap_shape = [64, 128]
+        self.image_shape = image_shape
+        self.heatmap_shape = heatmap_shape
 
         self.max_num_images = None
 
+        self.num_cameras = 7
+        #self.initial_angles = []
+        self.reproj_thr = {v:30 for v in range(skeleton.num_joints)}
+        '''
         self.reproj_thr = {
             0: 30,
             1: 30,
@@ -47,8 +58,10 @@ class Config:
             17: 30,
             18: 30,
         }
+        '''
 
-        assert len(self.reproj_thr) == (skeleton.num_joints // 2)
+        #assert(len(self.initial_angles)==self.num_cameras)
+        assert len(self.reproj_thr) == (skeleton.num_joints)
 
 
 class Mode(Enum):

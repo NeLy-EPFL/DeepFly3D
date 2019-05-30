@@ -15,14 +15,14 @@ from .plot_util import plot_drosophila_heatmap, plot_drosophila_2d
 
 class Camera:
     def __init__(
-        self,
-        cid,
-        image_folder,
-        json_path=None,
-        hm=None,
-        points2d=None,
-        num_images=1000,
-        cid_read=None,
+            self,
+            cid,
+            image_folder,
+            json_path=None,
+            hm=None,
+            points2d=None,
+            num_images=1000,
+            cid_read=None,
     ):
         self.cam_id = cid
         self.cam_id_read = cid_read if cid_read is not None else cid
@@ -183,7 +183,7 @@ class Camera:
         assert points3d.shape[0] == self[mask].shape[0]
         points2d = self[mask]
         err_list = (
-            points2d.reshape(-1, 2) - self.project(points3d).reshape(-1, 2)
+                points2d.reshape(-1, 2) - self.project(points3d).reshape(-1, 2)
         ).ravel()
         return np.mean(np.abs(err_list)), np.array(err_list)
 
@@ -233,20 +233,24 @@ class Camera:
 
     def get_image(self, img_id, flip=False):
         try:
-            img = mpimg.imread(
+            img = cv2.imread(
                 os.path.join(
                     self.image_folder,
                     "camera_{}_img_{:06}.jpg".format(self.cam_id_read, img_id),
                 )
             )
         except FileNotFoundError:
-            img = mpimg.imread(
+            img = cv2.imread(
                 os.path.join(
                     self.image_folder,
                     "camera_{}_img_{}.jpg".format(self.cam_id_read, img_id),
                 )
             )
-        img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        if img.ndim == 2:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+        if img.ndim == 3 and img.shape[2] == 4:
+            img = img[:, :, :3]  # remove A
         if flip:
             img = cv2.flip(img, 1)
         return img
@@ -268,18 +272,18 @@ class Camera:
         return pts
 
     def plot_2d(
-        self,
-        img_id=0,
-        pts=None,
-        draw_joints=None,
-        flip_points=False,
-        img=None,
-        colors=None,
-        thickness=None,
-        draw_limbs=None,
-        flip_image=False,
-        circle_color=None,
-        zorder=None,
+            self,
+            img_id=0,
+            pts=None,
+            draw_joints=None,
+            flip_points=False,
+            img=None,
+            colors=None,
+            thickness=None,
+            draw_limbs=None,
+            flip_image=False,
+            circle_color=None,
+            zorder=None,
     ):
         if img is None:
             img = self.get_image(img_id, flip=flip_image)
@@ -313,15 +317,15 @@ class Camera:
         return img
 
     def plot_heatmap(
-        self,
-        img_id,
-        hm=None,
-        img=None,
-        concat=False,
-        draw_joints=None,
-        scale=1,
-        flip_heatmap=False,
-        flip_image=False,
+            self,
+            img_id,
+            hm=None,
+            img=None,
+            concat=False,
+            draw_joints=None,
+            scale=1,
+            flip_heatmap=False,
+            flip_image=False,
     ):
         """
         concat: Whether to return a single image or njoints images concatenated
@@ -344,12 +348,12 @@ class Camera:
 
     @staticmethod
     def hm_to_pred(
-        hm,
-        num_pred=1,
-        scale=(1, 1),
-        min_distance=1,
-        threshold_abs=0.1,
-        threshold_rel=None,
+            hm,
+            num_pred=1,
+            scale=(1, 1),
+            min_distance=1,
+            threshold_abs=0.1,
+            threshold_rel=None,
     ):
         pred = []
         if hm.ndim == 2:

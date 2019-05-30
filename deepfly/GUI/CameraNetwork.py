@@ -11,7 +11,7 @@ from .Camera import Camera
 from .LegBP import LegBP
 from .bundle_adjustment import *
 from .cv_util import *
-
+from deepfly.GUI.Config import image_shape, heatmap_shape
 
 class CameraNetwork:
     def __init__(
@@ -20,8 +20,8 @@ class CameraNetwork:
         calibration=None,
         num_images=900,
         num_joints=38,
-        image_shape=(480, 960),
-        heatmap_shape=(64, 128),
+        image_shape=image_shape,
+        heatmap_shape=heatmap_shape,
         cam_id_list=(0, 1, 2),
         cid2cidread=None,
         heatmap=None,
@@ -95,28 +95,25 @@ class CameraNetwork:
                     self.dict_name = os.path.dirname(list(heatmap.keys())[10]) + "/"
 
             for cam_id, cam_id_read in zip(cam_id_list, self.cid2cidread):
-                if heatmap is not None and type(heatmap) is np.core.memmap:
+                if heatmap is not None and type(heatmap) is np.core.memmap or True:
                     # heatmap_cam = np.zeros(shape=(num_images_in_pred, num_joints, heatmap_shape[0], heatmap_shape[1]),
                     #                       dtype=float)
                     pred_cam = np.zeros(
                         shape=(num_images_in_pred, num_joints, 2), dtype=float
                     )
+                    print("Pred cam shape", pred_cam.shape)
                     if cam_id > 3:
-                        pred_cam[:num_images_in_pred, num_joints // 2 :, :] = pred[
+                        pred_cam[:num_images_in_pred, :num_joints, :] = pred[
                             cam_id_read, :num_images_in_pred
-                        ] * [960, 480]
+                        ] * self.image_shape
                     elif cam_id == 3:
-                        pred_cam[:num_images_in_pred, : num_joints // 2, :] = pred[
+                        pred_cam[:num_images_in_pred, :num_joints, :] = pred[
                             cam_id_read, :num_images_in_pred
-                        ] * [960, 480]
-                        cam_id_mirror = 7
-                        pred_cam[:num_images_in_pred, num_joints // 2 :, :] = pred[
-                            cam_id_mirror, :num_images_in_pred
-                        ] * [960, 480]
+                        ] * self.image_shape
                     elif cam_id < 3:
-                        pred_cam[:num_images_in_pred, : num_joints // 2, :] = pred[
+                        pred_cam[:num_images_in_pred, :num_joints, :] = pred[
                             cam_id_read, :num_images_in_pred
-                        ] * [960, 480]
+                        ] * self.image_shape
                     else:
                         raise NotImplementedError
                 else:
@@ -167,7 +164,7 @@ class CameraNetwork:
         return np.all([c.R is not None for c in self])
 
     def has_pose(self):
-        return self.has_heatmap()
+        return self[0].points2d is not None
 
     def has_heatmap(self):
         return self[0].hm is not None
