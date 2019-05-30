@@ -23,7 +23,7 @@ def plot_drosophila_2d(
     if colors is None:
         colors = skeleton.colors
     if thickness is None:
-        thickness = [2] * Config.thickness
+        thickness = [Config.thickness] * skeleton.num_limbs
     if draw_joints is None:
         draw_joints = np.arange(skeleton.num_joints)
     if draw_limbs is None:
@@ -47,7 +47,6 @@ def plot_drosophila_2d(
         color = colors[limb_id]
         r = Config.r
 
-        print((pts[joint_id, 0], pts[joint_id, 1]), r, color)
         cv2.circle(img, (pts[joint_id, 0], pts[joint_id, 1]), r, color, thickness=-1)
         # plt.imshow(img)
         # plt.show()
