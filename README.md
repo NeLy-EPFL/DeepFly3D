@@ -14,7 +14,7 @@ Code for data preparation and augmentation are taken from the [Stacked hourglass
 * If you want to train 2D estimator instead: [2D Pose](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/terminal.md)
 * Generating visualizations: [Visualization](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/visual.md)
 * If you are interested in the online annotation tool instead: [DeepFly3DAnnotation](https://github.com/NeLy-EPFL/DeepFly3DAnnotation)
-* To get more data: [Data](https://www.dropbox.com/sh/w53dbs0qp39hlag/AADPBbQdE_OFYeUMRpwiIfq-a?dl=0a)
+* To see the whole dataset used in the paper: [Dataverse](https://dataverse.harvard.edu/dataverse/DeepFly3D)
 
 ## GUI
 ![Alt text](images/gui2.png?raw=true "Title")
