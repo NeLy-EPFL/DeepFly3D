@@ -8,7 +8,7 @@ import scipy.misc
 import torch.nn as nn
 from torchvision.transforms import ToPILImage, ToTensor, ColorJitter, RandomAffine
 
-import deepfly.GUI.skeleton as skeleton
+from deepfly.GUI.Config import config
 from deepfly.pose2d.utils.evaluation import get_preds
 from .misc import *
 
@@ -231,22 +231,22 @@ def image_overlay_heatmap(inp, hm):
 
 def image_overlay_pose(inp, pts, pts_max_value, joint_idx=None, joint_draw=None):
     if joint_draw is None:
-        joint_draw = np.arange(0, skeleton.num_joints)
+        joint_draw = np.arange(0, config["skeleton"].num_joints)
 
     inp = im_to_numpy(inp * 255).copy()
     pts = to_numpy(pts)
     pts = (pts / np.array([pts_max_value[1], pts_max_value[0]])) * np.array([inp.shape[1], inp.shape[0]])
     pts = pts.astype(np.int)
 
-    colors = skeleton.colors
+    colors = config["skeleton"].colors
     for joint_id in range(pts.shape[0]):
         if joint_id in joint_draw:
-            color = colors[skeleton.get_limb_id(joint_id)]
+            color = colors[config["skeleton"].get_limb_id(joint_id)]
             r = 5
             # if not (pts[joint_id, 0] < 5 and pts[joint_id, 1] < 5):
             cv2.circle(inp, (pts[joint_id, 0], pts[joint_id, 1]), r, color, -1)
 
-    for bone in skeleton.bones:
+    for bone in config["skeleton"].bones:
         if bone[0] < pts.shape[0] and bone[1] < pts.shape[0] and bone[0] in joint_draw and bone[1] in joint_draw:  # \
             # and not ((pts[bone[0], 0] < 5 and pts[bone[0], 1] < 5 and pts[bone[1], 0] < 5 and pts[bone[1], 1] < 5)):
             color = colors[int(bone[0] / 5)]

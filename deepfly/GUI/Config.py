@@ -1,76 +1,57 @@
-from . import skeleton
-from enum import Enum
+import os
 
-#image_shape = [960, 480]
-#heatmap_shape = [64, 128]
-image_shape = [950,950]
-heatmap_shape = [128,128]
-thickness = 6
-r = 3
+from .skeleton import skeleton_fly
 
+config_fly = {
+    "num_cameras": 7,
+    "image_shape": [960, 480],
+    "heatmap_shape": [64, 128],
 
-class Config:
-    def __init__(self, folder):
-        self.folder = folder
-        self.mode = Mode.IMAGE
-        self.view = View.Left
-        self.img_id = 0
-        self.hm_joint_id = -1  # -1 corresponds to all joints
-        self.db = None
-        self.camNet = None
-        self.bone_param = None
+    # skeleton
+    "skeleton": skeleton_fly,
+    "bones": skeleton_fly.bones,
+    "bone_param": skeleton_fly.bone_param,
+    "num_joints": skeleton_fly.num_joints,
 
-        self.solve_bp = True  # Automatic correction
-        self.already_corrected = False
-        self.correction_skip = True  # Correction Skip
+    # plotting
+    "line_thickness": 5,
+    "scatter_r": 5,
 
+    # pose estimation
+    "resume": os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../weights/sh8_deepfly.tar"),
+    "num_stacks": 4,
+    "batch_size": 64,
 
-        self.num_images = None
-        self.num_joints = skeleton.num_joints
+    # 3d pose
+    "reproj_thr": {v: 30 for v in range(skeleton_fly.num_joints)},
 
-        self.image_shape = image_shape
-        self.heatmap_shape = heatmap_shape
+    # calibration
+    "calib_rough":
+        {
+            0: 0 / 57.2,
+            1: -30 / 57.2,
+            2: -70 / 57.2,
+            3: -125 / 57.2,
+            6: +110 / 57.2,
+            5: +150 / 57.2,
+            4: +179 / 57.2
+        },
+    "calib_fine": os.path.join(os.path.abspath(os.path.dirname(__file__)),
+                               "../../data/test/calib__home_user_Desktop_DeepFly3D_data_test.pkl"),
 
-        self.max_num_images = None
+    # belief propagation
+    "num_peak": 10,
+    "upper_bound": 200,
 
-        self.num_cameras = 7
-        #self.initial_angles = []
-        self.reproj_thr = {v:30 for v in range(skeleton.num_joints)}
-        '''
-        self.reproj_thr = {
-            0: 30,
-            1: 30,
-            2: 30,
-            3: 30,
-            4: 30,
-            5: 30,
-            6: 30,
-            7: 30,
-            8: 30,
-            9: 30,
-            10: 30,
-            11: 30,
-            12: 30,
-            13: 30,
-            14: 30,
-            15: 30,
-            16: 30,
-            17: 30,
-            18: 30,
-        }
-        '''
+    "alpha_reproj": 30,
+    "alpha_heatmap": 600,
+    "alpha_bone": 10
+}
 
-        #assert(len(self.initial_angles)==self.num_cameras)
-        assert len(self.reproj_thr) == (skeleton.num_joints)
+config_h36m = {
+    "image_shape": [950, 950],
+    "heatmap_shape": [128, 128],
+    "checkpoint": None
+}
 
-
-class Mode(Enum):
-    IMAGE = 1
-    HEATMAP = 2
-    POSE = 3
-    CORRECTION = 4
-
-
-class View(Enum):
-    Left = 0
-    Right = 1
+config = config_fly

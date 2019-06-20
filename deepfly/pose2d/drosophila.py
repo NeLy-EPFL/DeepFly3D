@@ -20,7 +20,7 @@ from deepfly.pose2d.utils.misc import save_checkpoint, save_dict
 from deepfly.pose2d.utils.osutils import isfile, join, find_leaf_recursive
 from deepfly.pose2d.utils.imutils import save_image, drosophila_image_overlay
 from deepfly.pose2d.ArgParse import create_parser
-from deepfly.GUI.os_util import *
+from deepfly.GUI.util.os_util import *
 
 import deepfly.pose2d.datasets
 import deepfly.pose2d.models as models
@@ -28,7 +28,7 @@ from deepfly.pose2d.utils.osutils import mkdir_p, isdir
 import os
 from deepfly.pose2d.utils.misc import get_time, to_numpy
 from deepfly.GUI.Camera import Camera
-import deepfly.GUI.skeleton as skeleton
+from deepfly.GUI.Config import config
 
 import cv2
 
@@ -100,7 +100,7 @@ def main(args):
                 model.load_state_dict(state)
             else:
                 pretrained_dict = checkpoint["state_dict"]
-                model.load_state_dict(pretrained_dict)
+                model.load_state_dict(pretrained_dict, strict=False)
 
                 args.start_epoch = checkpoint["epoch"]
                 args.img_res = checkpoint["image_shape"]
@@ -457,7 +457,7 @@ def validate(val_loader, epoch, model, criterion, args, save_path=False):
         shape=(
             num_cameras + 1,
             val_loader.dataset.greatest_image_id() + 1,
-            skeleton.num_joints // 2,
+            config["skeleton"].num_joints // 2,
             2,
         ),
         dtype=np.float32,
@@ -479,7 +479,7 @@ def validate(val_loader, epoch, model, criterion, args, save_path=False):
             shape=(
                 num_cameras + 1,
                 val_loader.dataset.greatest_image_id() + 1,
-                skeleton.num_joints // 2,
+                config["skeleton"].num_joints // 2,
                 args.hm_res[0],
                 args.hm_res[1],
             ),
@@ -551,7 +551,7 @@ def validate(val_loader, epoch, model, criterion, args, save_path=False):
                 score_map,
                 args.hm_res,
                 3,
-                np.arange(skeleton.num_joints // 2),
+                np.arange(config["num_joints"]// 2),
                 img_id=int(meta["image_name"][0].split("_")[-1]),
             )
 
@@ -577,7 +577,7 @@ def validate(val_loader, epoch, model, criterion, args, save_path=False):
 
         elif i < args.num_output_image:
             drosophila_img = drosophila_image_overlay(
-                inputs, score_map, args.hm_res, 3, np.arange(skeleton.num_joints // 2)
+                inputs, score_map, args.hm_res, 3, np.arange(config["num_joints"] // 2)
             )
             folder_name = meta["folder_name"][0]
 
