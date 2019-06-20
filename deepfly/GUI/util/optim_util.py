@@ -11,8 +11,8 @@ def energy_drosoph(
     points2d,
     points3d=None,
     bone_length=None,
-    image_shape=[960, 480],
-    hm_shape=(64, 128),
+    image_shape=config["image_shape"],
+    hm_shape=config["heatmap_shape"],
 ):
     """
     calculate energy from 2d observations
@@ -42,11 +42,13 @@ def prob_from_heatmap(hm, p, eps=0.1):
     prob = eps
     if not (p[1] >= hm.shape[0] or p[0] >= hm.shape[1] or p[0] < 0 or p[1] < 0):
         prob += hm[p[1], p[0]]
+    if not isinstance(prob, float):
+        print("not float")
     return prob
 
 
 def probability_heatmap(cam_list, img_id, j_id, points2d, image_shape=(480, 960)):
-    hm_list = [cam.get_heatmap(img_id, j_id) for cam in cam_list]
+    hm_list = [np.squeeze(cam.get_heatmap(img_id, j_id)) for cam in cam_list]
 
     prob = 1
     for hm, p in zip(hm_list, points2d):

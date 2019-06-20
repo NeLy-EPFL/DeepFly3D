@@ -232,7 +232,7 @@ def pose3d_to_angle(data, skeleton=config["skeleton"]):
     data_angle = np.zeros((data.shape[0], data.shape[1]), dtype=np.float32)
     for img_id in range(data.shape[0]):
         for j_id in range(1, data.shape[1] - 1):
-            if (
+            if "fly" in config["name"] and (
                 config["skeleton"].is_tracked_point(
                     j_id, config["skeleton"].Tracked.TARSUS_TIP
                 )

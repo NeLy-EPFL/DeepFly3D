@@ -61,7 +61,7 @@ class LegBP:
                     else 0.1
                 )
                 '''
-                threshold_rel = 0.1
+                threshold_rel = 0.5
 
                 p2d_list.append(
                     Camera.hm_to_pred(
@@ -205,8 +205,10 @@ class LegBP:
         if np.isnan(mu) or np.isnan(sig):
             raise Exception
         dist = np.linalg.norm((p3d_c - p3d_p))
+        return np.exp(-np.power(dist - mu, 2.0) / (2 * np.power(sig, 2.0)))
 
         # if joint tarsus tip, then penalize less for shrinking
+        '''
         if joint_id % 5 != 4:
             return np.exp(-np.power(dist - mu, 2.0) / (2 * np.power(sig, 2.0)))
         else:
@@ -214,6 +216,7 @@ class LegBP:
                 return np.exp(-np.power(dist - mu, 2.0) / (2 * np.power(sig / 5, 2.0)))
             else:
                 return np.exp(-np.power(dist - mu, 2.0) / (2 * np.power(sig * 3, 2.0)))
+        '''
 
     def m_j(self, cand):
         return self.alpha_reproj * cand.err_proj + self.alpha_heatmap * (

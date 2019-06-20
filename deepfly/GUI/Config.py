@@ -1,11 +1,27 @@
 import os
 
-from .skeleton import skeleton_fly
+from .skeleton import skeleton_h36m, skeleton_fly
+
+default = {
+    "flip_cameras": [],
+
+    # belief propagation
+    "num_peak": 10,
+    "upper_bound": 200,
+
+    "alpha_reproj": 30,
+    "alpha_heatmap": 600,
+    "alpha_bone": 10,
+}
 
 config_fly = {
+    "name": "fly",
     "num_cameras": 7,
     "image_shape": [960, 480],
     "heatmap_shape": [64, 128],
+
+    "left_cameras": [0, 1, 2, 3],
+    "right_cameras": [6, 4, 5, 3],
 
     # skeleton
     "skeleton": skeleton_fly,
@@ -21,6 +37,9 @@ config_fly = {
     "resume": os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../weights/sh8_deepfly.tar"),
     "num_stacks": 4,
     "batch_size": 64,
+    "flip_cameras": [4, 5, 6],
+    "num_predict": skeleton_fly.num_joints // 2,
+    "mean": os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../weights/mean.pth.tar"),
 
     # 3d pose
     "reproj_thr": {v: 30 for v in range(skeleton_fly.num_joints)},
@@ -45,13 +64,60 @@ config_fly = {
 
     "alpha_reproj": 30,
     "alpha_heatmap": 600,
-    "alpha_bone": 10
+    "alpha_bone": 10,
 }
 
 config_h36m = {
-    "image_shape": [950, 950],
+    "name": "h36m",
+    "num_cameras": 4,
+    "image_shape": [500, 500],
     "heatmap_shape": [128, 128],
-    "checkpoint": None
+    "checkpoint": None,
+
+    "left_cameras": [0, 1, 2, 3],
+    "right_cameras": [],
+
+    # skeleton
+    "skeleton": skeleton_h36m,
+    "bones": skeleton_h36m.bones,
+    "bone_param": skeleton_h36m.bone_param,
+    "num_joints": skeleton_h36m.num_joints,
+
+    # pose 2d
+    "resume": os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../weights/sh8_mpii.tar"),
+    "num_stacks": 8,
+    "batch_size": 64,
+    "num_predict": skeleton_h36m.num_joints,
+    "mean": os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../weights/mean_mpii.pth.tar"),
+
+    # plotting
+    "line_thickness": 2,
+    "scatter_r": 2,
+
+    # calibration
+    "calib_rough":
+        {
+            0: 0 / 57.2,
+            1: -30 / 57.2,
+            2: -70 / 57.2,
+            3: -125 / 57.2,
+            6: +110 / 57.2,
+            5: +150 / 57.2,
+            4: +179 / 57.2
+        },
+
+    # belief propagation
+    "num_peak": 5,
+    "upper_bound": 100,
+
+    "alpha_reproj": 30,
+    "alpha_heatmap": 600,
+    "alpha_bone": 0,
 }
 
-config = config_fly
+# setting defaults if they are missing
+config_fly = dict(list(default.items()) + list(config_fly.items()))
+config_h36m = dict(list(default.items()) + list(config_h36m.items()))
+
+# config = config_fly
+config = config_h36m

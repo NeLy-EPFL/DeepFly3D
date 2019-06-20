@@ -1,22 +1,22 @@
 from __future__ import print_function
 
 import cv2
-import matplotlib.pyplot as plt
 import numpy as np
 import scipy
+
 from deepfly.GUI.Config import config
-from matplotlib.ticker import FuncFormatter, MultipleLocator
+
 
 def plot_drosophila_2d(
-    pts=None,
-    draw_joints=None,
-    img=None,
-    colors=None,
-    thickness=None,
-    draw_limbs=None,
-    circle_color=None,
-    draw_order=None,
-    zorder=None,
+        pts=None,
+        draw_joints=None,
+        img=None,
+        colors=None,
+        thickness=None,
+        draw_limbs=None,
+        circle_color=None,
+        draw_order=None,
+        zorder=None,
 ):
     if colors is None:
         colors = config["skeleton"].colors
@@ -30,15 +30,15 @@ def plot_drosophila_2d(
         draw_order = np.arange(config["skeleton"].num_limbs)
         draw_order = np.intersect1d(draw_order, draw_limbs)
     if zorder is None:
-        zorder = np.ones((config["skeleton"].num_joints))
+        zorder = np.arange(config["skeleton"].num_joints)
 
     # for joint_id in range(pts.shape[0]):
     for joint_id in np.argsort(zorder):
         limb_id = config["skeleton"].get_limb_id(joint_id)
         if (
-            (pts[joint_id, 0] == 0 and pts[joint_id, 1] == 0)
-            or limb_id not in draw_limbs
-            or joint_id not in draw_joints
+                (pts[joint_id, 0] == 0 and pts[joint_id, 1] == 0)
+                or limb_id not in draw_limbs
+                or joint_id not in draw_joints
         ):
             continue
 
@@ -130,15 +130,16 @@ def Rt_points3d(R, tvec, points3d):
 
 
 def plot_drosophila_3d(
-    ax_3d,
-    points3d,
-    cam_id,
-    bones=config["bones"],
-    ang=None,
-    draw_joints=None,
-    colors=None,
-    zorder=None,
-    thickness=None,
+        ax_3d,
+        points3d,
+        cam_id,
+        bones=config["bones"],
+        ang=None,
+        draw_joints=None,
+        colors=None,
+        zorder=None,
+        thickness=None,
+        lim=True
 ):
     points3d = np.array(points3d)
     if draw_joints is None:
@@ -171,19 +172,21 @@ def plot_drosophila_3d(
         else:
             ax_3d.view_init(ax_3d.elev, -60 + 45 * cam_id)
 
-    max_range = 2
-    mid_x = 0
-    mid_y = 0
-    mid_z = 0
-    ax_3d.set_xlim(mid_x - max_range, mid_x + max_range)
-    ax_3d.set_ylim(mid_y - max_range, mid_y + max_range)
-    ax_3d.set_zlim(mid_z - max_range, mid_z + max_range)
+    if lim:
+        max_range = 0.5
+        mid_x = 0
+        mid_y = 0
+        mid_z = 0
+        ax_3d.set_xlim(mid_x - max_range, mid_x + max_range)
+        ax_3d.set_ylim(mid_y - max_range, mid_y + max_range)
+        ax_3d.set_zlim(mid_z - max_range, mid_z + max_range)
 
-    for j in range(config["skeleton"].num_joints):
-        if config["skeleton"].is_tracked_point(j, config["skeleton"].Tracked.STRIPE) and config["skeleton"].is_joint_visible_left(j):
-            points3d[j] = (points3d[j] + points3d[j + (config["skeleton"].num_joints // 2)]) / 2
-            points3d[j + config["skeleton"].num_joints // 2] = points3d[j]
-
+    if "fly" in config["name"]:
+        for j in range(config["skeleton"].num_joints):
+            if config["skeleton"].is_tracked_point(j, config["skeleton"].Tracked.STRIPE) and config[
+                "skeleton"].is_joint_visible_left(j):
+                points3d[j] = (points3d[j] + points3d[j + (config["skeleton"].num_joints // 2)]) / 2
+                points3d[j + config["skeleton"].num_joints // 2] = points3d[j]
 
     for bone in bones:
         if bone[0] in draw_joints and bone[1] in draw_joints:
@@ -222,7 +225,5 @@ def normalize_pose_3d(points3d, normalize_length=False, normalize_median=True):
                 diff_norm = (diff / np.linalg.norm(diff)) * length[j_idx % 5]
                 points3d[idx, j_idx + 1, :] = points3d[idx, j_idx, :] + diff_norm
                 next_tarsus_tip = (j_idx - (j_idx % 5)) + 5
-                points3d[idx, j_idx + 2 : next_tarsus_tip, :] += diff_norm - diff
+                points3d[idx, j_idx + 2: next_tarsus_tip, :] += diff_norm - diff
     return points3d
-
-

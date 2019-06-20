@@ -3,12 +3,12 @@ import os
 import pickle
 
 import matplotlib.pyplot as plt
-from deepfly.GUI.Config import config
 from scipy.optimize import least_squares
 
-from .Camera import Camera
+from deepfly.GUI.Config import config
 from .BP import LegBP
-from  .util.ba_util import *
+from .Camera import Camera
+from .util.ba_util import *
 from .util.cv_util import *
 
 
@@ -72,9 +72,9 @@ class CameraNetwork:
             if heatmap is None and len(heatmap_path_list) and pred is not None:
                 try:
                     shape = (
-                        config["num_cameras"]+1,
+                        config["num_cameras"] + 1,
                         num_images_in_pred,
-                        config["skeleton"].num_joints // 2,
+                        config["num_predict"],
                         self.heatmap_shape[0],
                         self.heatmap_shape[1],
                     )
@@ -100,24 +100,29 @@ class CameraNetwork:
                     pred_cam = np.zeros(
                         shape=(num_images_in_pred, num_joints, 2), dtype=float
                     )
-                    if cam_id > 3:
-                        pred_cam[:num_images_in_pred, num_joints // 2:, :] = pred[
-                                                                             cam_id_read, :num_images_in_pred
-                                                                             ] * self.image_shape
-                    elif cam_id == 3:
-                        pred_cam[:num_images_in_pred, :num_joints // 2, :] = pred[
-                                                                             cam_id_read, :num_images_in_pred
-                                                                             ] * self.image_shape
-                        pred_cam[:num_images_in_pred, num_joints // 2:, :] = pred[
-                                                                             7, :num_images_in_pred
-                                                                             ] * self.image_shape
-
-                    elif cam_id < 3:
-                        pred_cam[:num_images_in_pred, :num_joints // 2, :] = pred[
-                                                                             cam_id_read, :num_images_in_pred
-                                                                             ] * self.image_shape
+                    if "fly" in config["name"]:
+                        if cam_id > 3:
+                            pred_cam[:num_images_in_pred, num_joints // 2:, :] = pred[
+                                                                                 cam_id_read, :num_images_in_pred
+                                                                                 ] * self.image_shape
+                        elif cam_id == 3:
+                            pred_cam[:num_images_in_pred, :num_joints // 2, :] = pred[
+                                                                                 cam_id_read, :num_images_in_pred
+                                                                                 ] * self.image_shape
+                            pred_cam[:num_images_in_pred, num_joints // 2:, :] = pred[
+                                                                                 7, :num_images_in_pred
+                                                                                 ] * self.image_shape
+                        elif cam_id < 3:
+                            pred_cam[:num_images_in_pred, :num_joints // 2, :] = pred[
+                                                                                 cam_id_read, :num_images_in_pred
+                                                                                 ] * self.image_shape
+                        else:
+                            raise NotImplementedError
                     else:
-                        raise NotImplementedError
+                        pred_cam[:num_images_in_pred, :, :] = pred[cam_id_read, :
+                                                              ] * self.image_shape
+
+
                 else:
                     print("Skipping reading heatmaps and predictions")
                     heatmap = np.zeros(
@@ -185,6 +190,8 @@ class CameraNetwork:
         )
 
     def triangulate(self, cam_indices=None):
+        if not self.cam_list:
+            return
         if cam_indices is None:
             cam_indices = list(range(self.num_cameras))
         points2d_shape = self[0].points2d.shape
@@ -337,17 +344,18 @@ class CameraNetwork:
 
         c = 0
         # make sure stripes from both sides share the same point id's
-        for idx, point_idx in enumerate(point_indices):
-            img_id, j_id = points3d_ba_source_inv[point_idx]
-            if (
-                    config["skeleton"].tracked_points[j_id] == config["skeleton"].Tracked.STRIPE
-                    and j_id > config["skeleton"].num_joints // 2
-            ):
-                if (img_id, j_id - config["skeleton"].num_joints // 2) in points3d_ba_source:
-                    point_indices[idx] = points3d_ba_source[
-                        (img_id, j_id - config["skeleton"].num_joints // 2)
-                    ]
-                    c += 1
+        if "fly" in config["name"]:
+            for idx, point_idx in enumerate(point_indices):
+                img_id, j_id = points3d_ba_source_inv[point_idx]
+                if (
+                        config["skeleton"].tracked_points[j_id] == config["skeleton"].Tracked.STRIPE
+                        and j_id > config["skeleton"].num_joints // 2
+                ):
+                    if (img_id, j_id - config["skeleton"].num_joints // 2) in points3d_ba_source:
+                        point_indices[idx] = points3d_ba_source[
+                            (img_id, j_id - config["skeleton"].num_joints // 2)
+                        ]
+                        c += 1
 
         print("Replaced {} points".format(c))
         points3d_ba = np.squeeze(np.array(points3d_ba))
@@ -380,6 +388,8 @@ class CameraNetwork:
             unique=True,
             prior=False,
     ):
+        if not self.cam_list:
+            return
         if cameras_involved is None:
             cameras_involved = range(self.num_cameras)
 

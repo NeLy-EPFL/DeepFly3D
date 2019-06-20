@@ -26,24 +26,22 @@ class Drosophila(data.Dataset):
         jsonfile="drosophilaimaging-export.json",
         session_id_train_list=None,
         folder_train_list=None,
-        multi_view=False,
         augmentation=False,
         evaluation=False,
         unlabeled=None,
         temporal=False,
-        num_classes=config["skeleton"].num_joints // 2,
+        num_classes=config["num_predict"],
         max_img_id=None,
     ):
         self.train = train
         self.data_folder = data_folder  # root image folders
         self.data_corr_folder = data_corr_folder
         self.json_file = os.path.join("../../data/", jsonfile)
-        self.is_train = train  # training set or test set
+        self.is_train = train
         self.img_res = img_res
         self.hm_res = hm_res
         self.sigma = sigma
         self.label_type = label_type
-        self.multi_view = multi_view
         self.augmentation = augmentation
         self.evaluation = evaluation
         self.unlabeled = unlabeled
@@ -252,7 +250,6 @@ class Drosophila(data.Dataset):
             assert np.logical_or(0 <= v, v <= 1).all()
 
             self.annotation_dict[k] = v
-            # then we will return 3 images, and each annotation is list of three, or if evaluation, we will return sorted images
 
         self.annotation_key = list(self.annotation_dict.keys())
         if self.evaluation:  # sort keys
@@ -272,7 +269,7 @@ class Drosophila(data.Dataset):
 
     def _compute_mean(self):
         file_path = os.path.abspath(os.path.dirname(__file__))
-        meanstd_file = os.path.join(file_path, "../../../weights/mean.pth.tar")
+        meanstd_file = config["mean"]
         if isfile(meanstd_file):
             meanstd = torch.load(meanstd_file)
         else:
@@ -326,7 +323,7 @@ class Drosophila(data.Dataset):
                 flip = False
         else:
             cid = self.cidread2cid[folder_name][cid_read]
-            flip = cid > 3
+            flip = cid in config["flip_cameras"]
 
         try:
             img_orig = load_image(self.__get_image_path(folder_name, cid_read, pose_id))
@@ -345,7 +342,7 @@ class Drosophila(data.Dataset):
 
         pts = torch.Tensor(self.annotation_dict[self.annotation_key[index]])
         nparts = pts.size(0)
-        assert nparts == config["skeleton"].num_joints // 2
+        assert (nparts == config["num_predict"])
         joint_exists = np.zeros(shape=(nparts,), dtype=np.uint8)
         for i in range(nparts):
             # we convert to int as we cannot pass boolean from pytorch dataloader
@@ -358,7 +355,7 @@ class Drosophila(data.Dataset):
                     and (
                             config["skeleton"].camera_see_joint(cid, i)
                             or config["skeleton"].camera_see_joint(
-                            cid, (i + config["skeleton"].num_joints // 2)
+                            cid, (i + config["num_predict"])
                         )
                     )
                 )

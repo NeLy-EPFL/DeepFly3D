@@ -10,9 +10,9 @@ from PyQt5.QtWidgets import *
 from sklearn.neighbors import NearestNeighbors
 
 from .CameraNetwork import CameraNetwork
-from .Config import config
 from .DB import PoseDB
 from .State import State, View, Mode
+
 from .util.main_util import button_set_width
 from .util.optim_util import energy_drosoph
 from .util.os_util import *
@@ -45,7 +45,7 @@ class DrosophAnnot(QWidget):
             self.folder = self.folder[:-1]
 
         self.state = State(self.folder)
-        self.state.max_num_images = max_num_images
+        self. max_num_images = max_num_images
         self.state.db = PoseDB(self.folder)
         self.cidread2cid, self.cid2cidread = read_camera_order(self.folder)
 
@@ -225,33 +225,23 @@ class DrosophAnnot(QWidget):
         )
         self.camNetLeft = CameraNetwork(
             image_folder=self.folder,
-            cam_id_list=[0, 1, 2, 3],
+            cam_id_list=config["left_cameras"],
             num_images=self.state.num_images,
             calibration=calib,
             num_joints=config["skeleton"].num_joints,
-            cid2cidread=self.cid2cidread[:4],
+            cid2cidread=[self.cid2cidread[cid] for cid in config["left_cameras"]],
             heatmap_shape=config["heatmap_shape"],
-            cam_list=self.camNetAll.cam_list[:4],
+            cam_list=[cam for cam in self.camNetAll if cam.cam_id in config["left_cameras"]],
         )
         self.camNetRight = CameraNetwork(
             image_folder=self.folder,
-            cam_id_list=[6, 5, 4, 3],
+            cam_id_list=config["right_cameras"],
             num_images=self.state.num_images,
             calibration=calib,
             num_joints=config["skeleton"].num_joints,
+            cid2cidread=[self.cid2cidread[cid] for cid in config["right_cameras"]],
             heatmap_shape=config["heatmap_shape"],
-            cid2cidread=self.cid2cidread[-4::][::-1],
-            cam_list=self.camNetAll.cam_list[-4::][::-1],
-        )
-        self.camNetMid = CameraNetwork(
-            image_folder=self.state.folder,
-            cam_id_list=[3],
-            num_images=self.state.num_images,
-            calibration=calib,
-            num_joints=config["skeleton"].num_joints,
-            heatmap_shape=config["heatmap_shape"],
-            cam_list=[self.camNetAll[3]],
-            cid2cidread=[self.cid2cidread[3]],
+            cam_list=[cam for cam in self.camNetAll if cam.cam_id in config["right_cameras"]],
         )
 
         self.camNet = self.camNetLeft
@@ -307,11 +297,16 @@ class DrosophAnnot(QWidget):
         args.resume = config["resume"]
         args.stacks = config["num_stacks"]
         args.test_batch = config["batch_size"]
+        args.img_res = [config["heatmap_shape"][0]*4, config["heatmap_shape"][1]*4]
+        args.hm_res = config["heatmap_shape"]
+        args.num_classes = config["num_predict"]
 
-        # run the main, get back the heatmap
+
         args.max_img_id = self.state.num_images - 1
+        # run the main, it will save the heatmaps and predictions in the image folder
         _, _ = main(args)
 
+        # makes sure cameras use the latest heatmaps and predictions
         self.set_cameras()
 
         self.camNet = self.camNetLeft
@@ -322,10 +317,10 @@ class DrosophAnnot(QWidget):
 
     def set_mode(self, mode):
         if (
-            (mode == Mode.POSE and self.camNet.has_pose())
-            or (mode == Mode.HEATMAP and self.camNet.has_heatmap())
-            or mode == Mode.IMAGE
-            or (mode == Mode.CORRECTION and self.camNet.has_pose())
+                (mode == Mode.POSE and self.camNet.has_pose())
+                or (mode == Mode.HEATMAP and self.camNet.has_heatmap())
+                or mode == Mode.IMAGE
+                or (mode == Mode.CORRECTION and self.camNet.has_pose())
         ):
             self.state.mode = mode
         else:
@@ -374,15 +369,15 @@ class DrosophAnnot(QWidget):
     def already_corrected(self, view, img_id):
         if view == View.Left:
             return (
-                self.state.db.has_key(0, img_id)
-                or self.state.db.has_key(1, img_id)
-                or self.state.db.has_key(2, img_id)
+                    self.state.db.has_key(0, img_id)
+                    or self.state.db.has_key(1, img_id)
+                    or self.state.db.has_key(2, img_id)
             )
         elif view == View.Right:
             return (
-                self.state.db.has_key(4, img_id)
-                or self.state.db.has_key(5, img_id)
-                or self.state.db.has_key(6, img_id)
+                    self.state.db.has_key(4, img_id)
+                    or self.state.db.has_key(5, img_id)
+                    or self.state.db.has_key(6, img_id)
             )
         else:
             raise NotImplementedError
@@ -391,7 +386,7 @@ class DrosophAnnot(QWidget):
         if text == "All":
             self.set_heatmap_joint_id(-1)
         else:
-            self.set_heatmap_joint_id(int(text.replace("Heatmap: ", "")))
+            self.set_heatmap_joint_id(int(text.replace("Prob. Map: ", "")))
         self.setFocus()
 
     def set_first_image(self):
@@ -406,9 +401,9 @@ class DrosophAnnot(QWidget):
 
     def set_prev_image(self):
         if self.state.mode != Mode.CORRECTION or (
-            not self.state.correction_skip
-            or not self.camNet.has_calibration()
-            or not self.camNet.has_pose()
+                not self.state.correction_skip
+                or not self.camNet.has_calibration()
+                or not self.camNet.has_pose()
         ):
             img_id = max(self.state.img_id - 1, 0)
             self.state.already_corrected = self.already_corrected(
@@ -424,9 +419,9 @@ class DrosophAnnot(QWidget):
 
     def set_next_image(self):
         if self.state.mode != Mode.CORRECTION or (
-            not self.state.correction_skip
-            or not self.camNet.has_calibration()
-            or not self.camNet.has_pose()
+                not self.state.correction_skip
+                or not self.camNet.has_calibration()
+                or not self.camNet.has_pose()
         ):
             img_id = min(self.state.num_images - 1, self.state.img_id + 1)
             self.state.already_corrected = self.already_corrected(
@@ -497,10 +492,10 @@ class DrosophAnnot(QWidget):
 
     def solve_bp(self, save_correction=False):
         if not (
-            self.state.mode == Mode.CORRECTION
-            and self.state.solve_bp
-            and self.camNet.has_calibration()
-            and self.camNet.has_pose()
+                self.state.mode == Mode.CORRECTION
+                and self.state.solve_bp
+                and self.camNet.has_calibration()
+                and self.camNet.has_pose()
         ):
             return
 
@@ -534,7 +529,7 @@ class DrosophAnnot(QWidget):
                 else None
             )
             image_pose.dynamic_pose = DynamicPose(
-                pts_bp_ip, image_pose.cfg.img_id, joint_id=None, manual_correction=mcd
+                pts_bp_ip, image_pose.state.img_id, joint_id=None, manual_correction=mcd
             )
         self.update_frame()
 
@@ -543,6 +538,8 @@ class DrosophAnnot(QWidget):
             print("Saving with prior")
             for ip in self.image_pose_list:
                 ip.save_correction()
+
+        print("Finished Belief Propagation")
 
     def set_pose(self, img_id):
         self.state.img_id = img_id
@@ -565,7 +562,7 @@ class DrosophAnnot(QWidget):
                     manual_correction[joint_id] = pt[joint_id]
                 ip.dynamic_pose = DynamicPose(
                     pt,
-                    ip.cfg.img_id,
+                    ip.state.img_id,
                     joint_id=None,
                     manual_correction=manual_correction,
                 )
@@ -594,6 +591,11 @@ class DrosophAnnot(QWidget):
         self.set_heatmap_joint_id(int(self.textbox_joint_id.text()))
 
     def set_view(self, v):
+        if v == View.Left and not config["left_cameras"]:
+            return
+        elif v == View.Right and not config["right_cameras"]:
+            return
+
         self.state.view = v
         if self.state.view == View.Left:
             self.camNet = self.camNetLeft
@@ -611,6 +613,7 @@ class DrosophAnnot(QWidget):
         self.update_frame()
 
     def calibrate_calc(self):
+        from .util.main_util import calibrate_calc as ccalc
         text, okPressed = QInputDialog.getText(
             self,
             "Calibration",
@@ -633,43 +636,7 @@ class DrosophAnnot(QWidget):
                 )
             )
 
-            for cam in self.camNetAll:
-                cam.set_alpha(config["calib_rough"][cam.cam_id], r=94)
-
-            # take a copy of the current points2d
-            pts2d = np.zeros(
-                (7, self.state.num_images, config["skeleton"].num_joints, 2),
-                dtype=float,
-            )
-            for cam_id in range(config["num_cameras"]):
-                pts2d[cam_id, :] = self.camNetAll[cam_id].points2d.copy()
-
-            # ugly hack to temporarly incorporate manual corrections to calibration
-            c = 0
-            for cam_id in range(config["num_cameras"]):
-                for img_id in range(self.state.num_images):
-                    if self.state.db.has_key(cam_id, img_id):
-                        pt = self.state.db.read(cam_id, img_id) * config["image_shape"]
-                        self.camNetAll[cam_id].points2d[img_id, :] = pt
-                        c += 1
-            print("Calibration: replaced {} points from manuall correction".format(c))
-
-            # keep the pts only in the range
-            for cam in self.camNetAll:
-                cam.points2d = cam.points2d[min_img_id:max_img_id, :]
-
-            self.camNetLeft.triangulate()
-            self.camNetLeft.bundle_adjust(unique=False, prior=True)
-            self.camNetRight.triangulate()
-            self.camNetRight.bundle_adjust(unique=False, prior=True)
-            self.camNetAll.triangulate()
-            self.camNetAll.bundle_adjust(unique=False, prior=True)
-
-            # put old values back
-            for cam_id in range(config["num_cameras"]):
-                self.camNetAll[cam_id].points2d = pts2d[cam_id, :].copy()
-
-            self.save_calibration()
+            ccalc(self, min_img_id, max_img_id)
 
     def save_calibration(self):
         calib_path = "{}/calib_{}.pkl".format(
@@ -698,14 +665,15 @@ class DrosophAnnot(QWidget):
                     pts2d[cam_id, img_id, :] = pt
                     count += 1
 
-        # some post-processing for body-coxa
-        for cam_id in range(len(self.camNetAll.cam_list)):
-            for j in range(config["skeleton"].num_joints):
-                if config["skeleton"].camera_see_joint(cam_id, j) and config[
-                    "skeleton"
-                ].is_tracked_point(j, config["skeleton"].Tracked.BODY_COXA):
-                    pts2d[cam_id, :, j, 0] = np.median(pts2d[cam_id, :, j, 0])
-                    pts2d[cam_id, :, j, 1] = np.median(pts2d[cam_id, :, j, 1])
+        if "fly" in config["name"]:
+            # some post-processing for body-coxa
+            for cam_id in range(len(self.camNetAll.cam_list)):
+                for j in range(config["skeleton"].num_joints):
+                    if config["skeleton"].camera_see_joint(cam_id, j) and config[
+                        "skeleton"
+                    ].is_tracked_point(j, config["skeleton"].Tracked.BODY_COXA):
+                        pts2d[cam_id, :, j, 0] = np.median(pts2d[cam_id, :, j, 0])
+                        pts2d[cam_id, :, j, 1] = np.median(pts2d[cam_id, :, j, 1])
 
         dict_merge = self.camNetAll.save_network(path=None)
         dict_merge["points2d"] = pts2d
@@ -780,7 +748,7 @@ class DynamicPose:
 class ImagePose(QWidget):
     def __init__(self, config, cam, f_solve_bp):
         QWidget.__init__(self)
-        self.cfg = config
+        self.state = config
         self.cam = cam
 
         self.dynamic_pose = None
@@ -799,14 +767,14 @@ class ImagePose(QWidget):
             for j in range(config["skeleton"].num_joints)
             if config["skeleton"].camera_see_joint(self.cam.cam_id, j)
         ]
-        corrected_this_camera = self.cfg.db.has_key(self.cam.cam_id, self.cfg.img_id)
+        corrected_this_camera = self.state.db.has_key(self.cam.cam_id, self.state.img_id)
         zorder = config["skeleton"].get_zorder(self.cam.cam_id)
-        if self.cfg.mode == Mode.IMAGE:
-            im = self.cam.get_image(self.cfg.img_id)
-        elif self.cfg.mode == Mode.HEATMAP:
+        if self.state.mode == Mode.IMAGE:
+            im = self.cam.get_image(self.state.img_id)
+        elif self.state.mode == Mode.HEATMAP:
             draw_joints = (
-                [self.cfg.hm_joint_id]
-                if self.cfg.hm_joint_id != -1
+                [self.state.hm_joint_id]
+                if self.state.hm_joint_id != -1
                 else [
                     j
                     for j in range(config["skeleton"].num_joints)
@@ -814,17 +782,17 @@ class ImagePose(QWidget):
                 ]
             )
             im = self.cam.plot_heatmap(
-                img_id=self.cfg.img_id, concat=False, scale=2, draw_joints=draw_joints
+                img_id=self.state.img_id, concat=False, scale=2, draw_joints=draw_joints
             )
-        elif self.cfg.mode == Mode.POSE:
+        elif self.state.mode == Mode.POSE:
             im = self.cam.plot_2d(
-                img_id=self.cfg.img_id, draw_joints=draw_joints, zorder=zorder
+                img_id=self.state.img_id, draw_joints=draw_joints, zorder=zorder
             )
-        elif self.cfg.mode == Mode.CORRECTION:
+        elif self.state.mode == Mode.CORRECTION:
 
             circle_color = (0, 255, 0) if corrected_this_camera else (0, 0, 255)
             im = self.cam.plot_2d(
-                img_id=self.cfg.img_id,
+                img_id=self.state.img_id,
                 pts=self.dynamic_pose.points2d,
                 circle_color=circle_color,
                 draw_joints=draw_joints,
@@ -840,7 +808,7 @@ class ImagePose(QWidget):
         self.update()
 
     def save_correction(self, thr=30):
-        points2d_prediction = self.cam.get_points2d(self.cfg.img_id)
+        points2d_prediction = self.cam.get_points2d(self.state.img_id)
         points2d_correction = self.dynamic_pose.points2d
 
         err = np.abs(points2d_correction - points2d_prediction)
@@ -848,7 +816,7 @@ class ImagePose(QWidget):
             j
             for j in range(config["num_joints"])
             if (j not in config["skeleton"].ignore_joint_id)
-            and config["skeleton"].camera_see_joint(self.cam.cam_id, j)
+               and config["skeleton"].camera_see_joint(self.cam.cam_id, j)
         ]
 
         for j in check_joint_id_list:
@@ -868,10 +836,10 @@ class ImagePose(QWidget):
                     if not config["skeleton"].camera_see_joint(self.cam.cam_id, j)
                 ]
                 points2d_correction[unseen_joints, :] = 0.0
-                self.cfg.db.write(
+                self.state.db.write(
                     points2d_correction / config["image_shape"],
                     self.cam.cam_id,
-                    self.cfg.img_id,
+                    self.state.img_id,
                     train=True,
                     modified_joints=list(
                         self.dynamic_pose.manual_correction_dict.keys()
@@ -883,15 +851,15 @@ class ImagePose(QWidget):
         return False
 
     def mouseMoveEvent(self, e):
-        if self.cfg.mode == Mode.CORRECTION:
+        if self.state.mode == Mode.CORRECTION:
             x = int(
-                e.x() * (self.cfg.image_shape[0] * 1.0) / self.frameGeometry().width()
+                e.x() * np.array(config["image_shape"][0]) / self.frameGeometry().width()
             )
             y = int(
-                e.y() * (self.cfg.image_shape[1] * 1.0) / self.frameGeometry().height()
+                e.y() * np.array(config["image_shape"][1]) / self.frameGeometry().height()
             )
             if (
-                self.dynamic_pose.joint_id is None
+                    self.dynamic_pose.joint_id is None
             ):  # find the joint to be dragged with nearest neighbor
                 pts = self.dynamic_pose.points2d.copy()
 
@@ -901,8 +869,8 @@ class ImagePose(QWidget):
                         j_id
                         for j_id in range(config["skeleton"].num_joints)
                         if not config["skeleton"].camera_see_joint(
-                            self.cam.cam_id, j_id
-                        )
+                        self.cam.cam_id, j_id
+                    )
                     ]
                 ] = [9999, 9999]
 
@@ -915,15 +883,15 @@ class ImagePose(QWidget):
             self.update_image_pose()
 
     def mouseReleaseEvent(self, e):
-        if self.cfg.mode == Mode.CORRECTION:
+        if self.state.mode == Mode.CORRECTION:
             self.dynamic_pose.joint_id = None  # make sure we forget the tracked joint
             self.update_image_pose()
 
             # solve BP again
-            self.cfg.db.write(
-                self.dynamic_pose.points2d / self.cfg.image_shape,
+            self.state.db.write(
+                self.dynamic_pose.points2d / config["image_shape"],
                 self.cam.cam_id,
-                self.cfg.img_id,
+                self.state.img_id,
                 train=True,
                 modified_joints=list(self.dynamic_pose.manual_correction_dict.keys()),
             )
@@ -931,7 +899,7 @@ class ImagePose(QWidget):
             self.update_image_pose()
 
     def get_image_name(self, img_id):
-        img_path = self.get_image_path(self.cfg.folder, img_id)
+        img_path = self.get_image_path(self.state.folder, img_id)
         img_name = os.path.basename(img_path).replace(".jpg", "")
         return img_name
 

@@ -71,7 +71,7 @@ def main(args):
         weight_decay=args.weight_decay,
     )
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, verbose=True, patience=3
+        optimizer, verbose=True, patience=5
     )
 
     # optionally resume from a checkpoint
@@ -81,6 +81,8 @@ def main(args):
             print("=> loading checkpoint '{}'".format(args.resume))
             checkpoint = torch.load(args.resume)
             if "mpii" in args.resume:  # weights for sh trained on mpii dataset
+
+                '''
                 print("Removing input/output layers")
                 ignore_weight_list_template = [
                     "module.score.{}.bias",
@@ -94,13 +96,17 @@ def main(args):
                 for k in ignore_weight_list:
                     if k in checkpoint["state_dict"]:
                         checkpoint["state_dict"].pop(k)
+                '''
 
-                state = model.state_dict()
-                state.update(checkpoint["state_dict"])
-                model.load_state_dict(state)
+                #state = model.state_dict()
+                #state.update(checkpoint["state_dict"])
+                #print(model.state_dict())
+                #print(checkpoint["state_dict"])
+                #model.load_state_dict(state, strict=True)
+                model.load_state_dict(checkpoint['state_dict'], strict=False)
             else:
                 pretrained_dict = checkpoint["state_dict"]
-                model.load_state_dict(pretrained_dict, strict=False)
+                model.load_state_dict(pretrained_dict, strict=True)
 
                 args.start_epoch = checkpoint["epoch"]
                 args.img_res = checkpoint["image_shape"]
@@ -170,7 +176,6 @@ def main(args):
                     img_res=args.img_res,
                     hm_res=args.hm_res,
                     augmentation=False,
-                    multi_view=args.multiview,
                     temporal=args.temporal,
                     evaluation=True,
                     unlabeled=unlabeled_folder,
@@ -188,9 +193,10 @@ def main(args):
                 unlabeled_loader, 0, model, criterion, args, save_path=unlabeled_folder
             )
             unlabeled_folder_replace = unlabeled_folder.replace("/", "-")
+            print("val_score_maps", val_score_maps.shape)
 
             print("Saving Results, flipping heatmaps")
-            cid_to_reverse = [4, 5, 6]  # camera id to reverse predictions and heatmaps
+            cid_to_reverse = config["flip_cameras"]  # camera id to reverse predictions and heatmaps
             cidread2cid, cid2cidread = read_camera_order(unlabeled_folder)
             cid_read_to_reverse = [cid2cidread[cid] for cid in cid_to_reverse]
             cid_read_to_reverse.append(7)
@@ -457,7 +463,7 @@ def validate(val_loader, epoch, model, criterion, args, save_path=False):
         shape=(
             num_cameras + 1,
             val_loader.dataset.greatest_image_id() + 1,
-            config["skeleton"].num_joints // 2,
+            config["num_predict"],
             2,
         ),
         dtype=np.float32,
@@ -479,7 +485,7 @@ def validate(val_loader, epoch, model, criterion, args, save_path=False):
             shape=(
                 num_cameras + 1,
                 val_loader.dataset.greatest_image_id() + 1,
-                config["skeleton"].num_joints // 2,
+                config["num_predict"],
                 args.hm_res[0],
                 args.hm_res[1],
             ),
@@ -551,7 +557,7 @@ def validate(val_loader, epoch, model, criterion, args, save_path=False):
                 score_map,
                 args.hm_res,
                 3,
-                np.arange(config["num_joints"]// 2),
+                np.arange(config["num_predict"]),
                 img_id=int(meta["image_name"][0].split("_")[-1]),
             )
 
@@ -577,7 +583,7 @@ def validate(val_loader, epoch, model, criterion, args, save_path=False):
 
         elif i < args.num_output_image:
             drosophila_img = drosophila_image_overlay(
-                inputs, score_map, args.hm_res, 3, np.arange(config["num_joints"] // 2)
+                inputs, score_map, args.hm_res, 3, np.arange(config["num_predict"])
             )
             folder_name = meta["folder_name"][0]
 
@@ -691,7 +697,6 @@ def create_dataloader():
             img_res=args.img_res,
             hm_res=args.hm_res,
             augmentation=args.augmentation,
-            multi_view=args.multiview,
             temporal=args.temporal,
             num_classes=args.num_classes,
         ),
@@ -712,7 +717,6 @@ def create_dataloader():
             img_res=args.img_res,
             hm_res=args.hm_res,
             augmentation=False,
-            multi_view=args.multiview,
             temporal=args.temporal,
             evaluation=True,
             num_classes=args.num_classes,
