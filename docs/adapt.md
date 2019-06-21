@@ -14,9 +14,9 @@ DeepFly3D will also learn the distribution S_{i,j}, whose non-zero entries are f
 
 ## Examples
 <p align="center">
-<img src="images/h3.6mfail.png" width="640">
+<img src="../images/h3.6mfail.png" width="640">
 </p>
 <p align="center">
-<img src="images/h3.6mcorrect.png" width="640">
+<img src="../images/h3.6mcorrect.png" width="640">
 </p>
 
