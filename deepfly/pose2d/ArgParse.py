@@ -1,7 +1,7 @@
 import argparse
 
 import deepfly.pose2d.models as models
-from deepfly.GUI import skeleton
+from deepfly.GUI.Config import config
 
 model_names = sorted(
     name
@@ -185,7 +185,7 @@ def create_parser():
     # input-output
     parser.add_argument(
         "--num-classes",
-        default=skeleton.num_joints // 2,
+        default=config["skeleton"].num_joints // 2,
         type=int,
         metavar="N",
         dest="num_classes",

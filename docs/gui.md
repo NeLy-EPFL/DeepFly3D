@@ -1,11 +1,13 @@
 ## Running GUI
+
+After installing the dependencies we can initialize the GUI using the command line entry point:
+
 ![Alt text](../images/gui.gif?raw=true "Title")
 
-
-After installing the dependencies we can initiliza the GUI using:
 ```
-deepfly3d ./data/test/ 100
+deepfly3d ./data/test/ 15
 ```
+The second argument sets the image folder, while the third argument sets the upper bound for the images, in case you only want to process the subset of images.
 
 This should start the GUI:
 
@@ -38,4 +40,4 @@ or heatmap mode to visualize the network predictions directly
 
 ## Pose Estimation and Calibration
 2D pose estimation and calibration can be completed using the buttons on the GUI. They then enable automatic corrections and generating corresponding 3D pose. 
-Calibraiton file is automatically saved in to the folder.  Once pose estimation and calibration are done you can extract the 2d and 3d pose using  ```Pose Save``` button. 
+Calibration file is automatically saved in to the folder.  Once pose estimation and calibration are done you can extract the 2D 3D pose using  ```Pose Save``` button. 

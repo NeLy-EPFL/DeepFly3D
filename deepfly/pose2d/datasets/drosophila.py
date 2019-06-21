@@ -2,9 +2,12 @@ from __future__ import print_function, absolute_import
 
 import torch.utils.data as data
 
-from deepfly.GUI.os_util import *
+from deepfly.GUI.util.os_util import *
 from deepfly.pose2d.utils.osutils import isfile
 from deepfly.pose2d.utils.transforms import *
+from deepfly.GUI.Config import config
+
+import glob
 
 FOLDER_NAME = 0
 IMAGE_NAME = 1
@@ -23,12 +26,11 @@ class Drosophila(data.Dataset):
         jsonfile="drosophilaimaging-export.json",
         session_id_train_list=None,
         folder_train_list=None,
-        multi_view=False,
         augmentation=False,
         evaluation=False,
         unlabeled=None,
         temporal=False,
-        num_classes=skeleton.num_joints // 2,
+        num_classes=config["num_predict"],
         max_img_id=None,
     ):
         self.train = train
@@ -40,7 +42,6 @@ class Drosophila(data.Dataset):
         self.hm_res = hm_res
         self.sigma = sigma
         self.label_type = label_type
-        self.multi_view = multi_view
         self.augmentation = augmentation
         self.evaluation = evaluation
         self.unlabeled = unlabeled
@@ -77,7 +78,7 @@ class Drosophila(data.Dataset):
                         key = ("/data/annot/" + folder_name, image_name)
                         # for the hand annotations, it is always correct ordering
                         self.cidread2cid[key[FOLDER_NAME]] = np.arange(
-                            skeleton.num_cameras
+                            config["skeleton"].num_cameras
                         )
                         cid_read, img_id = parse_img_name(image_name)
 
@@ -140,7 +141,7 @@ class Drosophila(data.Dataset):
                 if folder_name not in self.cidread2cid:
                     cidread2cid, cid2cidread = read_camera_order(folder_name)
                     self.cidread2cid[key_folder_name] = cidread2cid
-                for cid in range(skeleton.num_cameras):
+                for cid in range(config["skeleton"].num_cameras):
                     for img_id, points2d in d[cid].items():
                         cid_read = self.cidread2cid[key_folder_name].tolist().index(cid)
                         key = (key_folder_name, constr_img_name(cid_read, img_id))
@@ -185,12 +186,12 @@ class Drosophila(data.Dataset):
                     cid_read, img_id = parse_img_name(image_name)
                     if self.max_img_id is not None and img_id > self.max_img_id:
                         continue
-                    self.annotation_dict[key] = np.zeros(shape=(skeleton.num_joints, 2))
+                    self.annotation_dict[key] = np.zeros(shape=(config["skeleton"].num_joints, 2))
                     # if the front camera, then also add the mirrored version
                     if cid_read == 3:
                         new_key = (key[0], constr_img_name(7, img_id))
                         self.annotation_dict[new_key] = np.zeros(
-                            shape=(skeleton.num_joints, 2)
+                            shape=(config["skeleton"].num_joints, 2)
                         )
 
         print("Number of joints: {}".format(list(n_joints)))
@@ -246,7 +247,6 @@ class Drosophila(data.Dataset):
             assert np.logical_or(0 <= v, v <= 1).all()
 
             self.annotation_dict[k] = v
-            # then we will return 3 images, and each annotation is list of three, or if evaluation, we will return sorted images
 
         self.annotation_key = list(self.annotation_dict.keys())
         if self.evaluation:  # sort keys
@@ -266,7 +266,7 @@ class Drosophila(data.Dataset):
 
     def _compute_mean(self):
         file_path = os.path.abspath(os.path.dirname(__file__))
-        meanstd_file = os.path.join(file_path, "../../../weights/mean.pth.tar")
+        meanstd_file = config["mean"]
         if isfile(meanstd_file):
             meanstd = torch.load(meanstd_file)
         else:
@@ -320,7 +320,7 @@ class Drosophila(data.Dataset):
                 flip = False
         else:
             cid = self.cidread2cid[folder_name][cid_read]
-            flip = cid > 3
+            flip = cid in config["flip_cameras"]
 
         try:
             img_orig = load_image(self.__get_image_path(folder_name, cid_read, pose_id))
@@ -339,7 +339,7 @@ class Drosophila(data.Dataset):
 
         pts = torch.Tensor(self.annotation_dict[self.annotation_key[index]])
         nparts = pts.size(0)
-        assert nparts == skeleton.num_joints // 2
+        assert (nparts == config["num_predict"])
         joint_exists = np.zeros(shape=(nparts,), dtype=np.uint8)
         for i in range(nparts):
             # we convert to int as we cannot pass boolean from pytorch dataloader
@@ -350,9 +350,9 @@ class Drosophila(data.Dataset):
                     (0.01 < pts[i][0] < 0.99)
                     and (0.01 < pts[i][1] < 0.99)
                     and (
-                        skeleton.camera_see_joint(cid, i)
-                        or skeleton.camera_see_joint(
-                            cid, (i + skeleton.num_joints // 2)
+                            config["skeleton"].camera_see_joint(cid, i)
+                            or config["skeleton"].camera_see_joint(
+                            cid, (i + config["num_predict"])
                         )
                     )
                 )
