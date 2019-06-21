@@ -10,3 +10,13 @@ The initial manual annotations can be performed using the DeepFly3D Annotation G
 To perform camera calibration, the user should select the Calibration button on the GUI. DeepFly3D will then perform bundle adjustment and save the camera parameters in calibration.pickle (found in the images folder). The path of this file should then be added to Config.py to initialize calibration. These initial calibration parameters will then be used in further experiments for fast and accurate convergence.  If the number of annotations is insufficient for accurate calibration, or if bundle adjustment is converging too slowly, an initial rough estimate of the camera locations can be set in Config.py. As long as a calibration is set in Config.py, DeepFly3D will use it as a projection matrix to calculate the epipolar geometry between cameras. This step is necessary to perform outlier detection on further calibration operations. 
 
 DeepFly3D will also learn the distribution S_{i,j}, whose non-zero entries are found in skeleton.py. One can easily calculate these segment length distribution parameters using the functions provided with DeepFly3D. CameraNetwork class (found under deepfly/GUI/), will then automatically load the points and calibration parameters from the images folder. The function CameraNetwork.triangulate will convert 2D annotation points into 3D points using the calibration parameters. The S_{i,j} parameters can then be saved using the pickle library (the save path can be set in Config.py. The calcBoneParams method will then output the segment lengths' mean and variance. These values will then be used with pictorial structures. 
+
+
+## Examples
+<p align="center">
+<img src="images/h3.6mfail.png" width="640">
+</p>
+<p align="center">
+<img src="images/h3.6mcorrect.png" width="640">
+</p>
+
