@@ -54,7 +54,7 @@ def create_parser():
     )
     parser.add_argument(
         "--test-batch",
-        default=12,
+        default=64,
         type=int,
         metavar="N",
         dest="test_batch",
@@ -100,10 +100,20 @@ def create_parser():
         help="Labelmap dist type: (default=Gaussian)",
     )
     # paths
+    import os
+    file_path = os.path.abspath(os.path.dirname(__file__))
     parser.add_argument(
         "-c",
         "--checkpoint",
-        default="../../checkpoint/",
+        default=os.path.join(file_path, "../../checkpoint/"),
+        type=str,
+        metavar="PATH",
+        help="path to save checkpoint (default: checkpoint)",
+    )
+    parser.add_argument(
+        "--json-file",
+        default=os.path.join(file_path, "../../data/drosophilaimaging-export.json"),
+        dest='json_file',
         type=str,
         metavar="PATH",
         help="path to save checkpoint (default: checkpoint)",

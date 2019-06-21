@@ -36,8 +36,8 @@ class Drosophila(data.Dataset):
         self.train = train
         self.data_folder = data_folder  # root image folders
         self.data_corr_folder = data_corr_folder
-        self.json_file = os.path.join("../../data/", jsonfile)
-        self.is_train = train
+        self.json_file = os.path.join(jsonfile)
+        self.is_train = train  # training set or test set
         self.img_res = img_res
         self.hm_res = hm_res
         self.sigma = sigma
@@ -57,7 +57,7 @@ class Drosophila(data.Dataset):
         )  # self eval then not augmentation
         assert not self.unlabeled or evaluation  # if unlabeled then evaluation
 
-        manual_path_list = ['../data/test']
+        manual_path_list = ["../data/test"]
 
         """
         if not os.path.exists(self.data_folder):
@@ -71,9 +71,6 @@ class Drosophila(data.Dataset):
         if not self.unlabeled and isfile(self.json_file):
             json_data = json.load(open(self.json_file, "r"))
             for session_id in json_data.keys():
-                if session_id not in self.session_id_train_list:
-                    print("Ignoring session id: {}".format(session_id))
-                    continue
                 for folder_name in json_data[session_id]["data"].keys():
                     if folder_name not in self.folder_train_list:
                         continue
@@ -178,7 +175,7 @@ class Drosophila(data.Dataset):
                         self.annotation_dict[key] = pts
 
         elif self.unlabeled:
-            image_folder_path = os.path.join(self.data_folder, self.unlabeled)
+            image_folder_path = os.path.join(self.unlabeled)
             cidread2cid, cid2cidread = read_camera_order(image_folder_path)
             self.cidread2cid[self.unlabeled] = cidread2cid
 

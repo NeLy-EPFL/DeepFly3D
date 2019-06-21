@@ -1,5 +1,9 @@
 ## Running GUI
+
 After installing the dependencies we can initialize the GUI using the command line entry point:
+
+![Alt text](../images/gui.gif?raw=true "Title")
+
 ```
 deepfly3d ./data/test/ 15
 ```
