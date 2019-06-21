@@ -121,20 +121,9 @@ class CameraNetwork:
                     else:
                         pred_cam[:num_images_in_pred, :, :] = pred[cam_id_read, :
                                                               ] * self.image_shape
-
-
                 else:
                     print("Skipping reading heatmaps and predictions")
-                    heatmap = np.zeros(
-                        shape=(
-                            config["num_cameras"],
-                            num_images,
-                            num_joints,
-                            heatmap_shape[0],
-                            heatmap_shape[1],
-                        ),
-                        dtype=float,
-                    )
+                    heatmap = None
                     pred_cam = np.zeros(shape=(num_images, num_joints, 2), dtype=float)
                 self.cam_list.append(
                     Camera(

@@ -12,7 +12,7 @@ class Tracked(Enum):
     THORAX = 6,
     UPPER_NECK = 7
     SHOULDER = 8
-    ELBOW=9
+    ELBOW = 9
     HIP = 10
 
 
@@ -46,7 +46,7 @@ bones = [
     [6, 7],
     [7, 8],
     [10, 11],
-    [11,12],
+    [11, 12],
     [13, 14],
     [14, 15]
 ]
@@ -65,7 +65,6 @@ colors = [
     (150, 200, 200),
     (255, 165, 0),
 ]
-
 
 num_joints = len(tracked_points)
 num_limbs = len(set(limb_id))
@@ -100,14 +99,15 @@ def is_limb_visible_mid(limb_id):
 
 
 bone_param = np.ones((num_joints, 2), dtype=float)
-bone_param[:,0] = 1
-bone_param[:,1] = 99999
+bone_param[:, 0] = 1
+bone_param[:, 1] = 99999
 
 pictorial_joint_list = [j for j in range(num_joints)]
 
 ignore_joint_id = []
 zorder = np.arange(num_limbs)
 zorder = [zorder[get_limb_id(j)] for j in range(num_joints)]
+
 
 def get_zorder(cam_id):
     return zorder

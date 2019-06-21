@@ -45,7 +45,7 @@ class DrosophAnnot(QWidget):
             self.folder = self.folder[:-1]
 
         self.state = State(self.folder)
-        self. max_num_images = max_num_images
+        self.state.max_num_images = max_num_images
         self.state.db = PoseDB(self.folder)
         self.cidread2cid, self.cid2cidread = read_camera_order(self.folder)
 
@@ -241,7 +241,7 @@ class DrosophAnnot(QWidget):
             num_joints=config["skeleton"].num_joints,
             cid2cidread=[self.cid2cidread[cid] for cid in config["right_cameras"]],
             heatmap_shape=config["heatmap_shape"],
-            cam_list=[cam for cam in self.camNetAll if cam.cam_id in config["right_cameras"]],
+            cam_list=[self.camNetAll[cam_id] for cam_id in config["right_cameras"]],
         )
 
         self.camNet = self.camNetLeft

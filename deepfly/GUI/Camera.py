@@ -250,6 +250,8 @@ class Camera:
                     "camera_{}_img_{:06}.jpg".format(self.cam_id_read, img_id),
                 )
             )
+            if img is None:
+                raise FileNotFoundError
         except FileNotFoundError:
             img = cv2.imread(
                 os.path.join(

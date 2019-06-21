@@ -139,7 +139,7 @@ def plot_drosophila_3d(
         colors=None,
         zorder=None,
         thickness=None,
-        lim=True
+        lim=None
 ):
     points3d = np.array(points3d)
     if draw_joints is None:
@@ -173,7 +173,7 @@ def plot_drosophila_3d(
             ax_3d.view_init(ax_3d.elev, -60 + 45 * cam_id)
 
     if lim:
-        max_range = 0.5
+        max_range = lim
         mid_x = 0
         mid_y = 0
         mid_z = 0

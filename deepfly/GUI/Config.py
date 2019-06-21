@@ -115,9 +115,10 @@ config_h36m = {
     "alpha_bone": 0,
 }
 
+'''
 # setting defaults if they are missing
 config_fly = dict(list(default.items()) + list(config_fly.items()))
 config_h36m = dict(list(default.items()) + list(config_h36m.items()))
+'''
 
-# config = config_fly
-config = config_h36m
+config = config_fly

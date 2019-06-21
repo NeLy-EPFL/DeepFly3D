@@ -80,9 +80,7 @@ def main(args):
         if isfile(args.resume):
             print("=> loading checkpoint '{}'".format(args.resume))
             checkpoint = torch.load(args.resume)
-            if "mpii" in args.resume:  # weights for sh trained on mpii dataset
-
-                '''
+            if "mpii" in args.resume and not args.unlabeled:  # weights for sh trained on mpii dataset
                 print("Removing input/output layers")
                 ignore_weight_list_template = [
                     "module.score.{}.bias",
@@ -96,17 +94,18 @@ def main(args):
                 for k in ignore_weight_list:
                     if k in checkpoint["state_dict"]:
                         checkpoint["state_dict"].pop(k)
-                '''
 
-                #state = model.state_dict()
-                #state.update(checkpoint["state_dict"])
-                #print(model.state_dict())
-                #print(checkpoint["state_dict"])
-                #model.load_state_dict(state, strict=True)
+
+                state = model.state_dict()
+                state.update(checkpoint["state_dict"])
+                print(model.state_dict())
+                print(checkpoint["state_dict"])
+                model.load_state_dict(state, strict=False)
+            elif "mpii" in args.resume and args.unlabeled:
                 model.load_state_dict(checkpoint['state_dict'], strict=False)
             else:
                 pretrained_dict = checkpoint["state_dict"]
-                model.load_state_dict(pretrained_dict, strict=True)
+                model.load_state_dict(pretrained_dict, strict=False)
 
                 args.start_epoch = checkpoint["epoch"]
                 args.img_res = checkpoint["image_shape"]
