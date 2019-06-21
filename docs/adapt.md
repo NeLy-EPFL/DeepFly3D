@@ -20,3 +20,6 @@ DeepFly3D will also learn the distribution S_{i,j}, whose non-zero entries are f
 <img src="../images/h3.6mcorrect.png" width="640">
 </p>
 
+
+![Alt text](images/h3.6m.gif?raw=true "Title")
+
