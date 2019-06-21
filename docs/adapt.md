@@ -21,5 +21,5 @@ DeepFly3D will also learn the distribution S_{i,j}, whose non-zero entries are f
 </p>
 
 
-![Alt text](images/h3.6m.gif?raw=true "Title")
+![Alt text](../images/h3.6m.gif?raw=true "Title")
 
