@@ -11,6 +11,7 @@ from .Camera import Camera
 from .util.ba_util import *
 from .util.cv_util import *
 
+from .util.os_util import read_calib
 
 class CameraNetwork:
     def __init__(
@@ -55,6 +56,8 @@ class CameraNetwork:
             print("Loading predictions {}".format(pred_path_list))
             if pred is None and len(pred_path_list) != 0:
                 pred = np.load(pred_path_list[0], mmap_mode="r")
+                if pred.shape[1] > num_images:
+                    pred = pred[:,:num_images]
                 num_images_in_pred = pred.shape[1]
             else:
                 num_images_in_pred = num_images
@@ -96,7 +99,7 @@ class CameraNetwork:
                     self.dict_name = os.path.dirname(list(heatmap.keys())[10]) + "/"
 
             for cam_id, cam_id_read in zip(cam_id_list, self.cid2cidread):
-                if heatmap is not None and type(heatmap) is np.core.memmap:
+                if heatmap is not None:# and type(heatmap) is np.core.memmap:
                     pred_cam = np.zeros(
                         shape=(num_images_in_pred, num_joints, 2), dtype=float
                     )
@@ -136,6 +139,8 @@ class CameraNetwork:
                     )
                 )
 
+        if calibration is None:
+            calibration = read_calib(self.folder)
         if calibration is not None:
             _ = self.load_network(calibration)
 

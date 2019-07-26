@@ -300,6 +300,8 @@ class Camera:
             pts = self.get_points2d(img_id)
         if pts is None:
             pts = np.zeros((config["skeleton"].num_joints, 2))
+        if zorder is None:
+            zorder = config["skeleton"].get_zorder(self.cam_id)
         if draw_joints is None:
             draw_joints = [
                 j
