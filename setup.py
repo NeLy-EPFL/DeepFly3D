@@ -18,7 +18,7 @@ setup(
         "PyQt5",
         "sklearn",
         "numpy<=1.14.1",
-        "scipy<1.2",
+        "scipy<=1.2.1",
         "scikit-video",
         "scikit-image",
         "matplotlib",

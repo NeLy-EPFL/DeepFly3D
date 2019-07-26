@@ -2,6 +2,7 @@
 
 To reproduce the results from the paper, first download the necessarry weights using from the root folder of the project. This will download the weights for MPII dataset, together with the final weights for the paper:
 
+
 ```
 ./weights/download.sh
 ```
@@ -15,14 +16,13 @@ python pose2d/drosophila.py -s 8 --resume ./weights/sh8_mpii.tar
 This will create a new folder called checkpoint and will save training logs and loss curves. This will also save the best weights with the lowest validation error as  ```model_best.pth.tar```. To also save example training and validation images, use 
 ```--num-output-image``` argument, and set it to a non-zero value.
 
-
-
 ### Using DeepFly3D Annotation Tool for Training
 
 ```
 python pose2d/drosophila.py -s 8 --resume ./weights/sh8_mpii.tar --num-output-image 10
 ```
 To use the annotation tool, download the resulting json file from Google Firebase and place the image folders under the ```data``` folder. Then, set the  DeepFly3D will automatically parse the json file and add the annotated images to the training. Set ```jsonfile="drosophilaimaging-export.json``` and  ```self.json_file = os.path.join("../../data/", jsonfile)``` lines accordingly in the to make sure dataset file can find it. 
+
 Further, set the necessary variables inside the dataset initilization under ```pose2d/drosophila.py```.
 
 ```

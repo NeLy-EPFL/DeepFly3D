@@ -1,16 +1,14 @@
-import json
 import math
 import os
 
 import cv2
-import matplotlib.image as mpimg
 import numpy as np
 import skimage
 import skimage.feature
 from scipy.spatial import KDTree
 
-from . import skeleton
-from .plot_util import plot_drosophila_heatmap, plot_drosophila_2d
+from .Config import config
+from .util.plot_util import plot_drosophila_heatmap, plot_drosophila_2d
 
 
 class Camera:
@@ -192,61 +190,83 @@ class Camera:
     """
 
     def get_heatmap(self, img_id, j_id=None):
-        if j_id is None:
-            if self.cam_id == 3:
-                j_id = list(range(skeleton.num_joints))
-            else:
-                j_id = list(range(skeleton.num_joints // 2))
-        if not isinstance(j_id, list):
-            j_id = [j_id]
-        if self.hm is None:
-            # print("Trying to read nonexisting heatmap")
-            return np.zeros(shape=(len(j_id), 64, 128), dtype=float)
-        for j in j_id:
-            if not skeleton.camera_see_joint(self.cam_id, j):
-                pass
-                # print("Trying to read heatmap from camera {} point {}".format(self.cam_id, j))
-        if self.cam_id > 3:
-            j_id = [(j % (skeleton.num_joints // 2)) for j in j_id]
-        if self.cam_id < 3 or self.cam_id > 3:
+        if "fly" in config["name"]:
+            if j_id is None:
+                if self.cam_id == 3:
+                    j_id = list(range(config["skeleton"].num_joints))
+                else:
+                    j_id = list(range(config["num_predict"]))
+            if not isinstance(j_id, list):
+                j_id = [j_id]
+            if self.hm is None:
+                # print("Trying to read nonexisting heatmap")
+                return np.zeros(shape=(len(j_id), 64, 128), dtype=float)
+            for j in j_id:
+                if not config["skeleton"].camera_see_joint(self.cam_id, j):
+                    # print("Trying to read heatmap from camera {} point {}".format(self.cam_id, j))
+                    pass
+
+            if self.cam_id > 3:
+                j_id = [(j % (config["skeleton"].num_joints // 2)) for j in j_id]
+            if self.cam_id < 3 or self.cam_id > 3:
+                if j_id is not None:
+                    return self.hm[self.cam_id_read, img_id, j_id, :]
+                else:
+                    return self.hm[self.cam_id_read, img_id, :]
+            elif self.cam_id == 3:
+                cam3_j = [j for j in j_id if j < config["num_predict"]]
+                cam7_j = [
+                    j % (config["num_predict"])
+                    for j in j_id
+                    if j >= config["num_predict"]
+                ]
+                cam3_hm = self.hm[self.cam_id_read, img_id, cam3_j, :, :]
+                cam7_hm = self.hm[7, img_id, cam7_j, :, :]
+                if cam3_j and cam7_j:
+                    return np.concatenate([cam3_hm, cam7_hm])
+                elif cam3_j:
+                    return cam3_hm
+                elif cam7_j:
+                    return cam7_hm
+                else:
+                    raise NotImplementedError
+        else:
+            if not isinstance(j_id, list):
+                j_id = [j_id]
+            if self.hm is None:
+                # print("Trying to read nonexisting heatmap")
+                return np.zeros(shape=(len(j_id), config["hm_shape"][0], config["hm_shape"][1]), dtype=float)
+
             if j_id is not None:
                 return self.hm[self.cam_id_read, img_id, j_id, :]
             else:
                 return self.hm[self.cam_id_read, img_id, :]
-        elif self.cam_id == 3:
-            cam3_j = [j for j in j_id if j < skeleton.num_joints // 2]
-            cam7_j = [
-                j % (skeleton.num_joints // 2)
-                for j in j_id
-                if j >= skeleton.num_joints // 2
-            ]
-            cam3_hm = self.hm[self.cam_id_read, img_id, cam3_j, :, :]
-            cam7_hm = self.hm[7, img_id, cam7_j, :, :]
-            if cam3_j and cam7_j:
-                return np.concatenate([cam3_hm, cam7_hm])
-            elif cam3_j:
-                return cam3_hm
-            elif cam7_j:
-                return cam7_hm
-            else:
-                raise NotImplementedError
 
     def get_image(self, img_id, flip=False):
         try:
-            img = mpimg.imread(
+            img = cv2.imread(
                 os.path.join(
                     self.image_folder,
                     "camera_{}_img_{:06}.jpg".format(self.cam_id_read, img_id),
                 )
             )
+            if img is None:
+                raise FileNotFoundError
         except FileNotFoundError:
-            img = mpimg.imread(
+            img = cv2.imread(
                 os.path.join(
                     self.image_folder,
                     "camera_{}_img_{}.jpg".format(self.cam_id_read, img_id),
                 )
             )
-        img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+        if img is None:
+            print("Cannot find", self.cam_id, img_id)
+            raise FileNotFoundError
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        if img.ndim == 2:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+        if img.ndim == 3 and img.shape[2] == 4:
+            img = img[:, :, :3]  # remove A
         if flip:
             img = cv2.flip(img, 1)
         return img
@@ -255,13 +275,6 @@ class Camera:
         if self.points2d is not None:
             # get the points from self.points2d
             pts = self[img_id]
-        elif np.all(pts == 0) and self.hm is not None:
-            # get the points from self.hm
-            print("points2d is None, getting points from the heatmap")
-            pts = np.squeeze(np.array(Camera.hm_to_pred(self.hm[img_id, :]))) * [
-                960,
-                480,
-            ]
         else:
             raise NotImplementedError
 
@@ -286,18 +299,20 @@ class Camera:
         if pts is None and self.points2d is not None:
             pts = self.get_points2d(img_id)
         if pts is None:
-            pts = np.zeros((skeleton.num_joints, 2))
+            pts = np.zeros((config["skeleton"].num_joints, 2))
+        if zorder is None:
+            zorder = config["skeleton"].get_zorder(self.cam_id)
         if draw_joints is None:
             draw_joints = [
                 j
-                for j in range(skeleton.num_joints)
-                if skeleton.camera_see_joint(self.cam_id, j)
+                for j in range(config["skeleton"].num_joints)
+                if config["skeleton"].camera_see_joint(self.cam_id, j)
             ]
         pts_tmp = pts.copy()
         if flip_points:
-            pts_tmp[pts_tmp > 960] = 960
-            pts_tmp[:, 0] = 960 - pts_tmp[:, 0]
-            pts_tmp[pts_tmp == 960] = 0
+            pts_tmp[pts_tmp > config["image_shape"][0]] = config["image_shape"][0]
+            pts_tmp[:, 0] = config["image_shape"][0] - pts_tmp[:, 0]
+            pts_tmp[pts_tmp == config["image_shape"][0]] = 0
         pts_tmp = pts_tmp.astype(int)
 
         img = plot_drosophila_2d(

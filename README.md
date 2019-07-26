@@ -14,7 +14,8 @@ Code for data preparation and augmentation are taken from the [Stacked hourglass
 * If you want to train 2D estimator instead: [2D Pose](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/terminal.md)
 * Generating visualizations: [Visualization](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/visual.md)
 * If you are interested in the online annotation tool instead: [DeepFly3DAnnotation](https://github.com/NeLy-EPFL/DeepFly3DAnnotation)
-* To get more data: [Data](https://www.dropbox.com/sh/w53dbs0qp39hlag/AADPBbQdE_OFYeUMRpwiIfq-a?dl=0a)
+* To see the whole dataset used in the paper: [Dataverse](https://dataverse.harvard.edu/dataverse/DeepFly3D)
+* Adapting DeepFly3D on different datasets: [Adapting (Will be updated soon)](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/adapt.md)
 
 ## GUI
 ![Alt text](images/gui2.png?raw=true "Title")
@@ -72,6 +73,14 @@ To visualize the time series instead, use the notebook ```notebook_visualize/tim
 <p align="center">
 <img src="images/time_series.png" width="640">
 </p>
+
+### Using different datasets
+It is possible to use DeepFly3D on other animals! Check the [Adaptation](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/adapt.md) text to see an example of [H3.6m](http://vision.imar.ro/human3.6m/description.php) multi-view human dataset.
+
+<p align="center">
+<img src="images/h3.6mcorrect.png" width="640">
+</p>
+
 
 ### References
 ```
