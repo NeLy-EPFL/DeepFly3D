@@ -5,7 +5,7 @@
 
 DeepFly3D is a PyTorch and PyQT5 implementation of 2D-3D tethered Drosophila pose estimation. It aims to provide an interface for pose estimation and to permit further correction of 2D pose estimates, which are automatically converted to 3D pose. 
 
-DeepFly3D **does not require a calibration pattern**, it enforces **geometric constraints using pictorial structure**, which corrects most of the erros, and the **remaining errors can be dealt with easily with GUI assistance**.
+DeepFly3D **does not require a calibration pattern**, it enforces **geometric constraints using pictorial structures**, which corrects most of the erros, and the **remaining errors are automatically detected can be dealt easily with GUI assistance**.
 
 Code for data preparation and augmentation are taken from the [Stacked hourglass network](https://github.com/anewell/pose-hg-train). We also use the Stacked Hourglass model for 2D pose estimation. We implement custom advances (e.g., GUI) using PyQT5.
 
@@ -14,7 +14,9 @@ Code for data preparation and augmentation are taken from the [Stacked hourglass
 * If you want to train 2D estimator instead: [2D Pose](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/terminal.md)
 * Generating visualizations: [Visualization](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/visual.md)
 * If you are interested in the online annotation tool instead: [DeepFly3DAnnotation](https://github.com/NeLy-EPFL/DeepFly3DAnnotation)
-* To get more data: [Data](https://www.dropbox.com/sh/w53dbs0qp39hlag/AADPBbQdE_OFYeUMRpwiIfq-a?dl=0a)
+* To see the whole dataset used in the paper: [Dataverse](https://dataverse.harvard.edu/dataverse/DeepFly3D)
+* Adapting DeepFly3D on different datasets: [Adapting (Will be updated soon)](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/adapt.md)
+**The DeepFly3D will be also updated soon for easier adaptation of different datasets.**
 
 ## GUI
 ![Alt text](images/gui2.png?raw=true "Title")
@@ -28,8 +30,9 @@ DeepFly3D provides a nice GUI to interact with the data. Using DeepFly3D GUI, yo
 And you can perform:
 
 * 2D pose estimation
-* Calibration
+* Calibration without calibration pattern
 * Saving the final 3D estimations
+* Manual Correction
 
 ### Identifying erroneous estimates automatically
 ![Alt text](images/gui_finderror.gif?raw=true "Title")

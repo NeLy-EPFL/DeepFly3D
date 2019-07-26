@@ -141,7 +141,7 @@ def main(args):
             ]
         )
 
-    #cudnn.benchmark = True
+    # cudnn.benchmark = True
     print(
         "    Total params: %.2fM"
         % (sum(p.numel() for p in model.parameters()) / 1000000.0)
@@ -636,48 +636,12 @@ def worker_init_fn(worker_id):
 
 def create_dataloader():
     session_id_list = [
-        "q47rx0Ybo0QHraRuDWken9WtPTA2",
-        "NDPYoQ2XFtgKBXRjvU8jrvxZubo1",
-        "Kx15rwZq73X7wYb0iY9xijwGiHk1",
-        "vpxDc5MnvuQRqzwGNS4Vmt7H4l12",
-        "duoOujjtuKPrV3vAo8yIGeO8IAK2",
-        "ZQzgWClhXBXT4dlFXxXDiXNEcjq2",
-        "ysBLvSNVnphXjzc9sj7wv9lpLO83",
-        "PgYZrpaGRrRwNOYbDktD55mjwFh2",
-        "nMMVZbwCrUhW3heIo7raIesnbve2",
+        "q47rx0Ybo0QHraRuDWken9WtPTA2"
     ]
     train_session_id_list, test_session_id_list = session_id_list, session_id_list
     if args.train_folder_list is None:
         args.train_folder_list = [
             "2018-05-29--18-58-22--semih",
-            "2018-05-29--19-01-50--semih",
-            "2018-06-12--16-05-24--semih",
-            "180703--17",
-            "180703--09",
-            "vlc_magnet_network",
-            "180703-27_network",
-            "180703-22_network",
-            "2018-05-10--17-53-30--testViewElavGC6s-R57C10-GC6s-tdTom_Fly4",
-            "Fly1_Seq30s_behData_003_network",
-            "180718_R57C10-tdTomGC6s_Fly2_sponVolm_001_network",
-            "180714_R85A02-tdTomGC6fopt_Fly2_spon_004_network",
-            "2018-05-29--18-59-41--semih",
-            "2018-06-12--16-07-43--semih",
-            "data_CLC_180722_R85A02-tdTomGc6fopt_Fly1_CO2volm_005_network",
-            "data_CLC_180722_R85A02-tdTomGc6fopt_Fly1_CO2volm_010_network",
-            "2018-06-07--17-05-26--semih-walking--5--long_network",
-            "Fly1_behav_behData_006_network",
-            "Fly1_behavwd_behData_001_network",
-            "Fly1_behavwd_behData_002_network",
-            "Fly1_behav_behData_004_network",
-            "180720_MAN-tdTomGC6fopt_Fly3_CO2CC_006",
-            "180720_MAN-tdTomGC6fopt_Fly4_CO2CC_003_network",
-            "DM180904_MDN_CsCh_Fly1_SG_eye_1dot2_behData_001_network",
-            "DM180904_MDN_PR_Fly1_SG_eye_1dot2_behData_002_network",
-            "180716_R88a02tdTomGC6fopt_Fly1_sponCC_001_network",
-            "DM180904_MDN_CsCh_Fly1_SG_eye_1dot2_behData_001",
-            "SG180913_na_Fly1_002_test_exp_time_behData",
-            "DM180903_MDN_CsCh_Fly2_SG_eye_1.2_behData_005",
         ]
     test_folder_list = ["2018-06-07--17-00-16--semih-walking--3"]
     # make sure training and test sets are mutually exclusive
@@ -698,6 +662,7 @@ def create_dataloader():
             augmentation=args.augmentation,
             temporal=args.temporal,
             num_classes=args.num_classes,
+            jsonfile=args.json_file
         ),
         batch_size=args.train_batch,
         shuffle=True,
@@ -719,6 +684,7 @@ def create_dataloader():
             temporal=args.temporal,
             evaluation=True,
             num_classes=args.num_classes,
+            jsonfile=args.json_file
         ),
         batch_size=args.test_batch,
         shuffle=False,
@@ -764,17 +730,18 @@ if __name__ == "__main__":
     args.checkpoint_image_dir = os.path.join(args.checkpoint, "./images/")
 
     # create checkpoint dir and image dir
-    if not isdir(args.checkpoint):
-        mkdir_p(args.checkpoint)
-    if not isdir(args.checkpoint_image_dir):
-        mkdir_p(args.checkpoint_image_dir)
-    if args.carry and not isdir(
-        os.path.join(args.annotation_path, args.unlabeled + "_network")
-    ):
-        mkdir_p(os.path.join(args.annotation_path, args.unlabeled + "_network"))
-    if args.carry and not isdir(
-        os.path.join(args.data_folder, args.unlabeled + "_network")
-    ):
-        mkdir_p(os.path.join(args.data_folder, args.unlabeled + "_network"))
+    if args.unlabeled is None:
+        if not isdir(args.checkpoint):
+            mkdir_p(args.checkpoint)
+        if not isdir(args.checkpoint_image_dir):
+            mkdir_p(args.checkpoint_image_dir)
+        if args.carry and not isdir(
+            os.path.join(args.annotation_path, args.unlabeled + "_network")
+        ):
+            mkdir_p(os.path.join(args.annotation_path, args.unlabeled + "_network"))
+        if args.carry and not isdir(
+            os.path.join(args.data_folder, args.unlabeled + "_network")
+        ):
+            mkdir_p(os.path.join(args.data_folder, args.unlabeled + "_network"))
 
     main(args)
