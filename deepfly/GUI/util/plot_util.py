@@ -139,7 +139,9 @@ def plot_drosophila_3d(
         colors=None,
         zorder=None,
         thickness=None,
-        lim=None
+        lim=None,
+        scatter=False,
+        axis=False
 ):
     points3d = np.array(points3d)
     if draw_joints is None:
@@ -148,12 +150,13 @@ def plot_drosophila_3d(
         colors = config["skeleton"].colors
     colors_tmp = ["#%02x%02x%02x" % c for c in colors]
     if zorder is None:
-        zorder = np.ones((points3d.shape[0]))
+        zorder = config["skeleton"].get_zorder(cam_id)
+    if thickness is None:
+        thickness = np.ones((points3d.shape[0])) * 3
+
     colors = []
     for i in range(config["skeleton"].num_joints):
         colors.append(colors_tmp[config["skeleton"].get_limb_id(i)])
-    if thickness is None:
-        thickness = np.ones((points3d.shape[0])) * 3
     colors = np.array(colors)
 
     white = (1.0, 1.0, 1.0, 0.0)
@@ -188,6 +191,15 @@ def plot_drosophila_3d(
                 points3d[j] = (points3d[j] + points3d[j + (config["skeleton"].num_joints // 2)]) / 2
                 points3d[j + config["skeleton"].num_joints // 2] = points3d[j]
 
+    if scatter:
+        for j in draw_joints:
+            ax_3d.scatter(points3d[j, 0],
+                points3d[j, 1],
+                points3d[j, 2],
+                c=colors[j],
+                linewidth=thickness[config["skeleton"].get_limb_id(j)],
+                zorder=zorder[j])
+
     for bone in bones:
         if bone[0] in draw_joints and bone[1] in draw_joints:
             ax_3d.plot(
@@ -206,7 +218,7 @@ def plot_drosophila_3d(
                 points3d[bone, 2],
                 c=colors[bone[0]],
                 linewidth=5,
-                zorder=[bone[0]],
+                zorder=zorder[bone[0]],
             )
 
 
