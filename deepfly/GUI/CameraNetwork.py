@@ -157,7 +157,7 @@ class CameraNetwork:
         return iter(self.cam_list)
 
     def has_calibration(self):
-        return np.all([c.R is not None for c in self])
+        return np.all([c.P is not None for c in self])
 
     def has_pose(self):
         return self[0].points2d is not None
@@ -184,8 +184,8 @@ class CameraNetwork:
         )
 
     def triangulate(self, cam_indices=None):
-        if not self.cam_list:
-            return
+        assert(self.cam_list)
+
         if cam_indices is None:
             cam_indices = list(range(self.num_cameras))
         points2d_shape = self[0].points2d.shape
@@ -334,15 +334,17 @@ class CameraNetwork:
                     points3d_ba_source[(img_id, j_id)] = point_index_counter
                     points3d_ba_source_inv[point_index_counter] = (img_id, j_id)
                     point_index_counter += 1
+                    # cam_idx or cam_id ?
                     camera_indices.extend([cam.cam_id for cam in cam_list_iter])
 
         c = 0
         # make sure stripes from both sides share the same point id's
+        # TODO move this into config file
         if "fly" in config["name"]:
             for idx, point_idx in enumerate(point_indices):
                 img_id, j_id = points3d_ba_source_inv[point_idx]
                 if (
-                        config["skeleton"].tracked_points[j_id] == config["skeleton"].Tracked.STRIPE
+                        config["skeleton"].is_tracked_point(j_id, config["skeleton"].Tracked.STRIPE)
                         and j_id > config["skeleton"].num_joints // 2
                 ):
                     if (img_id, j_id - config["skeleton"].num_joints // 2) in points3d_ba_source:
@@ -354,12 +356,16 @@ class CameraNetwork:
         print("Replaced {} points".format(c))
         points3d_ba = np.squeeze(np.array(points3d_ba))
         points2d_ba = np.squeeze(np.array(points2d_ba))
+        cid2cidx = {v:k for (k,v) in enumerate(np.sort(np.unique(camera_indices)))}
+        camera_indices = [cid2cidx[cid] for cid in camera_indices]
         camera_indices = np.array(camera_indices)
         point_indices = np.array(point_indices)
 
+        '''
         camera_indices -= np.min(
             camera_indices
         )  # XXX assumes cameras are consecutive :/
+        '''
 
         n_cameras = camera_params.shape[0]
         n_points = points3d_ba.shape[0]
@@ -382,8 +388,7 @@ class CameraNetwork:
             unique=True,
             prior=False,
     ):
-        if not self.cam_list:
-            return
+        assert(self.cam_list)
         if cameras_involved is None:
             cameras_involved = range(self.num_cameras)
 
@@ -419,18 +424,6 @@ class CameraNetwork:
             ),
             max_nfev=1000,
         )
-        """
-        q = 99.0
-        thr = np.percentile(res.fun, q)
-        print("Residual quantile {}th: {}".format(q, thr))
-        residual_mask = np.ones_like(res.fun)
-        residual_mask[res.fun>thr] = 0
-        res = least_squares(fun, x0, jac_sparsity=A, verbose=2, x_scale='jac', ftol=1e-4, method='trf',
-                        args=(
-                            [self.cam_list[i] for i in cameras_involved], n_cameras, n_points, camera_indices,
-                            point_indices,
-                            points_2d, residual_mask), max_nfev=1000)
-        """
 
         print(
             "Bundle adjustment, Average reprojection error: {}".format(
@@ -439,7 +432,7 @@ class CameraNetwork:
         )
 
         self.triangulate()
-        plt.plot(res.fun)
+        # plt.plot(res.fun)
 
         return res
 

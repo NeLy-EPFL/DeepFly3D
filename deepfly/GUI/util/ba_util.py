@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.sparse import lil_matrix
 
-
 def fun(
     params,
     cam_list,
@@ -25,16 +24,16 @@ def fun(
     points_proj = np.zeros(shape=(point_indices.shape[0], 2), dtype=np.float)
     for cam_id in cam_indices_list:
         # set the variables
-        cam_list[cam_id].set_rvec(camera_params[cam_id][0:3])
-        cam_list[cam_id].set_tvec(camera_params[cam_id][3:6])
+
+        cam_list[cam_idx].set_rvec(camera_params[cam_id][0:3])
+        cam_list[cam_idx].set_tvec(camera_params[cam_id][3:6])
         # cam_list[cam_id].set_focal_length(camera_params[cam_id][6], camera_params[cam_id][7])
         # cam_list[cam_id].set_focal_length(camera_params[cam_id][6], camera_params[cam_id][7])
         # cam_list[cam_id].set_distort(camera_params[cam_id][8:13])
 
-        # black magic, do not touch
         points2d_mask = camera_indices == cam_id
         points3d_where = point_indices[points2d_mask]
-        points_proj[points2d_mask, :] = cam_list[cam_id].project(
+        points_proj[points2d_mask, :] = cam_list[cam_id.project(
             points3d[points3d_where]
         )
 

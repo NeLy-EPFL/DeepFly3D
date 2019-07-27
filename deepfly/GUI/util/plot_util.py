@@ -129,6 +129,15 @@ def Rt_points3d(R, tvec, points3d):
     return np.matmul(R, points3d) + tvec
 
 
+def rotate_points3d(pts_t):
+    tmp = pts_t[:, :, 1].copy()
+    pts_t[:, :, 1] = pts_t[:, :, 2].copy()
+    pts_t[:, :, 2] = tmp
+    pts_t[:, :, 2] *= -1
+    pts_t[:, :, 1] *= -1
+
+    return pts_t
+
 def plot_drosophila_3d(
         ax_3d,
         points3d,
@@ -221,21 +230,10 @@ def plot_drosophila_3d(
                 zorder=zorder[bone[0]],
             )
 
-
-def normalize_pose_3d(points3d, normalize_length=False, normalize_median=True):
+def normalize_pose_3d(points3d, normalize_length=False, normalize_median=True, rotate=False):
     if normalize_median:
         points3d -= np.median(points3d.reshape(-1, 3), axis=0)
-    if normalize_length:
-        length = [0.005, 0.01, 0.01, 0.01, 0.01]
-        points3d = points3d.reshape(-1, 15, 3)
-        for idx in range(points3d.shape[0]):
-            print(idx)
-            for j_idx in range(points3d[idx].shape[0]):
-                if j_idx % 5 == 4:  # then tarsus-tip
-                    continue
-                diff = points3d[idx, j_idx + 1, :] - points3d[idx, j_idx, :]
-                diff_norm = (diff / np.linalg.norm(diff)) * length[j_idx % 5]
-                points3d[idx, j_idx + 1, :] = points3d[idx, j_idx, :] + diff_norm
-                next_tarsus_tip = (j_idx - (j_idx % 5)) + 5
-                points3d[idx, j_idx + 2: next_tarsus_tip, :] += diff_norm - diff
+    if rotate:
+        points3d = rotate_points3d(points3d)
+
     return points3d
