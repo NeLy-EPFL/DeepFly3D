@@ -183,11 +183,11 @@ class CameraNetwork:
             )
         )
 
-    def triangulate(self, cam_indices=None):
+    def triangulate(self, cam_id_list=None):
         assert(self.cam_list)
 
-        if cam_indices is None:
-            cam_indices = list(range(self.num_cameras))
+        if cam_id_list is None:
+            cam_id_list = list(range(self.num_cameras))
         points2d_shape = self[0].points2d.shape
         self.points3d_m = np.zeros(
             shape=(points2d_shape[0], points2d_shape[1], 3), dtype=np.float
@@ -197,7 +197,7 @@ class CameraNetwork:
             for j_id in range(data_shape[1]):
                 cam_list_iter = list()
                 points2d_iter = list()
-                for cam in [self.cam_list[cam_idx] for cam_idx in cam_indices]:
+                for cam in [self.cam_list[cam_idx] for cam_idx in cam_id_list]:
                     if np.any(cam[img_id, j_id, :] == 0):
                         continue
                     if not config["skeleton"].camera_see_joint(cam.cam_id, j_id):
@@ -383,20 +383,20 @@ class CameraNetwork:
 
     def bundle_adjust(
             self,
-            cameras_involved=None,
+            cam_id_list=None,
             ignore_joint_list=config["skeleton"].ignore_joint_id,
             unique=True,
             prior=False,
     ):
         assert(self.cam_list)
-        if cameras_involved is None:
-            cameras_involved = range(self.num_cameras)
+        if cam_id_list is None:
+            cam_id_list = range(self.num_cameras)
 
         self.reprojection_error(
             cam_indices=(0, 1, 2), ignore_joint_list=ignore_joint_list
         )
         x0, points_2d, n_cameras, n_points, camera_indices, point_indices = self.prepare_bundle_adjust_param(
-            cameras_involved,
+            cam_id_list,
             ignore_joint_list=ignore_joint_list,
             unique=unique,
             prior=prior,
@@ -415,7 +415,7 @@ class CameraNetwork:
             ftol=1e-4,
             method="trf",
             args=(
-                [self.cam_list[i] for i in cameras_involved],
+                [self.cam_list[i] for i in cam_id_list],
                 n_cameras,
                 n_points,
                 camera_indices,
