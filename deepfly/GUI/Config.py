@@ -21,7 +21,7 @@ config_fly = {
     "heatmap_shape": [64, 128],
 
     "left_cameras": [0, 1, 2, 3],
-    "right_cameras": [6, 4, 5, 3],
+    "right_cameras": [6, 5, 4, 3],
 
     # skeleton
     "skeleton": skeleton_fly,
