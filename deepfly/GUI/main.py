@@ -226,6 +226,7 @@ class DrosophAnnot(QWidget):
         self.setLayout(layout_v)
         self.setWindowTitle(self.folder)
 
+
     def set_cameras(self):
         calib = read_calib(self.folder)
         self.camNetAll = CameraNetwork(
@@ -263,6 +264,10 @@ class DrosophAnnot(QWidget):
         self.state.camNetAll = self.camNetAll
         self.camNetLeft.bone_param = config["bone_param"]
         self.camNetRight.bone_param = config["bone_param"]
+
+        calib = read_calib(config["calib_fine"])
+        self.camNetAll.load_network(calib)
+
 
     def rename_images(self):
         text, okPressed = QInputDialog.getText(
@@ -325,6 +330,12 @@ class DrosophAnnot(QWidget):
         # makes sure cameras use the latest heatmaps and predictions
         self.set_cameras()
         self.set_mode(Mode.POSE)
+
+        for ip in self.image_pose_list:
+            ip.cam = self.camNetAll[ip.cam.cam_id]
+
+        for ip in self.image_pose_list_bot:
+            ip.cam = self.camNetAll[ip.cam.cam_id]
 
         self.update_frame()
 
@@ -647,8 +658,9 @@ class DrosophAnnot(QWidget):
                     min_img_id, max_img_id
                 )
             )
-
             ccalc(self, min_img_id, max_img_id)
+
+            self.set_cameras()
 
     def save_calibration(self):
         calib_path = "{}/calib_{}.pkl".format(

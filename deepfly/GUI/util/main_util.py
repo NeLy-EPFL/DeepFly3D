@@ -9,8 +9,10 @@ def button_set_width(btn, text=" ", margin=20):
 
 
 def calibrate_calc(drosophAnnot, min_img_id, max_img_id):
-    for cam in drosophAnnot.camNetAll:
-        cam.set_alpha(config["calib_rough"][cam.cam_id], r=94)
+
+    from deepfly.GUI.util.os_util import read_calib
+    calib = read_calib(config["calib_fine"])
+    drosophAnnot.camNetAll.load_network(calib)
 
     # take a copy of the current points2d
     pts2d = np.zeros(

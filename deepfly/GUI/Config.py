@@ -56,7 +56,8 @@ config_fly = {
             4: +179 / 57.2
         },
     "calib_fine": os.path.join(os.path.abspath(os.path.dirname(__file__)),
-                               "../../data/test/calib__home_user_Desktop_DeepFly3D_data_test.pkl"),
+                               "../../data/test/"),
+
 
     # belief propagation
     "num_peak": 10,

@@ -511,6 +511,7 @@ class CameraNetwork:
     def load_network(self, calib):
         d = calib
         for cam in self:
+            #print([d[cam.cam_id]])
             if cam.cam_id in d and d[cam.cam_id]:
                 cam.set_R(d[cam.cam_id]["R"])
                 cam.set_tvec(d[cam.cam_id]["tvec"])
