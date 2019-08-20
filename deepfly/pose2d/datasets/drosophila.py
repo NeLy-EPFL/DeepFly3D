@@ -78,7 +78,7 @@ class Drosophila(data.Dataset):
                         key = ("/data/annot/" + folder_name, image_name)
                         # for the hand annotations, it is always correct ordering
                         self.cidread2cid[key[FOLDER_NAME]] = np.arange(
-                            config["skeleton"].num_cameras
+                            config["num_cameras"]
                         )
                         cid_read, img_id = parse_img_name(image_name)
 
@@ -95,6 +95,7 @@ class Drosophila(data.Dataset):
                             continue
                         self.annotation_dict[key] = np.array(pts)
 
+
                         # also add the mirrored version for the right legs
                         if cid_read == 3:
                             from copy import deepcopy
@@ -110,71 +111,7 @@ class Drosophila(data.Dataset):
         32: 15 tracked points,, plus antenna on each side
         38: 15 tracked points, then 3 stripes, then one antenna
         """
-        # read the manual correction for training data
-        print("Searching for manual corrections")
-        n_joints = set()
-        if not self.unlabeled and self.train:
-            pose_corr_path_list = []
-            for root in manual_path_list:
-                print(
-                    "Searching recursively on {} for manual correction files".format(
-                        root
-                    )
-                )
-                pose_corr_path_list.extend(
-                    list(
-                        glob.glob(
-                            os.path.join(root, "./**/pose_corr*.pkl"), recursive=True
-                        )
-                    )
-                )
-                print(
-                    "Number of manual correction files: {}".format(
-                        len(pose_corr_path_list)
-                    )
-                )
-            for path in pose_corr_path_list:
-                print("Reading manual annotations from {}".format(path))
-                d = pickle.load(open(path, "rb"))
-                folder_name = d["folder"]
-                key_folder_name = folder_name
-                if folder_name not in self.cidread2cid:
-                    cidread2cid, cid2cidread = read_camera_order(folder_name)
-                    self.cidread2cid[key_folder_name] = cidread2cid
-                for cid in range(config["skeleton"].num_cameras):
-                    for img_id, points2d in d[cid].items():
-                        cid_read = self.cidread2cid[key_folder_name].tolist().index(cid)
-                        key = (key_folder_name, constr_img_name(cid_read, img_id))
-                        num_heatmaps = points2d.shape[0]
-                        n_joints.add(num_heatmaps)
-
-                        pts = np.zeros((2 * self.num_classes, 2), dtype=np.float)
-                        if cid < 3:
-                            pts[: num_heatmaps // 2, :] = points2d[
-                                : num_heatmaps // 2, :
-                            ]
-                        elif cid > 3:
-                            pts[
-                                num_classes : num_classes + (num_heatmaps // 2), :
-                            ] = points2d[num_heatmaps // 2 :, :]
-                        elif cid == 3:
-                            pts[: num_heatmaps // 2, :] = points2d[
-                                : num_heatmaps // 2, :
-                            ]
-
-                            # then add the cameras 7
-                            from copy import deepcopy
-
-                            new_key = deepcopy(key)
-                            new_key = (new_key[0], constr_img_name(7, img_id))
-                            new_pts = points2d[num_heatmaps // 2 :, :]
-                            self.annotation_dict[new_key] = np.array(new_pts)
-                        else:
-                            raise NotImplementedError
-
-                        self.annotation_dict[key] = pts
-
-        elif self.unlabeled:
+        if self.unlabeled:
             image_folder_path = os.path.join(self.unlabeled)
             cidread2cid, cid2cidread = read_camera_order(image_folder_path)
             self.cidread2cid[self.unlabeled] = cidread2cid
@@ -194,7 +131,6 @@ class Drosophila(data.Dataset):
                             shape=(config["skeleton"].num_joints, 2)
                         )
 
-        print("Number of joints: {}".format(list(n_joints)))
         # make sure data is in the folder
         for folder_name, image_name in self.annotation_dict.copy().keys():
             cid_read, img_id = parse_img_name(image_name)
@@ -312,8 +248,8 @@ class Drosophila(data.Dataset):
         cid_read, pose_id = parse_img_name(img_name)
         if cid_read == 7:
             cid = 7
-            # cid2cidread
             cid_read = self.cidread2cid[folder_name].tolist().index(3)
+
             if "annot" not in folder_name:
                 flip = True
             else:
