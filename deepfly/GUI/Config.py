@@ -20,8 +20,8 @@ config_fly = {
     "image_shape": [960, 480],
     "heatmap_shape": [64, 128],
 
-    "left_cameras": [0, 1, 2, 3],
-    "right_cameras": [6, 5, 4, 3],
+    "left_cameras": [0, 1, 2],
+    "right_cameras": [6, 5, 4],
 
     # skeleton
     "skeleton": skeleton_fly,
@@ -30,19 +30,19 @@ config_fly = {
     "num_joints": skeleton_fly.num_joints,
 
     # plotting
-    "line_thickness": 5,
-    "scatter_r": 5,
+    "line_thickness": 3,
+    "scatter_r": 6,
 
     # pose estimation
     "resume": os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../weights/sh8_deepfly.tar"),
-    "num_stacks": 4,
+    "num_stacks": 8,
     "batch_size": 64,
     "flip_cameras": [4, 5, 6],
     "num_predict": skeleton_fly.num_joints // 2,
     "mean": os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../weights/mean.pth.tar"),
 
     # 3d pose
-    "reproj_thr": {v: 30 for v in range(skeleton_fly.num_joints)},
+    "reproj_thr": {v: 50 for v in range(skeleton_fly.num_joints)},
 
     # calibration
     "calib_rough":

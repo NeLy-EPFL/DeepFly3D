@@ -28,7 +28,7 @@ class CameraNetwork:
             pred=None,
             cam_list=None,
             hm_path=None,
-            pred_path=None,
+            pred_path=None
     ):
         self.folder = image_folder
         self.dict_name = image_folder
@@ -140,6 +140,7 @@ class CameraNetwork:
                 )
 
         if calibration is None:
+            print("Reading calibration from {}".format(self.folder))
             calibration = read_calib(self.folder)
         if calibration is not None:
             _ = self.load_network(calibration)
@@ -321,6 +322,8 @@ class CameraNetwork:
                     #    continue
                     if unique and not self.mask_unique[img_id, j_id, 0]:
                         continue
+                    if cam.cam_id == 3:
+                        continue
 
                     cam_list_iter.append(cam)
                     points2d_iter.append(cam[img_id, j_id, :])
@@ -334,7 +337,6 @@ class CameraNetwork:
                     points3d_ba_source[(img_id, j_id)] = point_index_counter
                     points3d_ba_source_inv[point_index_counter] = (img_id, j_id)
                     point_index_counter += 1
-                    # cam_idx or cam_id ?
                     camera_indices.extend([cam.cam_id for cam in cam_list_iter])
 
         c = 0
@@ -393,7 +395,7 @@ class CameraNetwork:
             cam_id_list = range(self.num_cameras)
 
         self.reprojection_error(
-            cam_indices=(0, 1, 2), ignore_joint_list=ignore_joint_list
+            cam_indices=cam_id_list, ignore_joint_list=ignore_joint_list
         )
         x0, points_2d, n_cameras, n_points, camera_indices, point_indices = self.prepare_bundle_adjust_param(
             cam_id_list,
@@ -431,8 +433,7 @@ class CameraNetwork:
             )
         )
 
-        self.triangulate()
-        # plt.plot(res.fun)
+        self.triangulate(cam_id_list)
 
         return res
 

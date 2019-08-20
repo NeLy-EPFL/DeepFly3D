@@ -17,6 +17,7 @@ def plot_drosophila_2d(
         circle_color=None,
         draw_order=None,
         zorder=None,
+        r_list=None
 ):
     if colors is None:
         colors = config["skeleton"].colors
@@ -31,6 +32,8 @@ def plot_drosophila_2d(
         draw_order = np.intersect1d(draw_order, draw_limbs)
     if zorder is None:
         zorder = np.arange(config["skeleton"].num_joints)
+    if r_list is None:
+        r_list = [config["scatter_r"]]*config["skeleton"].num_joints
 
     # for joint_id in range(pts.shape[0]):
     for joint_id in np.argsort(zorder):
@@ -43,9 +46,8 @@ def plot_drosophila_2d(
             continue
 
         color = colors[limb_id]
-        r = config["scatter_r"]
 
-        cv2.circle(img, (pts[joint_id, 0], pts[joint_id, 1]), r, color, thickness=-1)
+        cv2.circle(img, (pts[joint_id, 0], pts[joint_id, 1]), r_list[joint_id], color, thickness=-1)
 
         for bone in config["bones"]:
             if bone[0] == joint_id:

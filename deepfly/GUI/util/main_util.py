@@ -35,11 +35,12 @@ def calibrate_calc(drosophAnnot, min_img_id, max_img_id):
         cam.points2d = cam.points2d[min_img_id:max_img_id, :]
 
     drosophAnnot.camNetLeft.triangulate()
-    drosophAnnot.camNetLeft.bundle_adjust(unique=False, prior=True)
+    drosophAnnot.camNetLeft.bundle_adjust(cam_id_list=(0,1,2), unique=False, prior=True)
     drosophAnnot.camNetRight.triangulate()
-    drosophAnnot.camNetRight.bundle_adjust(unique=False, prior=True)
-    drosophAnnot.camNetAll.triangulate()
-    drosophAnnot.camNetAll.bundle_adjust(unique=False, prior=True)
+    drosophAnnot.camNetRight.bundle_adjust(cam_id_list=(0,1,2), unique=False, prior=True)
+    #drosophAnnot.camNetAll.triangulate()
+    #drosophAnnot.camNetAll.bundle_adjust(cam_id_list=range(config["num_cameras"]), unique=False, prior=True)
+    #drosophAnnot.camNetAll.triangulate()
 
     # put old values back
     for cam_id in range(config["num_cameras"]):

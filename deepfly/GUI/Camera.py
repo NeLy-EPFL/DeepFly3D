@@ -293,6 +293,7 @@ class Camera:
         flip_image=False,
         circle_color=None,
         zorder=None,
+        r_list=None
     ):
         if img is None:
             img = self.get_image(img_id, flip=flip_image)
@@ -324,6 +325,7 @@ class Camera:
             draw_limbs=draw_limbs,
             circle_color=circle_color,
             zorder=zorder,
+            r_list=r_list
         )
         return img
 
