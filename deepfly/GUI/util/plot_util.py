@@ -3,6 +3,7 @@ from __future__ import print_function
 import cv2
 import numpy as np
 import scipy
+from PIL import Image
 
 from deepfly.GUI.Config import config
 
@@ -84,15 +85,19 @@ def plot_drosophila_heatmap(image=None, hm=None, concat=False, scale=1):
         img = np.zeros((inp.shape[0], inp.shape[1], inp.shape[2]))
         for i in range(3):
             img[:, :, i] = inp[:, :, i]
-        # scale to make it faster
         if scale != 1:
+            img = np.array(Image.fromarray(img).resize([int(img.shape[1] / scale), int(img.shape[0] / scale)]))
+
+            '''
             img = scipy.misc.imresize(
                 img,
                 [int(img.shape[0] / scale), int(img.shape[1] / scale), img.shape[2]],
             )
+            '''
 
-        hm_resized = scipy.misc.imresize(hm, [img.shape[0], img.shape[1], 3])
-        hm_resized = hm_resized.astype(float) / 255
+        hm_resized = np.array(Image.fromarray(hm).resize([int(img.shape[1]), int(img.shape[0])]))
+        #hm_resized = scipy.misc.imresize(hm, [img.shape[0], img.shape[1], 3])
+        hm_resized = hm_resized.astype(float) / 1
 
         img = img.copy() * 0.3
         hm_color = color_heatmap(hm_resized)
