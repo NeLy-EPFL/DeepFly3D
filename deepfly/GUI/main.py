@@ -7,7 +7,7 @@ import sys
 from PyQt5.QtCore import *
 from PyQt5.QtGui import QImage, QPixmap, QPainter
 from PyQt5.QtWidgets import *
-from sklearn.neighbors import NearestNeighbors
+from sklearn.neighbors import NearestNeighborsmmmm
 
 from .CameraNetwork import CameraNetwork
 from .DB import PoseDB
@@ -720,7 +720,7 @@ class DrosophAnnot(QWidget):
         print("Replaced points2d with {} manual correction".format(count))
 
         # do the triangulationm if we have the calibration
-        if self.camNet.has_calibration() and self.camNet.has_pose():
+        if self.camNetLeft.has_calibration() and self.camNetLeft.has_pose():
             self.camNetAll.triangulate()
             pts3d = self.camNetAll.points3d_m
 
@@ -844,11 +844,9 @@ class ImagePose(QWidget):
                     continue
                 camNet = self.state.camNetLeft if self.cam.cam_id < 3 else self.state.camNetRight
                 err_proj = self.get_joint_reprojection_error(self.state.img_id, joint_id, camNet)
-                print(err_proj)
+
                 if err_proj > config["reproj_thr"][joint_id]:
                     r_list[joint_id] = config["scatter_r"]*2
-
-            print(r_list)
 
             im = self.cam.plot_2d(
                 img_id=self.state.img_id,
