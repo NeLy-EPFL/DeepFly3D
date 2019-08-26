@@ -98,7 +98,9 @@ class CameraNetwork:
                     heatmap = np.load(heatmap_path_list[0])
                     self.dict_name = os.path.dirname(list(heatmap.keys())[10]) + "/"
 
-            for cam_id, cam_id_read in zip(cam_id_list, self.cid2cidread):
+            for cam_id in cam_id_list:
+                cam_id_read = cid2cidread[cam_id]
+
                 if heatmap is not None:# and type(heatmap) is np.core.memmap:
                     pred_cam = np.zeros(
                         shape=(num_images_in_pred, num_joints, 2), dtype=float
@@ -229,30 +231,32 @@ class CameraNetwork:
             for j_id in range(data_shape[1]):
                 if not config["skeleton"].camera_see_joint(
                         cam_id, j_id
-                ):  # if the new camera sees the point
+                ):
                     continue
                 if np.any(
                         self.cam_list[cam_id][img_id, j_id, :] == 0
-                ):  # if the point is present
+                ):
                     continue
-                if j_id in ignore_joint_list:  # if the joint is not ignored
+                if j_id in ignore_joint_list:
                     continue
                 if np.any(self.points3d_m[img_id, j_id] == 0):
                     continue
                 points3d_pnp.append(self.points3d_m[img_id, j_id, :])
-                points2d_pnp.append(self.cam_list[cam_id][img_id][img_id, j_id, :])
+                points2d_pnp.append(self.cam_list[cam_id][img_id][j_id, :])
 
         objectPoints = np.array(points3d_pnp)
         imagePoints = np.array(points2d_pnp)
 
         print("objectPoints shape: {}".format(objectPoints.shape))
         if objectPoints.shape[0] > 4:
-            found, rvec, tvec, mask = cv2.solvePnPRansac(
+            found, rvec, tvec = cv2.solvePnP(
                 objectPoints,
                 imagePoints,
                 self.cam_list[cam_id].intr,
                 self.cam_list[cam_id].distort,
-                useExtrinsicGuess=False,
+                useExtrinsicGuess=True,
+                rvec = self.cam_list[cam_id].rvec,
+                tvec = self.cam_list[cam_id].tvec
             )
             R = cv2.Rodrigues(rvec)[0]
             self.cam_list[cam_id].set_R(R)
@@ -387,7 +391,7 @@ class CameraNetwork:
             self,
             cam_id_list=None,
             ignore_joint_list=config["skeleton"].ignore_joint_id,
-            unique=True,
+            unique=False,
             prior=False,
     ):
         assert(self.cam_list)
