@@ -7,7 +7,7 @@ import sys
 from PyQt5.QtCore import *
 from PyQt5.QtGui import QImage, QPixmap, QPainter
 from PyQt5.QtWidgets import *
-from sklearn.neighbors import NearestNeighborsmmmm
+from sklearn.neighbors import NearestNeighbors
 
 from .CameraNetwork import CameraNetwork
 from .DB import PoseDB
