@@ -138,15 +138,10 @@ class DrosophAnnot(QWidget):
         button_prev = QPushButton("<", self)
         button_next = QPushButton(">", self)
         button_last = QPushButton(">>", self)
-        button_left = QPushButton("L", self)
-        button_right = QPushButton("R", self)
         button_set_width(button_first, "<<")
         button_set_width(button_last, ">>")
         button_set_width(button_prev, "<")
         button_set_width(button_next, ">")
-
-        button_set_width(button_left, "  L  ")
-        button_set_width(button_right, "  R  ")
 
         button_calibrate_calc = QPushButton("Calibration", self)
         button_pose_save = QPushButton("Save", self)
@@ -181,8 +176,6 @@ class DrosophAnnot(QWidget):
         button_last.clicked.connect(self.set_last_image)
         button_prev.clicked.connect(self.set_prev_image)
         button_next.clicked.connect(self.set_next_image)
-        button_left.clicked.connect(lambda x: self.set_view(View.Left))
-        button_right.clicked.connect(lambda x: self.set_view(View.Right))
         button_calibrate_calc.clicked.connect(self.calibrate_calc)
         button_pose_save.clicked.connect(self.save_pose)
 
@@ -212,8 +205,6 @@ class DrosophAnnot(QWidget):
         layout_h_buttons.addWidget(button_textbox_img_id_go)
         layout_h_buttons.addStretch()
 
-        layout_h_buttons_second.addWidget(button_left, alignment=Qt.AlignLeft)
-        layout_h_buttons_second.addWidget(button_right, alignment=Qt.AlignLeft)
         layout_h_buttons_second.addWidget(self.combo_joint_id, alignment=Qt.AlignRight)
 
         layout_v.addLayout(layout_h_buttons_top)

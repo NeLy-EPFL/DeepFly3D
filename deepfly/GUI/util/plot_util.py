@@ -85,9 +85,10 @@ def plot_drosophila_heatmap(image=None, hm=None, concat=False, scale=1):
         for i in range(3):
             img[:, :, i] = inp[:, :, i]
         if scale != 1:
-            img = np.array(Image.fromarray(img).resize([int(img.shape[1] / scale), int(img.shape[0] / scale)]))
+            img = cv2.resize(img, (int(img.shape[1] / (scale / 2)), int(img.shape[0] / (scale / 2))))
 
-        hm_resized = np.array(Image.fromarray(hm).resize([int(img.shape[1]), int(img.shape[0])]))
+        hm_resized = cv2.resize(hm, (int(img.shape[1]), int(img.shape[0])))
+        #hm_resized = np.array(Image.fromarray(hm).resize([int(img.shape[1]), int(img.shape[0])]))
         hm_resized = hm_resized.astype(float)
 
         img = img.copy() * 0.3

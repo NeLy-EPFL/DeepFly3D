@@ -42,7 +42,7 @@ config_fly = {
     "mean": os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../weights/mean.pth.tar"),
 
     # 3d pose
-    "reproj_thr": {v: 50 for v in range(skeleton_fly.num_joints)},
+    "reproj_thr": {v: 40 for v in range(skeleton_fly.num_joints)},
 
     # calibration
     "calib_rough":
