@@ -213,5 +213,5 @@ def create_parser():
     )
     parser.add_argument("--inplanes", default=64, type=int, metavar="N")
     parser.add_argument("--stride", default=2, type=int, metavar="N")
-
+    parser.add_argument("--sigma", default=1, type=int)
     return parser
