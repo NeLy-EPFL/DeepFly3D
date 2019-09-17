@@ -48,6 +48,7 @@ class CameraNetwork:
 
         if not cam_list:
             if pred_path is None:
+                print(self.folder, glob.glob(os.path.join(self.folder, "pred*.pkl")))
                 pred_path_list = glob.glob(os.path.join(self.folder, "pred*.pkl"))
                 pred_path_list.sort(key=os.path.getmtime)
                 pred_path_list = pred_path_list[::-1]
@@ -55,7 +56,7 @@ class CameraNetwork:
                 pred_path_list = [pred_path]
             print("Loading predictions {}".format(pred_path_list))
             if pred is None and len(pred_path_list) != 0:
-                pred = np.load(pred_path_list[0], mmap_mode="r")
+                pred = np.load(file=pred_path_list[0], mmap_mode="r", allow_pickle=True)
                 if pred.shape[1] > num_images:
                     pred = pred[:,:num_images]
                 num_images_in_pred = pred.shape[1]
@@ -95,7 +96,7 @@ class CameraNetwork:
                         )
                     )
 
-                    heatmap = np.load(heatmap_path_list[0])
+                    heatmap = np.load(file=heatmap_path_list[0], allow_pickle=True)
                     self.dict_name = os.path.dirname(list(heatmap.keys())[10]) + "/"
 
             for cam_id in cam_id_list:
@@ -114,7 +115,8 @@ class CameraNetwork:
                             pred_cam[:num_images_in_pred, :num_joints // 2, :] = pred[
                                                                                  cam_id_read, :num_images_in_pred
                                                                                  ] * self.image_shape
-                            pred_cam[:num_images_in_pred, num_joints // 2:, :] = pred[
+                            if pred.shape[0] > 7:
+                                pred_cam[:num_images_in_pred, num_joints // 2:, :] = pred[
                                                                                  7, :num_images_in_pred
                                                                                  ] * self.image_shape
                         elif cam_id < 3:

@@ -11,7 +11,7 @@ model_names = sorted(
 
 
 def create_parser():
-    parser = argparse.ArgumentParser(description="PyTorch ImageNet Training")
+    parser = argparse.ArgumentParser(description="DF3D Training")
     parser.add_argument("--arch", "-a", metavar="ARCH", default="hg")
     parser.add_argument(
         "-j",
@@ -35,14 +35,6 @@ def create_parser():
         metavar="N",
         help="manual epoch number (useful on restarts)",
     )
-    parser.add_argument(
-        "--snapshot",
-        default=0,
-        type=int,
-        metavar="N",
-        help="How often to take a snapshot of the model (0 = never)",
-    )
-    parser.add_argument("--name", default="", type=str, metavar="N")
     # hyper-parameters
     parser.add_argument(
         "--train-batch",
@@ -92,13 +84,6 @@ def create_parser():
         default=0.1,
         help="LR is multiplied by gamma on schedule.",
     )
-    parser.add_argument(
-        "--label-type",
-        metavar="LABELTYPE",
-        default="Gaussian",
-        choices=["Gaussian", "Cauchy"],
-        help="Labelmap dist type: (default=Gaussian)",
-    )
     # paths
     import os
     file_path = os.path.abspath(os.path.dirname(__file__))
@@ -135,44 +120,6 @@ def create_parser():
     )
     # debug
     parser.add_argument(
-        "--print-freq",
-        "-p",
-        default=10,
-        type=int,
-        metavar="N",
-        help="print frequency (default: 10)",
-    )
-    parser.add_argument(
-        "--debug-freq",
-        "-v",
-        default=100,
-        type=int,
-        metavar="N",
-        help="debug frequency (default:100)",
-    )
-    parser.add_argument(
-        "-e",
-        "--evaluate",
-        dest="evaluate",
-        action="store_true",
-        help="evaluate model on validation set",
-    )
-    parser.add_argument(
-        "-d",
-        "--debug",
-        dest="debug",
-        action="store_true",
-        help="show intermediate results",
-    )
-    parser.add_argument(
-        "-do",
-        "--debug-outliers",
-        dest="debug_outliers",
-        action="store_true",
-        default=False,
-        help="print outliers",
-    )
-    parser.add_argument(
         "--annotation-path",
         dest="annotation_path",
         type=str,
@@ -192,35 +139,12 @@ def create_parser():
         help="Number of keypoints",
     )
     parser.add_argument(
-        "--sigma",
-        type=float,
-        default=1,
-        help="Sigma to generate Gaussian groundtruth map.",
-    )
-    parser.add_argument(
-        "-f",
-        "--flip",
-        dest="flip",
-        action="store_true",
-        default=False,
-        help="flip the input during validation",
-    )
-    parser.add_argument(
         "--augmentation",
         "-aug",
         action="store_true",
         default=True,
         help="whether to perform random contrast and brightness change on the training data",
     )
-    parser.add_argument(
-        "-mv",
-        "--multi-view",
-        dest="multiview",
-        action="store_true",
-        default=False,
-        help="Whether to infer three images at the same time",
-    )
-    parser.add_argument("--temporal", action="store_true", default=False)
     parser.add_argument(
         "--train-joints",
         default=[0, 1, 2, 3, 4],
@@ -244,7 +168,6 @@ def create_parser():
         action="store_true",
         default=False,
     )
-    parser.add_argument("--carry", action="store_true", default=False)
     parser.add_argument(
         "--train-folder-list",
         default=None,

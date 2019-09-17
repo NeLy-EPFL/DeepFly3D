@@ -20,7 +20,7 @@ def get_max_img_id(path):
 def read_camera_order(folder):
     path = os.path.join(folder, "cam_order.npy")
     if os.path.isfile(path):
-        order = np.load(path)
+        order = np.load(file=path, allow_pickle=True)
     else:
         order = np.arange(config["num_cameras"])
         write_camera_order(folder, order)
@@ -47,7 +47,7 @@ def read_calib(folder):
     calibration_path = glob.glob(os.path.join(folder, "calib*.pkl"))
     if len(calibration_path) > 0:
         calibration_path = calibration_path[0]
-        calib = np.load(calibration_path)
+        calib = np.load(file=calibration_path, allow_pickle=True)
     else:
         # print("Cannot read calibration file from the folder {}".format(folder))
         calibration_path = None
