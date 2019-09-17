@@ -689,6 +689,7 @@ def create_dataloader():
     return train_loader, val_loader
 
 
+# Code belows trains the network starting from the MPII dataset
 if __name__ == "__main__":
     parser = create_parser()
     args = parser.parse_args()
