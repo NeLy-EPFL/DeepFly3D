@@ -10,8 +10,7 @@ model_names = sorted(
 )
 
 
-def create_parser():
-    parser = argparse.ArgumentParser(description="DF3D Training")
+def add_arguments(parser):
     parser.add_argument("--arch", "-a", metavar="ARCH", default="hg")
     parser.add_argument(
         "-j",
@@ -215,3 +214,8 @@ def create_parser():
     parser.add_argument("--stride", default=2, type=int, metavar="N")
     parser.add_argument("--sigma", default=1, type=int)
     return parser
+
+
+def create_parser():
+    parser = argparse.ArgumentParser(description="DF3D Training")
+    return add_arguments(parser)
