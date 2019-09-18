@@ -42,7 +42,6 @@ def main():
     
     # Add custom constants
     args.num_images = num_images(args.input_folder, args.num_images_max)
-    args.checkpoint = False
     args.unlabeled = args.input_folder
 
     # Run
