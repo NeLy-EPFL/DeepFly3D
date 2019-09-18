@@ -104,7 +104,5 @@ venv.bak/
 .mypy_cache/
 
 # Downloaded data
-data/test/heatmap_-home-semihg-workspace-DeepFly3D-data-test.pkl
-data/test/preds_-home-semihg-workspace-DeepFly3D-data-test.pkl
-weights/sh8_deepfly.tar
-weights/sh8_mpii.tar
+*.pkl
+*.tar
