@@ -36,6 +36,8 @@ class DrosophAnnot(QWidget):
         elif len(sys.argv) >= 2:
             self.folder = str(sys.argv[1])
             self.folder = os.path.abspath(self.folder)
+        assert(os.path.isdir(self.folder) and os.path.exists(self.folder))
+
         if len(sys.argv) >= 3:
             max_num_images = int(sys.argv[2])
         else:
