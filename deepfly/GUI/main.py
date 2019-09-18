@@ -16,6 +16,7 @@ from .State import State, View, Mode
 from .util.main_util import button_set_width
 from .util.optim_util import energy_drosoph
 from .util.os_util import *
+from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
 
 
 class DrosophAnnot(QWidget):
@@ -661,8 +662,6 @@ class DrosophAnnot(QWidget):
         )
         print("Saving calibration {}".format(calib_path))
         self.camNetAll.save_network(calib_path)
-        # print("Saving calibration {}".format(calib_path))
-        # self.camNetRight.save_network(calib_path)
 
     def save_pose(self):
         pts2d = np.zeros(
@@ -712,12 +711,17 @@ class DrosophAnnot(QWidget):
                     c += 1
         print("Replaced points2d with {} manual correction".format(count))
 
-        # do the triangulationm if we have the calibration
+        # do the triangulation if we have the calibration
         if self.camNetLeft.has_calibration() and self.camNetLeft.has_pose():
             self.camNetAll.triangulate()
             pts3d = self.camNetAll.points3d_m
 
             dict_merge["points3d"] = pts3d
+        # apply procrustes
+        if config["procrustes_apply"]:
+            print("Applying Procrustes on 3D Points")
+            dict_merge["points3d"] = procrustes_seperate(dict_merge["points3d"])
+
 
         # put old values back
         for cam_id in range(config["num_cameras"]):

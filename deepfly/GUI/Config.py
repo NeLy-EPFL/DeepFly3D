@@ -58,7 +58,6 @@ config_fly = {
     "calib_fine": os.path.join(os.path.abspath(os.path.dirname(__file__)),
                                "../../data/test/"),
 
-
     # belief propagation
     "num_peak": 10,
     "upper_bound": 200,
@@ -66,6 +65,11 @@ config_fly = {
     "alpha_reproj": 30,
     "alpha_heatmap": 600,
     "alpha_bone": 10,
+
+    # procrustes
+    "procrustes_apply": True,
+    "procrustes_template": os.path.join(os.path.abspath(os.path.dirname(__file__)),
+                                        "../../data/template/")
 }
 
 config_h36m = {
