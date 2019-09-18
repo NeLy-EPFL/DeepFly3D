@@ -10,13 +10,6 @@ def parse_cli_args():
     parser = argparse.ArgumentParser(
         description = "DeepFly3D pose estimation"
     )
-
-    # Convention for faster vertical reading:
-    # - first line is argument, starting with short form (e.g. -f, --folder)
-    # - second line is help text (e.g. help="the input folder")
-    # - then whatever else is required.
-    # last line is closing parenthesis )
-
     parser.add_argument(
         "input_folder", 
         help="Folder containing unlabeled images."
@@ -27,15 +20,7 @@ def parse_cli_args():
         default=math.inf,
         type=int
     )
-    parser.add_argument( # TODO: there is "--stacks" in ArgParse, is it the same?
-        "--num-stacks",
-        help="TODO",
-        default=config['num_stacks'],
-        type=int
-    )
-    
     parser = ArgParse.add_arguments(parser)
-
     return parser.parse_args()
 
 

@@ -112,10 +112,10 @@ def add_arguments(parser):
     )
     parser.add_argument(
         "--resume",
-        default="",
+        default=config['resume'],
         type=str,
         metavar="PATH",
-        help="path to latest checkpoint (default: none)",
+        help="path to latest checkpoint (default: {})".format(config['resume']),
     )
     # debug
     parser.add_argument(
@@ -178,7 +178,7 @@ def add_arguments(parser):
     parser.add_argument(
         "-s",
         "--stacks",
-        default=8,
+        default=config['num_stacks'],
         type=int,
         metavar="N",
         help="Number of hourglasses to stack",
