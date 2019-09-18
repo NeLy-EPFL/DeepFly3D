@@ -162,7 +162,7 @@ def add_arguments(parser):
     )
     parser.add_argument("--unlabeled", type=str, metavar="PATH", default=None)
     parser.add_argument(
-        "--unlabeled-recursive", "--recursive"
+        "--unlabeled-recursive", "--recursive",
         dest="unlabeled_recursive",
         action="store_true",
         default=False,
