@@ -12,7 +12,7 @@ plt.imshow(camNet[1].plot_2d())
 and to display heatmaps: 
 
 ```python
-plt.imshow(camNet[1].plot_2d())
+plt.imshow(camNet[1].plot_heatmap())
 ```
 
 To create more complicated figures, or replicate the figures from the paper, you can use the the pose_result file which is saved in the same folder as the images. The notebook, ```notebook_visualize/visualize.ipynb```, shows you the steps to create the following figure:
