@@ -89,7 +89,7 @@ def add_arguments(parser):
     parser.add_argument(
         "-c",
         "--checkpoint",
-        default=os.path.join(file_path, "../../checkpoint/"),
+        default=False,
         type=str,
         metavar="PATH",
         help="path to save checkpoint (default: checkpoint)",
