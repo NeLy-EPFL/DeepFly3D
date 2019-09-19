@@ -10,8 +10,7 @@ model_names = sorted(
 )
 
 
-def create_parser():
-    parser = argparse.ArgumentParser(description="DF3D Training")
+def add_arguments(parser):
     parser.add_argument("--arch", "-a", metavar="ARCH", default="hg")
     parser.add_argument(
         "-j",
@@ -90,7 +89,7 @@ def create_parser():
     parser.add_argument(
         "-c",
         "--checkpoint",
-        default=os.path.join(file_path, "../../checkpoint/"),
+        default=False,
         type=str,
         metavar="PATH",
         help="path to save checkpoint (default: checkpoint)",
@@ -113,10 +112,10 @@ def create_parser():
     )
     parser.add_argument(
         "--resume",
-        default="",
+        default=config['resume'],
         type=str,
         metavar="PATH",
-        help="path to latest checkpoint (default: none)",
+        help="path to latest checkpoint (default: {})".format(config['resume']),
     )
     # debug
     parser.add_argument(
@@ -163,7 +162,7 @@ def create_parser():
     )
     parser.add_argument("--unlabeled", type=str, metavar="PATH", default=None)
     parser.add_argument(
-        "--unlabeled-recursive",
+        "--unlabeled-recursive", "--recursive",
         dest="unlabeled_recursive",
         action="store_true",
         default=False,
@@ -179,7 +178,7 @@ def create_parser():
     parser.add_argument(
         "-s",
         "--stacks",
-        default=8,
+        default=config['num_stacks'],
         type=int,
         metavar="N",
         help="Number of hourglasses to stack",
@@ -213,5 +212,10 @@ def create_parser():
     )
     parser.add_argument("--inplanes", default=64, type=int, metavar="N")
     parser.add_argument("--stride", default=2, type=int, metavar="N")
-
+    parser.add_argument("--sigma", default=1, type=int)
     return parser
+
+
+def create_parser():
+    parser = argparse.ArgumentParser(description="DF3D Training")
+    return add_arguments(parser)
