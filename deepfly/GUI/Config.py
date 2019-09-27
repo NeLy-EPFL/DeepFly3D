@@ -56,7 +56,7 @@ config_fly = {
             4: +179 / 57.2
         },
     "calib_fine": os.path.join(os.path.abspath(os.path.dirname(__file__)),
-                               "../../data/test/"),
+                               "../../data/template/"),
 
     # belief propagation
     "num_peak": 10,
