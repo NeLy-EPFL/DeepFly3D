@@ -10,6 +10,7 @@ from .Config import config
 class PoseDB:
     def __init__(self, folder, meta=None):
         self.folder = folder
+
         self.db_path_list = glob.glob(os.path.join(self.folder, "pose_corr*.pkl"))
         self.last_write_image_id = 0
         if len(self.db_path_list) != 0:
