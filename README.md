@@ -17,6 +17,19 @@ Code for data preparation and augmentation are taken from the [Stacked hourglass
 * To see the whole dataset used in the paper: [Dataverse](https://dataverse.harvard.edu/dataverse/DeepFly3D)
 * Adapting DeepFly3D on different datasets: [Adapting (Will be updated soon)](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/adapt.md)
 
+## Changes
+### Changes in 0.2
+- removing specific dependencies for numpy and scipy
+- changing name from deepfly3d to df3d
+- adding cli interface with df3d-cli
+- removing L/R buttons, so you can see all the data at once
+- faster startup time, less time spent on searching for the image folder
+- better drawing notebooks
+- adding procrustes support. now all the output is registere to template skeleton.
+
+### Known Problems
+- Some insability in automatic correction
+
 ## GUI
 ![Alt text](images/gui2.png?raw=true "Title")
 DeepFly3D provides a nice GUI to interact with the data. Using DeepFly3D GUI, you can visualize:
