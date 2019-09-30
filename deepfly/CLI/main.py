@@ -6,6 +6,25 @@ from deepfly.pose2d import ArgParse
 from ..GUI.Config import config
 from ..GUI.util.os_util import get_max_img_id
 
+
+def main():
+    args = cli_args()
+    pose2d_main(args)
+
+
+def cli_args():
+    args = parse_cli_args()
+
+    # Cleanup input values
+    args.input_folder = os.path.abspath(args.input_folder).rstrip('/')
+    
+    # Add custom constants
+    args.num_images = num_images(args.input_folder, args.num_images_max)
+    args.unlabeled = args.input_folder
+
+    return args
+
+
 def parse_cli_args():
     parser = argparse.ArgumentParser(
         description = "DeepFly3D pose estimation"
@@ -32,20 +51,6 @@ def num_images(input_folder, num_images_max):
     max_id = get_max_img_id(input_folder)
     nb_in_folder = max_id + 1
     return min(num_images_max, nb_in_folder)
-    
-    
-def main():
-    args = parse_cli_args()
-    
-    # Cleanup input values
-    args.input_folder = os.path.abspath(args.input_folder).rstrip('/')
-    
-    # Add custom constants
-    args.num_images = num_images(args.input_folder, args.num_images_max)
-    args.unlabeled = args.input_folder
-
-    # Run
-    pose2d_main(args)
 
 
 if __name__ == '__main__':
