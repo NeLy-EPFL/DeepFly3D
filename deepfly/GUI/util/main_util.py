@@ -12,6 +12,7 @@ def calibrate_calc(drosophAnnot, min_img_id, max_img_id):
 
     from deepfly.GUI.util.os_util import read_calib
     calib = read_calib(config["calib_fine"])
+    assert(calib is not None)
     drosophAnnot.camNetAll.load_network(calib)
 
     # take a copy of the current points2d

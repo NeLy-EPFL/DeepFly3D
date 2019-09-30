@@ -16,6 +16,7 @@ from .State import State, View, Mode
 from .util.main_util import button_set_width
 from .util.optim_util import energy_drosoph
 from .util.os_util import *
+from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
 
 
 class DrosophAnnot(QWidget):
@@ -46,10 +47,15 @@ class DrosophAnnot(QWidget):
         if self.folder.endswith("/"):
             self.folder = self.folder[:-1]
 
+        print('a')
         self.state = State(self.folder)
+        print('a1')
         self.state.max_num_images = max_num_images
+        print('a2')
         self.state.db = PoseDB(self.folder)
+        print('a3')
         self.cidread2cid, self.cid2cidread = read_camera_order(self.folder)
+        print('b')
 
         max_img_id = get_max_img_id(self.folder)
         self.state.num_images = max_img_id + 1
@@ -61,12 +67,14 @@ class DrosophAnnot(QWidget):
             self.state.num_images = self.state.num_images
         print("Number of images: {}".format(self.state.num_images))
 
+        print('c')
         self.set_cameras()
         self.set_layout()
 
         # setting the initial state
         self.set_pose(self.state.img_id)
         self.set_mode(self.state.mode)
+        print('d')
 
     def set_layout(self):
         layout_h_images = QHBoxLayout()
@@ -661,8 +669,6 @@ class DrosophAnnot(QWidget):
         )
         print("Saving calibration {}".format(calib_path))
         self.camNetAll.save_network(calib_path)
-        # print("Saving calibration {}".format(calib_path))
-        # self.camNetRight.save_network(calib_path)
 
     def save_pose(self):
         pts2d = np.zeros(
@@ -712,12 +718,17 @@ class DrosophAnnot(QWidget):
                     c += 1
         print("Replaced points2d with {} manual correction".format(count))
 
-        # do the triangulationm if we have the calibration
+        # do the triangulation if we have the calibration
         if self.camNetLeft.has_calibration() and self.camNetLeft.has_pose():
             self.camNetAll.triangulate()
             pts3d = self.camNetAll.points3d_m
 
             dict_merge["points3d"] = pts3d
+        # apply procrustes
+        if config["procrustes_apply"]:
+            print("Applying Procrustes on 3D Points")
+            dict_merge["points3d"] = procrustes_seperate(dict_merge["points3d"])
+
 
         # put old values back
         for cam_id in range(config["num_cameras"]):
