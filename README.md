@@ -26,6 +26,7 @@ Code for data preparation and augmentation are taken from the [Stacked hourglass
 - faster startup time, less time spent on searching for the image folder
 - better drawing notebooks
 - adding procrustes support. now all the output is registere to template skeleton.
+- bug fixes in CameraNetwork. Now calibration with arbitrary camera sequence is possible.
 
 ### Known Problems
 - Some insability in automatic correction
