@@ -106,3 +106,4 @@ venv.bak/
 # Downloaded data
 *.pkl
 *.tar
+.vscode
