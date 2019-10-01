@@ -3,6 +3,7 @@ from __future__ import print_function
 import cv2
 import numpy as np
 import scipy
+from PIL import Image
 
 from deepfly.GUI.Config import config
 
@@ -17,6 +18,7 @@ def plot_drosophila_2d(
         circle_color=None,
         draw_order=None,
         zorder=None,
+        r_list=None
 ):
     if colors is None:
         colors = config["skeleton"].colors
@@ -31,6 +33,8 @@ def plot_drosophila_2d(
         draw_order = np.intersect1d(draw_order, draw_limbs)
     if zorder is None:
         zorder = np.arange(config["skeleton"].num_joints)
+    if r_list is None:
+        r_list = [config["scatter_r"]]*config["skeleton"].num_joints
 
     # for joint_id in range(pts.shape[0]):
     for joint_id in np.argsort(zorder):
@@ -43,9 +47,8 @@ def plot_drosophila_2d(
             continue
 
         color = colors[limb_id]
-        r = config["scatter_r"]
 
-        cv2.circle(img, (pts[joint_id, 0], pts[joint_id, 1]), r, color, thickness=-1)
+        cv2.circle(img, (pts[joint_id, 0], pts[joint_id, 1]), r_list[joint_id], color, thickness=-1)
 
         for bone in config["bones"]:
             if bone[0] == joint_id:
@@ -76,21 +79,17 @@ def plot_drosophila_heatmap(image=None, hm=None, concat=False, scale=1):
     assert image is not None and hm is not None
     inp = image
     if hm.ndim == 3 and not concat:
-        # then sum the joint heatmaps
         hm = hm.sum(axis=0)
     if concat is False:
         img = np.zeros((inp.shape[0], inp.shape[1], inp.shape[2]))
         for i in range(3):
             img[:, :, i] = inp[:, :, i]
-        # scale to make it faster
         if scale != 1:
-            img = scipy.misc.imresize(
-                img,
-                [int(img.shape[0] / scale), int(img.shape[1] / scale), img.shape[2]],
-            )
+            img = cv2.resize(img, (int(img.shape[1] / (scale / 2)), int(img.shape[0] / (scale / 2))))
 
-        hm_resized = scipy.misc.imresize(hm, [img.shape[0], img.shape[1], 3])
-        hm_resized = hm_resized.astype(float) / 255
+        hm_resized = cv2.resize(hm, (int(img.shape[1]), int(img.shape[0])))
+        #hm_resized = np.array(Image.fromarray(hm).resize([int(img.shape[1]), int(img.shape[0])]))
+        hm_resized = hm_resized.astype(float)
 
         img = img.copy() * 0.3
         hm_color = color_heatmap(hm_resized)

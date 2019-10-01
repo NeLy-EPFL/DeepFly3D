@@ -9,7 +9,7 @@ from scipy.spatial import KDTree
 
 from .Config import config
 from .util.plot_util import plot_drosophila_heatmap, plot_drosophila_2d
-
+import math
 
 class Camera:
     def __init__(
@@ -102,8 +102,6 @@ class Camera:
         self.P = Camera.calc_projection_matrix(self.R, self.tvec, self.intr)
 
     def set_alpha(self, alpha, r=94, inv=False):
-        import math
-
         self.set_eulerAngles(np.array([0.0, alpha, 0.0]))
         sign_x = 1 if 0 < alpha < math.pi else -1
         sign_z = (
@@ -293,6 +291,7 @@ class Camera:
         flip_image=False,
         circle_color=None,
         zorder=None,
+        r_list=None
     ):
         if img is None:
             img = self.get_image(img_id, flip=flip_image)
@@ -324,6 +323,7 @@ class Camera:
             draw_limbs=draw_limbs,
             circle_color=circle_color,
             zorder=zorder,
+            r_list=r_list
         )
         return img
 

@@ -17,6 +17,21 @@ Code for data preparation and augmentation are taken from the [Stacked hourglass
 * To see the whole dataset used in the paper: [Dataverse](https://dataverse.harvard.edu/dataverse/DeepFly3D)
 * Adapting DeepFly3D on different datasets: [Adapting (Will be updated soon)](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/adapt.md)
 
+## Changes
+### Changes in 0.2
+- Changing name from deepfly3d to df3d
+- Adding cli interface with df3d-cli
+- Removing specific dependencies for numpy and scipy
+- Removing L/R buttons, so you can see all the data at once
+- Removing the front camera
+- Faster startup time, less time spent on searching for the image folder
+- Better notebooks for plotting
+- Adding procrustes support. Now all the output is registere to template skeleton.
+- Bug fixes in CameraNetwork. Now calibration with arbitrary camera sequence is possible.
+
+### Known Problems
+- Some insability in automatic correction
+
 ## GUI
 ![Alt text](images/gui2.png?raw=true "Title")
 DeepFly3D provides a nice GUI to interact with the data. Using DeepFly3D GUI, you can visualize:
@@ -61,7 +76,7 @@ plt.imshow(camNet[1].plot_2d())
 and to display heatmaps: 
 
 ```python
-plt.imshow(camNet[1].plot_2d())
+plt.imshow(camNet[1].plot_heatmap())
 ```
 
 To create more complicated figures, or replicate the figures from the paper, you can use the the pose_result file which is saved in the same folder as the images. The notebook, ```notebook_visualize/visualize.ipynb```, shows you the steps to create the following figure:

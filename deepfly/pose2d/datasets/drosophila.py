@@ -22,14 +22,12 @@ class Drosophila(data.Dataset):
         hm_res=None,
         train=True,
         sigma=1,
-        label_type="Gaussian",
         jsonfile="drosophilaimaging-export.json",
         session_id_train_list=None,
         folder_train_list=None,
         augmentation=False,
         evaluation=False,
         unlabeled=None,
-        temporal=False,
         num_classes=config["num_predict"],
         max_img_id=None,
     ):
@@ -41,11 +39,9 @@ class Drosophila(data.Dataset):
         self.img_res = img_res
         self.hm_res = hm_res
         self.sigma = sigma
-        self.label_type = label_type
         self.augmentation = augmentation
         self.evaluation = evaluation
         self.unlabeled = unlabeled
-        self.temporal = temporal
         self.num_classes = num_classes
         self.max_img_id = max_img_id
         self.cidread2cid = dict()
@@ -57,7 +53,7 @@ class Drosophila(data.Dataset):
         )  # self eval then not augmentation
         assert not self.unlabeled or evaluation  # if unlabeled then evaluation
 
-        manual_path_list = ["../data/paper"]
+        manual_path_list = ["/data/paper/"]
 
         self.annotation_dict = dict()
         self.multi_view_annotation_dict = dict()
@@ -76,35 +72,13 @@ class Drosophila(data.Dataset):
                             config["num_cameras"]
                         )
                         cid_read, img_id = parse_img_name(image_name)
-
-                        try:
-                            pts = json_data[session_id]["data"][folder_name][
+                        if cid_read == 3:
+                            continue
+                        pts = json_data[session_id]["data"][folder_name][
                                 image_name
                             ]["position"]
-                        except:
-                            print(
-                                "Cannot get annotation for key ({},{})".format(
-                                    key[0], key[1]
-                                )
-                            )
-                            continue
-
                         self.annotation_dict[key] = np.array(pts)
-                        # also add the mirrored version for the right legs
-                        if cid_read == 3:
-                            from copy import deepcopy
 
-                            new_key = deepcopy(key)
-                            new_key = (new_key[0], constr_img_name(7, img_id))
-                            new_pts = np.array(pts).copy()
-                            self.annotation_dict[new_key] = np.array(new_pts)
-
-        """
-        There are three cases:
-        30: 15x2 5 points in each 3 legs, on 2 sides
-        32: 15 tracked points,, plus antenna on each side
-        38: 15 tracked points, then 3 stripes, then one antenna
-        """
         # read the manual correction for training data
         print("Searching for manual corrections")
         n_joints = set()
@@ -112,7 +86,7 @@ class Drosophila(data.Dataset):
             pose_corr_path_list = []
             for root in manual_path_list:
                 print(
-                    "Searching recursively on {} for manual correction files".format(
+                    "Searching recursively: {}".format(
                         root
                     )
                 )
@@ -129,7 +103,6 @@ class Drosophila(data.Dataset):
                     )
                 )
             for path in pose_corr_path_list:
-                print("Reading manual annotations from {}".format(path))
                 d = pickle.load(open(path, "rb"))
                 folder_name = d["folder"]
                 key_folder_name = folder_name
@@ -148,22 +121,13 @@ class Drosophila(data.Dataset):
                             pts[: num_heatmaps // 2, :] = points2d[
                                 : num_heatmaps // 2, :
                             ]
-                        elif cid > 3:
+                        elif 3 < cid < 7:
+                            continue
                             pts[
                                 num_classes : num_classes + (num_heatmaps // 2), :
                             ] = points2d[num_heatmaps // 2 :, :]
-                        elif cid == 3:
-                            pts[: num_heatmaps // 2, :] = points2d[
-                                : num_heatmaps // 2, :
-                            ]
-
-                            # then add the cameras 7
-                            from copy import deepcopy
-
-                            new_key = deepcopy(key)
-                            new_key = (new_key[0], constr_img_name(7, img_id))
-                            new_pts = points2d[num_heatmaps // 2 :, :]
-                            self.annotation_dict[new_key] = np.array(new_pts)
+                        elif cid==3:
+                            continue
                         else:
                             raise NotImplementedError
 
@@ -179,21 +143,15 @@ class Drosophila(data.Dataset):
                     image_name = image_name_jpg.replace(".jpg", "")
                     key = (self.unlabeled, image_name)
                     cid_read, img_id = parse_img_name(image_name)
+                    if cidread2cid.tolist().index(cid_read) == 3:
+                        continue
                     if self.max_img_id is not None and img_id > self.max_img_id:
                         continue
                     self.annotation_dict[key] = np.zeros(shape=(config["skeleton"].num_joints, 2))
-                    # if the front camera, then also add the mirrored version
-                    if cid_read == 3:
-                        new_key = (key[0], constr_img_name(7, img_id))
-                        self.annotation_dict[new_key] = np.zeros(
-                            shape=(config["skeleton"].num_joints, 2)
-                        )
 
         # make sure data is in the folder
         for folder_name, image_name in self.annotation_dict.copy().keys():
             cid_read, img_id = parse_img_name(image_name)
-            if cid_read == 7:
-                continue
 
             image_file_pad = os.path.join(
                 self.data_folder,
@@ -209,8 +167,13 @@ class Drosophila(data.Dataset):
             if not (os.path.isfile(image_file) or os.path.isfile(image_file_pad)):
                 self.annotation_dict.pop((folder_name, image_name), None)
                 print("FileNotFound: {}/{} ".format(folder_name, image_name))
-
-        # preprocess the annotations and fill the multi-view dictionary
+        """
+        There are three cases:
+        30: 15x2 5 points in each 3 legs, on 2 sides
+        32: 15 tracked points,, plus antenna on each side
+        38: 15 tracked points, then 3 stripes, then one antenna
+        """
+        # preprocess the annotations
         for k, v in self.annotation_dict.copy().items():
             cid_read, img_id = parse_img_name(k[IMAGE_NAME])
             folder_name = k[FOLDER_NAME]
@@ -219,8 +182,10 @@ class Drosophila(data.Dataset):
                 if cid > 3:  # then right camera
                     v[:15, :] = v[15:30:]
                     v[15] = v[35]  # 35 is the second antenna
-                elif cid <= 3:
+                elif cid < 3:
                     v[15] = v[30]  # 30 is the first antenna
+                elif cid== 3 or cid == 7:
+                    pass
                 else:
                     raise NotImplementedError
                 v[16:, :] = 0.0
@@ -229,6 +194,8 @@ class Drosophila(data.Dataset):
                     v[: self.num_classes, :] = v[self.num_classes :, :]
                 else:
                     v[: self.num_classes, :] = v[: self.num_classes, :]
+                if cid == 3:
+                    continue
                 # contains only 3 legs in any of the sides
                 v = v[: self.num_classes, :]  # keep only one side
 
@@ -304,17 +271,8 @@ class Drosophila(data.Dataset):
             self.annotation_key[index][IMAGE_NAME],
         )
         cid_read, pose_id = parse_img_name(img_name)
-        if cid_read == 7:
-            cid = 7
-            cid_read = self.cidread2cid[folder_name].tolist().index(3)
-
-            if "annot" not in folder_name:
-                flip = True
-            else:
-                flip = False
-        else:
-            cid = self.cidread2cid[folder_name][cid_read]
-            flip = cid in config["flip_cameras"]
+        cid = self.cidread2cid[folder_name][cid_read]
+        flip = cid in config["flip_cameras"] and ("annot" in folder_name or ( "annot" not in folder_name and self.unlabeled))
 
         try:
             img_orig = load_image(self.__get_image_path(folder_name, cid_read, pose_id))
@@ -334,6 +292,7 @@ class Drosophila(data.Dataset):
         pts = torch.Tensor(self.annotation_dict[self.annotation_key[index]])
         nparts = pts.size(0)
         assert (nparts == config["num_predict"])
+
         joint_exists = np.zeros(shape=(nparts,), dtype=np.uint8)
         for i in range(nparts):
             # we convert to int as we cannot pass boolean from pytorch dataloader
@@ -354,8 +313,7 @@ class Drosophila(data.Dataset):
             )
         if flip:
             img_orig = torch.from_numpy(fliplr(img_orig.numpy())).float()
-            if ("paper" not in folder_name) or ("paper" in folder_name and cid == 7):
-                pts = shufflelr(pts, width=img_orig.size(2), dataset="drosophila")
+            pts = shufflelr(pts, width=img_orig.size(2), dataset="drosophila")
         img_norm = im_to_torch(scipy.misc.imresize(img_orig, self.img_res))
 
         # Generate ground truth heatmap
@@ -368,7 +326,7 @@ class Drosophila(data.Dataset):
                     pts * to_torch(np.array([self.hm_res[1], self.hm_res[0]])).float()
                 )
                 target[i] = draw_labelmap(
-                    target[i], tpts[i], self.sigma, type=self.label_type
+                    target[i], tpts[i], self.sigma, type='Gaussian'
                 )
             else:
                 # to make invisible joints explicit in the training visualization
@@ -386,9 +344,8 @@ class Drosophila(data.Dataset):
 
         img_norm = color_normalize(img_norm, self.mean, self.std)
 
-        # ugly hack to make sure mirror of camera_id 3 saved as camera 7
-        if cid == 7:
-            cid_read = 7
+        if cid ==3 or cid==7:
+            raise NotImplementedError
         meta = {
             "inp": resize(img_orig, 600, 350),
             "folder_name": folder_name,

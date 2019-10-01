@@ -28,7 +28,7 @@ class CameraNetwork:
             pred=None,
             cam_list=None,
             hm_path=None,
-            pred_path=None,
+            pred_path=None
     ):
         self.folder = image_folder
         self.dict_name = image_folder
@@ -48,6 +48,7 @@ class CameraNetwork:
 
         if not cam_list:
             if pred_path is None:
+                print(self.folder, glob.glob(os.path.join(self.folder, "pred*.pkl")))
                 pred_path_list = glob.glob(os.path.join(self.folder, "pred*.pkl"))
                 pred_path_list.sort(key=os.path.getmtime)
                 pred_path_list = pred_path_list[::-1]
@@ -55,7 +56,7 @@ class CameraNetwork:
                 pred_path_list = [pred_path]
             print("Loading predictions {}".format(pred_path_list))
             if pred is None and len(pred_path_list) != 0:
-                pred = np.load(pred_path_list[0], mmap_mode="r")
+                pred = np.load(file=pred_path_list[0], mmap_mode="r", allow_pickle=True)
                 if pred.shape[1] > num_images:
                     pred = pred[:,:num_images]
                 num_images_in_pred = pred.shape[1]
@@ -95,10 +96,12 @@ class CameraNetwork:
                         )
                     )
 
-                    heatmap = np.load(heatmap_path_list[0])
+                    heatmap = np.load(file=heatmap_path_list[0], allow_pickle=True)
                     self.dict_name = os.path.dirname(list(heatmap.keys())[10]) + "/"
 
-            for cam_id, cam_id_read in zip(cam_id_list, self.cid2cidread):
+            for cam_id in cam_id_list:
+                cam_id_read = cid2cidread[cam_id]
+
                 if heatmap is not None:# and type(heatmap) is np.core.memmap:
                     pred_cam = np.zeros(
                         shape=(num_images_in_pred, num_joints, 2), dtype=float
@@ -112,7 +115,8 @@ class CameraNetwork:
                             pred_cam[:num_images_in_pred, :num_joints // 2, :] = pred[
                                                                                  cam_id_read, :num_images_in_pred
                                                                                  ] * self.image_shape
-                            pred_cam[:num_images_in_pred, num_joints // 2:, :] = pred[
+                            if pred.shape[0] > 7:
+                                pred_cam[:num_images_in_pred, num_joints // 2:, :] = pred[
                                                                                  7, :num_images_in_pred
                                                                                  ] * self.image_shape
                         elif cam_id < 3:
@@ -140,6 +144,7 @@ class CameraNetwork:
                 )
 
         if calibration is None:
+            print("Reading calibration from {}".format(self.folder))
             calibration = read_calib(self.folder)
         if calibration is not None:
             _ = self.load_network(calibration)
@@ -228,30 +233,32 @@ class CameraNetwork:
             for j_id in range(data_shape[1]):
                 if not config["skeleton"].camera_see_joint(
                         cam_id, j_id
-                ):  # if the new camera sees the point
+                ):
                     continue
                 if np.any(
                         self.cam_list[cam_id][img_id, j_id, :] == 0
-                ):  # if the point is present
+                ):
                     continue
-                if j_id in ignore_joint_list:  # if the joint is not ignored
+                if j_id in ignore_joint_list:
                     continue
                 if np.any(self.points3d_m[img_id, j_id] == 0):
                     continue
                 points3d_pnp.append(self.points3d_m[img_id, j_id, :])
-                points2d_pnp.append(self.cam_list[cam_id][img_id][img_id, j_id, :])
+                points2d_pnp.append(self.cam_list[cam_id][img_id][j_id, :])
 
         objectPoints = np.array(points3d_pnp)
         imagePoints = np.array(points2d_pnp)
 
         print("objectPoints shape: {}".format(objectPoints.shape))
         if objectPoints.shape[0] > 4:
-            found, rvec, tvec, mask = cv2.solvePnPRansac(
+            found, rvec, tvec = cv2.solvePnP(
                 objectPoints,
                 imagePoints,
                 self.cam_list[cam_id].intr,
                 self.cam_list[cam_id].distort,
-                useExtrinsicGuess=False,
+                useExtrinsicGuess=True,
+                rvec = self.cam_list[cam_id].rvec,
+                tvec = self.cam_list[cam_id].tvec
             )
             R = cv2.Rodrigues(rvec)[0]
             self.cam_list[cam_id].set_R(R)
@@ -321,6 +328,8 @@ class CameraNetwork:
                     #    continue
                     if unique and not self.mask_unique[img_id, j_id, 0]:
                         continue
+                    if cam.cam_id == 3:
+                        continue
 
                     cam_list_iter.append(cam)
                     points2d_iter.append(cam[img_id, j_id, :])
@@ -334,7 +343,6 @@ class CameraNetwork:
                     points3d_ba_source[(img_id, j_id)] = point_index_counter
                     points3d_ba_source_inv[point_index_counter] = (img_id, j_id)
                     point_index_counter += 1
-                    # cam_idx or cam_id ?
                     camera_indices.extend([cam.cam_id for cam in cam_list_iter])
 
         c = 0
@@ -385,7 +393,7 @@ class CameraNetwork:
             self,
             cam_id_list=None,
             ignore_joint_list=config["skeleton"].ignore_joint_id,
-            unique=True,
+            unique=False,
             prior=False,
     ):
         assert(self.cam_list)
@@ -393,7 +401,7 @@ class CameraNetwork:
             cam_id_list = range(self.num_cameras)
 
         self.reprojection_error(
-            cam_indices=(0, 1, 2), ignore_joint_list=ignore_joint_list
+            cam_indices=cam_id_list, ignore_joint_list=ignore_joint_list
         )
         x0, points_2d, n_cameras, n_points, camera_indices, point_indices = self.prepare_bundle_adjust_param(
             cam_id_list,
@@ -431,8 +439,7 @@ class CameraNetwork:
             )
         )
 
-        self.triangulate()
-        # plt.plot(res.fun)
+        self.triangulate(cam_id_list)
 
         return res
 
@@ -509,6 +516,8 @@ class CameraNetwork:
 
     def load_network(self, calib):
         d = calib
+        if calib is None:
+            return None
         for cam in self:
             if cam.cam_id in d and d[cam.cam_id]:
                 cam.set_R(d[cam.cam_id]["R"])

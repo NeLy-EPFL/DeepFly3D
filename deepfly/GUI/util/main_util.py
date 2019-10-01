@@ -9,8 +9,11 @@ def button_set_width(btn, text=" ", margin=20):
 
 
 def calibrate_calc(drosophAnnot, min_img_id, max_img_id):
-    for cam in drosophAnnot.camNetAll:
-        cam.set_alpha(config["calib_rough"][cam.cam_id], r=94)
+
+    from deepfly.GUI.util.os_util import read_calib
+    calib = read_calib(config["calib_fine"])
+    assert(calib is not None)
+    drosophAnnot.camNetAll.load_network(calib)
 
     # take a copy of the current points2d
     pts2d = np.zeros(
@@ -35,11 +38,12 @@ def calibrate_calc(drosophAnnot, min_img_id, max_img_id):
         cam.points2d = cam.points2d[min_img_id:max_img_id, :]
 
     drosophAnnot.camNetLeft.triangulate()
-    drosophAnnot.camNetLeft.bundle_adjust(unique=False, prior=True)
+    drosophAnnot.camNetLeft.bundle_adjust(cam_id_list=(0,1,2), unique=False, prior=True)
     drosophAnnot.camNetRight.triangulate()
-    drosophAnnot.camNetRight.bundle_adjust(unique=False, prior=True)
-    drosophAnnot.camNetAll.triangulate()
-    drosophAnnot.camNetAll.bundle_adjust(unique=False, prior=True)
+    drosophAnnot.camNetRight.bundle_adjust(cam_id_list=(0,1,2), unique=False, prior=True)
+    #drosophAnnot.camNetAll.triangulate()
+    #drosophAnnot.camNetAll.bundle_adjust(cam_id_list=range(config["num_cameras"]), unique=False, prior=True)
+    #drosophAnnot.camNetAll.triangulate()
 
     # put old values back
     for cam_id in range(config["num_cameras"]):

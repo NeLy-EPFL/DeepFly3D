@@ -95,7 +95,6 @@ def main(args):
                     if k in checkpoint["state_dict"]:
                         checkpoint["state_dict"].pop(k)
 
-
                 state = model.state_dict()
                 state.update(checkpoint["state_dict"])
                 print(model.state_dict())
@@ -105,7 +104,7 @@ def main(args):
                 model.load_state_dict(checkpoint['state_dict'], strict=False)
             else:
                 pretrained_dict = checkpoint["state_dict"]
-                model.load_state_dict(pretrained_dict, strict=False)
+                model.load_state_dict(pretrained_dict, strict=True)
 
                 args.start_epoch = checkpoint["epoch"]
                 args.img_res = checkpoint["image_shape"]
@@ -169,13 +168,11 @@ def main(args):
                     data_folder=args.data_folder,
                     train=False,
                     sigma=args.sigma,
-                    label_type=args.label_type,
                     session_id_train_list=None,
                     folder_train_list=None,
                     img_res=args.img_res,
                     hm_res=args.hm_res,
                     augmentation=False,
-                    temporal=args.temporal,
                     evaluation=True,
                     unlabeled=unlabeled_folder,
                     num_classes=args.num_classes,
@@ -198,7 +195,6 @@ def main(args):
             cid_to_reverse = config["flip_cameras"]  # camera id to reverse predictions and heatmaps
             cidread2cid, cid2cidread = read_camera_order(unlabeled_folder)
             cid_read_to_reverse = [cid2cidread[cid] for cid in cid_to_reverse]
-            cid_read_to_reverse.append(7)
             print(
                 "Flipping heatmaps for images with cam_id: {}".format(
                     cid_read_to_reverse
@@ -346,6 +342,8 @@ def train(train_loader, epoch, model, optimizer, criterion, args):
 
         # measure accuracy and record loss
         mse_err = mse_acc(target_var.data.cpu(), score_map)
+
+        print(mse_err.size(), mse_err[:, 0] > 50, meta["image_name"][0])
         mse.update(torch.mean(mse_err[args.acc_joints, :]), inputs.size(0))  # per joint
         mse_hip.update(torch.mean(mse_err[np.arange(0, 15, 5), :]), inputs.size(0))
         mse_coxa.update(torch.mean(mse_err[np.arange(1, 15, 5), :]), inputs.size(0))
@@ -654,13 +652,11 @@ def create_dataloader():
             data_folder=args.data_folder,
             train=True,
             sigma=args.sigma,
-            label_type=args.label_type,
             session_id_train_list=train_session_id_list,
             folder_train_list=args.train_folder_list,
             img_res=args.img_res,
             hm_res=args.hm_res,
             augmentation=args.augmentation,
-            temporal=args.temporal,
             num_classes=args.num_classes,
             jsonfile=args.json_file
         ),
@@ -675,13 +671,11 @@ def create_dataloader():
             data_folder=args.data_folder,
             train=False,
             sigma=args.sigma,
-            label_type=args.label_type,
             session_id_train_list=test_session_id_list,
             folder_train_list=test_folder_list,
             img_res=args.img_res,
             hm_res=args.hm_res,
             augmentation=False,
-            temporal=args.temporal,
             evaluation=True,
             num_classes=args.num_classes,
             jsonfile=args.json_file
@@ -695,6 +689,7 @@ def create_dataloader():
     return train_loader, val_loader
 
 
+# Code belows trains the network starting from the MPII dataset
 if __name__ == "__main__":
     parser = create_parser()
     args = parser.parse_args()
