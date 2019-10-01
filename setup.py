@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="deepfly",
-    version='0.1',
+    version='0.2',
     packages=["deepfly"],
     entry_points={"console_scripts": ["df3d = deepfly.GUI.main:main", "df3d-cli = deepfly.CLI.main:main"]},
     author="Semih Gunel",
