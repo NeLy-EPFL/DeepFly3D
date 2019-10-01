@@ -47,15 +47,11 @@ class DrosophAnnot(QWidget):
         if self.folder.endswith("/"):
             self.folder = self.folder[:-1]
 
-        print('a')
         self.state = State(self.folder)
-        print('a1')
         self.state.max_num_images = max_num_images
-        print('a2')
+
         self.state.db = PoseDB(self.folder)
-        print('a3')
         self.cidread2cid, self.cid2cidread = read_camera_order(self.folder)
-        print('b')
 
         max_img_id = get_max_img_id(self.folder)
         self.state.num_images = max_img_id + 1
@@ -67,14 +63,12 @@ class DrosophAnnot(QWidget):
             self.state.num_images = self.state.num_images
         print("Number of images: {}".format(self.state.num_images))
 
-        print('c')
         self.set_cameras()
         self.set_layout()
 
         # setting the initial state
         self.set_pose(self.state.img_id)
         self.set_mode(self.state.mode)
-        print('d')
 
     def set_layout(self):
         layout_h_images = QHBoxLayout()
