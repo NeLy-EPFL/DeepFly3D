@@ -1,20 +1,36 @@
+import glob
 import os
 
 import numpy as np
-
-import glob
 
 from ..Config import config
 
 
 def get_max_img_id(path):
-    img_path_list = os.listdir(path)
-    img_id_list = [
-        int(os.path.basename(p).split("_")[-1].replace(".jpg", ""))
-        for p in img_path_list
-        if p.endswith(".jpg")
-    ]
-    return max(img_id_list)
+    bound_low = 0
+    bound_high = 100000
+
+    curr = (bound_high + bound_low) // 2
+    while bound_high - bound_low > 1:
+        if image_exists_img_id(path, curr):
+            bound_low = curr
+        else:
+            bound_high = curr
+        curr = (bound_low + bound_high) // 2
+
+    return curr
+
+
+def image_exists_img_id(path, img_id):
+    return os.path.isfile(os.path.join(path, constr_img_name(0, img_id, False)) + '.jpg') or os.path.isfile(
+        os.path.join(path, constr_img_name(0, img_id, True)) + '.jpg')
+
+
+def constr_img_name(cid, pid, pad=True):
+    if pad:
+        return "camera_{}_img_{:06d}".format(cid, pid)
+    else:
+        return "camera_{}_img_{}".format(cid, pid)
 
 
 def read_camera_order(folder):
