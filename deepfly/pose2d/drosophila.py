@@ -215,6 +215,7 @@ def main(args):
                 os.path.join(
                     args.data_folder,
                     "/{}".format(unlabeled_folder),
+                    args.output_folder,
                     "./preds_{}.pkl".format(unlabeled_folder_replace),
                 ),
             )
@@ -473,6 +474,7 @@ def validate(val_loader, epoch, model, criterion, args, save_path=False):
         score_map_filename = os.path.join(
             args.data_folder,
             "/{}".format(save_path),
+            args.output_folder,
             "./heatmap_{}.pkl".format(unlabeled_folder_replace),
         )
         score_map_arr = np.memmap(

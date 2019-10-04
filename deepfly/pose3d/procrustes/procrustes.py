@@ -1,3 +1,4 @@
+# pylint: skip-file
 import glob
 import pickle
 import warnings
@@ -113,6 +114,7 @@ def procrustes(pts, template=None, reflection='best', verbose=False,
         return pts_t, tform
     else:
         return pts_t
+
 
 
 def __procrustes(X, Y, scaling=True, reflection='best'):

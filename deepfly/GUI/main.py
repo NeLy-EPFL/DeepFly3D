@@ -1,13 +1,13 @@
-#!/usr/bin/env python
-
 import ast
 import pickle
 import sys
-
 from PyQt5.QtCore import *
 from PyQt5.QtGui import QImage, QPixmap, QPainter
 from PyQt5.QtWidgets import *
 from sklearn.neighbors import NearestNeighbors
+from deepfly.pose2d import ArgParse
+from deepfly.pose2d.drosophila import main as pose2d_main
+from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
 
 from .CameraNetwork import CameraNetwork
 from .DB import PoseDB
@@ -16,7 +16,6 @@ from .State import State, View, Mode
 from .util.main_util import button_set_width
 from .util.optim_util import energy_drosoph
 from .util.os_util import *
-from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
 
 
 class DrosophAnnot(QWidget):
@@ -37,7 +36,7 @@ class DrosophAnnot(QWidget):
         elif len(sys.argv) >= 2:
             self.folder = str(sys.argv[1])
             self.folder = os.path.abspath(self.folder)
-        assert(os.path.isdir(self.folder) and os.path.exists(self.folder))
+        assert os.path.isdir(self.folder) and os.path.exists(self.folder)
 
         if len(sys.argv) >= 3:
             max_num_images = int(sys.argv[2])
@@ -46,12 +45,15 @@ class DrosophAnnot(QWidget):
 
         if self.folder.endswith("/"):
             self.folder = self.folder[:-1]
-
+        self.folder_output = os.path.join(self.folder, './df3d/')
+        if not os.path.exists(self.folder_output):
+            print(self.folder_output)
+            os.makedirs(self.folder_output)
         self.state = State(self.folder)
         self.state.max_num_images = max_num_images
 
-        self.state.db = PoseDB(self.folder)
-        self.cidread2cid, self.cid2cidread = read_camera_order(self.folder)
+        self.state.db = PoseDB(self.folder_output)
+        self.cidread2cid, self.cid2cidread = read_camera_order(self.folder_output)
 
         max_img_id = get_max_img_id(self.folder)
         self.state.num_images = max_img_id + 1
@@ -62,7 +64,7 @@ class DrosophAnnot(QWidget):
         else:
             self.state.num_images = self.state.num_images
         print("Number of images: {}".format(self.state.num_images))
-
+        
         self.set_cameras()
         self.set_layout()
 
@@ -89,13 +91,13 @@ class DrosophAnnot(QWidget):
         self.image_pose_list = [
             ImagePose(self.state, self.camNetLeft[0], self.solve_bp),
             ImagePose(self.state, self.camNetLeft[1], self.solve_bp),
-            ImagePose(self.state, self.camNetLeft[2], self.solve_bp)
+            ImagePose(self.state, self.camNetLeft[2], self.solve_bp),
         ]
 
         self.image_pose_list_bot = [
             ImagePose(self.state, self.camNetRight[0], self.solve_bp),
             ImagePose(self.state, self.camNetRight[1], self.solve_bp),
-            ImagePose(self.state, self.camNetRight[2], self.solve_bp)
+            ImagePose(self.state, self.camNetRight[2], self.solve_bp),
         ]
 
         for image_pose in self.image_pose_list:
@@ -135,8 +137,8 @@ class DrosophAnnot(QWidget):
         self.button_list_modes.append(self.button_correction_mode)
         self.button_list_modes.append(self.button_pose_mode)
         self.button_list_modes.append(self.button_heatmap_mode)
-        for b in self.button_list_modes:
-            b.setCheckable(True)
+        for button in self.button_list_modes:
+            button.setCheckable(True)
         self.button_image_mode.setCheckable(True)
         button_first = QPushButton("<<", self)
         button_prev = QPushButton("<", self)
@@ -156,6 +158,7 @@ class DrosophAnnot(QWidget):
         self.combo_joint_id.addItem("All")
         for i in range(config["skeleton"].num_joints):
             self.combo_joint_id.addItem("Prob. Map: " + str(i))
+
         self.combo_joint_id.activated[str].connect(self.combo_activated)
         self.combo_joint_id.setFixedWidth(100)
 
@@ -221,11 +224,11 @@ class DrosophAnnot(QWidget):
         self.setLayout(layout_v)
         self.setWindowTitle(self.folder)
 
-
     def set_cameras(self):
-        calib = read_calib(self.folder)
+        calib = read_calib(self.folder_output)
         self.camNetAll = CameraNetwork(
             image_folder=self.folder,
+            output_folder=self.folder_output,
             cam_id_list=range(config["num_cameras"]),
             cid2cidread=self.cid2cidread,
             num_images=self.state.num_images,
@@ -235,16 +238,20 @@ class DrosophAnnot(QWidget):
         )
         self.camNetLeft = CameraNetwork(
             image_folder=self.folder,
+            output_folder=self.folder_output,
             cam_id_list=config["left_cameras"],
             num_images=self.state.num_images,
             calibration=calib,
             num_joints=config["skeleton"].num_joints,
             cid2cidread=[self.cid2cidread[cid] for cid in config["left_cameras"]],
             heatmap_shape=config["heatmap_shape"],
-            cam_list=[cam for cam in self.camNetAll if cam.cam_id in config["left_cameras"]],
+            cam_list=[
+                cam for cam in self.camNetAll if cam.cam_id in config["left_cameras"]
+            ],
         )
         self.camNetRight = CameraNetwork(
             image_folder=self.folder,
+            output_folder=self.folder_output,
             cam_id_list=config["right_cameras"],
             num_images=self.state.num_images,
             calibration=calib,
@@ -263,12 +270,11 @@ class DrosophAnnot(QWidget):
         calib = read_calib(config["calib_fine"])
         self.camNetAll.load_network(calib)
 
-
     def rename_images(self):
-        text, okPressed = QInputDialog.getText(
+        text, ok_pressed = QInputDialog.getText(
             self, "Rename Images", "Camera order:", QLineEdit.Normal, ""
         )
-        if okPressed:
+        if ok_pressed:
             text = text.replace(" ", ",")
             text = "[" + text + "]"
             cidread2cid = ast.literal_eval(text)
@@ -282,8 +288,8 @@ class DrosophAnnot(QWidget):
 
             print("Camera order {}".format(cidread2cid))
 
-            write_camera_order(self.folder, cidread2cid)
-            self.cidread2cid, self.cid2cidread = read_camera_order(self.folder)
+            write_camera_order(self.folder_output, cidread2cid)
+            self.cidread2cid, self.cid2cidread = read_camera_order(self.folder_output)
 
             self.camNetAll.set_cid2cidread(self.cid2cidread)
             self.update_frame()
@@ -303,9 +309,6 @@ class DrosophAnnot(QWidget):
             self.state.correction_skip = False
 
     def pose2d_estimation(self):
-        from deepfly.pose2d import ArgParse
-        from deepfly.pose2d.drosophila import main
-
         parser = ArgParse.create_parser()
         args, _ = parser.parse_known_args()
         args.checkpoint = False
@@ -313,14 +316,13 @@ class DrosophAnnot(QWidget):
         args.resume = config["resume"]
         args.stacks = config["num_stacks"]
         args.test_batch = config["batch_size"]
-        args.img_res = [config["heatmap_shape"][0]*4, config["heatmap_shape"][1]*4]
+        args.img_res = [config["heatmap_shape"][0] * 4, config["heatmap_shape"][1] * 4]
         args.hm_res = config["heatmap_shape"]
         args.num_classes = config["num_predict"]
 
-
         args.max_img_id = self.state.num_images - 1
         # run the main, it will save the heatmaps and predictions in the image folder
-        _, _ = main(args)
+        _, _ = pose2d_main(args)
 
         # makes sure cameras use the latest heatmaps and predictions
         self.set_cameras()
@@ -336,10 +338,14 @@ class DrosophAnnot(QWidget):
 
     def set_mode(self, mode):
         if (
-                (mode == Mode.POSE and self.camNetLeft.has_pose() and self.camNetRight.has_pose())
-                or (mode == Mode.HEATMAP and self.camNetLeft.has_heatmap())
-                or mode == Mode.IMAGE
-                or (mode == Mode.CORRECTION and self.camNetLeft.has_pose())
+            (
+                mode == Mode.POSE
+                and self.camNetLeft.has_pose()
+                and self.camNetRight.has_pose()
+            )
+            or (mode == Mode.HEATMAP and self.camNetLeft.has_heatmap())
+            or mode == Mode.IMAGE
+            or (mode == Mode.CORRECTION and self.camNetLeft.has_pose())
         ):
             self.state.mode = mode
         else:
@@ -388,15 +394,15 @@ class DrosophAnnot(QWidget):
     def already_corrected(self, view, img_id):
         if view == View.Left:
             return (
-                    self.state.db.has_key(0, img_id)
-                    or self.state.db.has_key(1, img_id)
-                    or self.state.db.has_key(2, img_id)
+                self.state.db.has_key(0, img_id)
+                or self.state.db.has_key(1, img_id)
+                or self.state.db.has_key(2, img_id)
             )
         elif view == View.Right:
             return (
-                    self.state.db.has_key(4, img_id)
-                    or self.state.db.has_key(5, img_id)
-                    or self.state.db.has_key(6, img_id)
+                self.state.db.has_key(4, img_id)
+                or self.state.db.has_key(5, img_id)
+                or self.state.db.has_key(6, img_id)
             )
         else:
             raise NotImplementedError
@@ -420,9 +426,9 @@ class DrosophAnnot(QWidget):
 
     def set_prev_image(self):
         if self.state.mode != Mode.CORRECTION or (
-                not self.state.correction_skip
-                or not self.camNetLeft.has_calibration()
-                or not self.camNetLeft.has_pose()
+            not self.state.correction_skip
+            or not self.camNetLeft.has_calibration()
+            or not self.camNetLeft.has_pose()
         ):
             img_id = max(self.state.img_id - 1, 0)
             self.state.already_corrected = self.already_corrected(
@@ -438,9 +444,9 @@ class DrosophAnnot(QWidget):
 
     def set_next_image(self):
         if self.state.mode != Mode.CORRECTION or (
-                not self.state.correction_skip
-                or not self.camNetLeft.has_calibration()
-                or not self.camNetLeft.has_pose()
+            not self.state.correction_skip
+            or not self.camNetLeft.has_calibration()
+            or not self.camNetLeft.has_pose()
         ):
             img_id = min(self.state.num_images - 1, self.state.img_id + 1)
             self.state.already_corrected = self.already_corrected(
@@ -462,9 +468,9 @@ class DrosophAnnot(QWidget):
         ]
         if len(visible_cameras) >= 2:
             pts = np.array(
-                    [cam.points2d[img_id, joint_id, :] for cam in visible_cameras]
-                )
-            p3d, err_proj, prob_heatm, prob_bone = energy_drosoph(
+                [cam.points2d[img_id, joint_id, :] for cam in visible_cameras]
+            )
+            _, err_proj, _, _ = energy_drosoph(
                 visible_cameras, img_id, joint_id, pts / [960, 480]
             )
         else:
@@ -472,9 +478,11 @@ class DrosophAnnot(QWidget):
 
         return err_proj
 
-
     def next_error(self, img_id):
-        return min(self.next_error_cam(img_id, self.camNetLeft),  self.next_error_cam(img_id, self.camNetRight))
+        return min(
+            self.next_error_cam(img_id, self.camNetLeft),
+            self.next_error_cam(img_id, self.camNetRight),
+        )
 
     def next_error_cam(self, img_id, camNet):
         for img_id in range(img_id + 1, self.state.num_images):
@@ -488,9 +496,11 @@ class DrosophAnnot(QWidget):
 
         return self.state.num_images - 1
 
-
     def prev_error(self, img_id):
-        return max(self.prev_error_cam(img_id, self.camNetLeft),  self.prev_error_cam(img_id, self.camNetRight))
+        return max(
+            self.prev_error_cam(img_id, self.camNetLeft),
+            self.prev_error_cam(img_id, self.camNetRight),
+        )
 
     def prev_error_cam(self, curr_img_id, camNet):
         for img_id in range(curr_img_id - 1, 0, -1):
@@ -506,10 +516,10 @@ class DrosophAnnot(QWidget):
 
     def solve_bp(self, save_correction=False):
         if not (
-                self.state.mode == Mode.CORRECTION
-                and self.state.solve_bp
-                and self.camNetLeft.has_calibration()
-                and self.camNetLeft.has_pose()
+            self.state.mode == Mode.CORRECTION
+            and self.state.solve_bp
+            and self.camNetLeft.has_calibration()
+            and self.camNetLeft.has_pose()
         ):
             return
 
@@ -629,9 +639,9 @@ class DrosophAnnot(QWidget):
     def set_joint_id_tb(self):
         self.set_heatmap_joint_id(int(self.textbox_joint_id.text()))
 
-
     def calibrate_calc(self):
         from .util.main_util import calibrate_calc as ccalc
+
         text, okPressed = QInputDialog.getText(
             self,
             "Calibration",
@@ -646,7 +656,7 @@ class DrosophAnnot(QWidget):
 
             try:
                 [min_img_id, max_img_id] = ast.literal_eval(text)
-            except:
+            except BaseException as e:
                 min_img_id, max_img_id = 0, self.state.max_num_images
             print(
                 "Calibration considering frames between {}:{}".format(
@@ -659,7 +669,7 @@ class DrosophAnnot(QWidget):
 
     def save_calibration(self):
         calib_path = "{}/calib_{}.pkl".format(
-            self.folder, self.folder.replace("/", "_")
+            self.folder_output, self.folder.replace("/", "_")
         )
         print("Saving calibration {}".format(calib_path))
         self.camNetAll.save_network(calib_path)
@@ -723,7 +733,6 @@ class DrosophAnnot(QWidget):
             print("Applying Procrustes on 3D Points")
             dict_merge["points3d"] = procrustes_seperate(dict_merge["points3d"])
 
-
         # put old values back
         for cam_id in range(config["num_cameras"]):
             self.camNetAll[cam_id].points2d = pts2d_orig[cam_id, :].copy()
@@ -732,7 +741,7 @@ class DrosophAnnot(QWidget):
             dict_merge,
             open(
                 os.path.join(
-                    self.folder,
+                    self.folder_output,
                     "pose_result_{}.pkl".format(self.folder.replace("/", "_")),
                 ),
                 "wb",
@@ -741,7 +750,7 @@ class DrosophAnnot(QWidget):
         print(
             "Saved the pose at: {}".format(
                 os.path.join(
-                    self.folder,
+                    self.folder_output,
                     "pose_result_{}.pkl".format(self.folder.replace("/", "_")),
                 )
             )
@@ -785,7 +794,6 @@ class ImagePose(QWidget):
     def clear_mc(self):
         self.dynamic_pose = None
 
-
     def get_joint_reprojection_error(self, img_id, joint_id, camNet):
         visible_cameras = [
             cam
@@ -794,8 +802,8 @@ class ImagePose(QWidget):
         ]
         if len(visible_cameras) >= 2:
             pts = np.array(
-                    [cam.points2d[img_id, joint_id, :] for cam in visible_cameras]
-                )
+                [cam.points2d[img_id, joint_id, :] for cam in visible_cameras]
+            )
             p3d, err_proj, prob_heatm, prob_bone = energy_drosoph(
                 visible_cameras, img_id, joint_id, pts / [960, 480]
             )
@@ -804,14 +812,15 @@ class ImagePose(QWidget):
 
         return err_proj
 
-
     def update_image_pose(self):
         draw_joints = [
             j
             for j in range(config["skeleton"].num_joints)
             if config["skeleton"].camera_see_joint(self.cam.cam_id, j)
         ]
-        corrected_this_camera = self.state.db.has_key(self.cam.cam_id, self.state.img_id)
+        corrected_this_camera = self.state.db.has_key(
+            self.cam.cam_id, self.state.img_id
+        )
         zorder = config["skeleton"].get_zorder(self.cam.cam_id)
         if self.state.mode == Mode.IMAGE:
             im = self.cam.get_image(self.state.img_id)
@@ -836,15 +845,21 @@ class ImagePose(QWidget):
             circle_color = (0, 255, 0) if corrected_this_camera else (0, 0, 255)
 
             # calculate the joints with large reprojection error
-            r_list = [config["scatter_r"]]*config["num_joints"]
+            r_list = [config["scatter_r"]] * config["num_joints"]
             for joint_id in range(config["skeleton"].num_joints):
                 if joint_id not in config["skeleton"].pictorial_joint_list:
                     continue
-                camNet = self.state.camNetLeft if self.cam.cam_id < 3 else self.state.camNetRight
-                err_proj = self.get_joint_reprojection_error(self.state.img_id, joint_id, camNet)
+                camNet = (
+                    self.state.camNetLeft
+                    if self.cam.cam_id < 3
+                    else self.state.camNetRight
+                )
+                err_proj = self.get_joint_reprojection_error(
+                    self.state.img_id, joint_id, camNet
+                )
 
                 if err_proj > config["reproj_thr"][joint_id]:
-                    r_list[joint_id] = config["scatter_r"]*2
+                    r_list[joint_id] = config["scatter_r"] * 2
 
             im = self.cam.plot_2d(
                 img_id=self.state.img_id,
@@ -852,7 +867,7 @@ class ImagePose(QWidget):
                 circle_color=circle_color,
                 draw_joints=draw_joints,
                 zorder=zorder,
-                r_list=r_list
+                r_list=r_list,
             )
         im = im.astype(np.uint8)
         height, width, channel = im.shape
@@ -872,7 +887,7 @@ class ImagePose(QWidget):
             j
             for j in range(config["num_joints"])
             if (j not in config["skeleton"].ignore_joint_id)
-               and config["skeleton"].camera_see_joint(self.cam.cam_id, j)
+            and config["skeleton"].camera_see_joint(self.cam.cam_id, j)
         ]
 
         for j in check_joint_id_list:
@@ -909,13 +924,17 @@ class ImagePose(QWidget):
     def mouseMoveEvent(self, e):
         if self.state.mode == Mode.CORRECTION:
             x = int(
-                e.x() * np.array(config["image_shape"][0]) / self.frameGeometry().width()
+                e.x()
+                * np.array(config["image_shape"][0])
+                / self.frameGeometry().width()
             )
             y = int(
-                e.y() * np.array(config["image_shape"][1]) / self.frameGeometry().height()
+                e.y()
+                * np.array(config["image_shape"][1])
+                / self.frameGeometry().height()
             )
             if (
-                    self.dynamic_pose.joint_id is None
+                self.dynamic_pose.joint_id is None
             ):  # find the joint to be dragged with nearest neighbor
                 pts = self.dynamic_pose.points2d.copy()
 
@@ -925,8 +944,8 @@ class ImagePose(QWidget):
                         j_id
                         for j_id in range(config["skeleton"].num_joints)
                         if not config["skeleton"].camera_see_joint(
-                        self.cam.cam_id, j_id
-                    )
+                            self.cam.cam_id, j_id
+                        )
                     ]
                 ] = [9999, 9999]
 
@@ -983,7 +1002,7 @@ def main():
     window = DrosophAnnot()
     screen = app.primaryScreen()
     size = screen.size()
-    height, width = size.height(), size.width()
+    _, width = size.height(), size.width()
     # hw_ratio = 960 * 2 / 360.0
 
     hw_ratio = config["image_shape"][0] * 1.2 / config["image_shape"][1]
