@@ -34,6 +34,8 @@ def constr_img_name(cid, pid, pad=True):
 
 
 def read_camera_order(folder):
+    assert(folder.endswith('df3d/') or folder.endswith('df3d'))
+
     path = os.path.join(folder, "cam_order.npy")
     if os.path.isfile(path):
         order = np.load(file=path, allow_pickle=True)
@@ -50,6 +52,7 @@ def read_camera_order(folder):
 
 
 def write_camera_order(folder, cidread2cid):
+    assert (folder.endswith('df3d/') or folder.endswith('df3d'))
     path = os.path.join(folder, "cam_order")
     # print("Saving camera order {}: {}".format(path, cidread2cid))
     try:

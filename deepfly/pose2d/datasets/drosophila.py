@@ -107,7 +107,7 @@ class Drosophila(data.Dataset):
                 folder_name = d["folder"]
                 key_folder_name = folder_name
                 if folder_name not in self.cidread2cid:
-                    cidread2cid, cid2cidread = read_camera_order(folder_name)
+                    cidread2cid, cid2cidread = read_camera_order(os.path.join(folder_name, './df3d/'))
                     self.cidread2cid[key_folder_name] = cidread2cid
                 for cid in range(config["num_cameras"]):
                     for img_id, points2d in d[cid].items():
@@ -122,7 +122,6 @@ class Drosophila(data.Dataset):
                                 : num_heatmaps // 2, :
                             ]
                         elif 3 < cid < 7:
-                            continue
                             pts[
                                 num_classes : num_classes + (num_heatmaps // 2), :
                             ] = points2d[num_heatmaps // 2 :, :]
@@ -135,7 +134,7 @@ class Drosophila(data.Dataset):
 
         if self.unlabeled:
             image_folder_path = os.path.join(self.unlabeled)
-            cidread2cid, cid2cidread = read_camera_order(image_folder_path)
+            cidread2cid, cid2cidread = read_camera_order(os.path.join(image_folder_path, './df3d/'))
             self.cidread2cid[self.unlabeled] = cidread2cid
 
             for image_name_jpg in os.listdir(image_folder_path):

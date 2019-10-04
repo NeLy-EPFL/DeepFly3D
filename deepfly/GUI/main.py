@@ -67,6 +67,8 @@ class DrosophAnnot(QWidget):
                 break
         if camera_order is not None:
             write_camera_order(self.folder_output, np.array(camera_order))
+            self.cidread2cid, self.cid2cidread = read_camera_order(self.folder_output)
+            print(self.cid2cidread)
 
         # find number of images in the folder
         max_img_id = get_max_img_id(self.folder)

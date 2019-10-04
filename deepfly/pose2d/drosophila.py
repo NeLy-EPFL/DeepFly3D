@@ -193,7 +193,7 @@ def main(args):
 
             print("Saving Results, flipping heatmaps")
             cid_to_reverse = config["flip_cameras"]  # camera id to reverse predictions and heatmaps
-            cidread2cid, cid2cidread = read_camera_order(unlabeled_folder)
+            cidread2cid, cid2cidread = read_camera_order(os.path.join(unlabeled_folder, './df3d'))
             cid_read_to_reverse = [cid2cidread[cid] for cid in cid_to_reverse]
             print(
                 "Flipping heatmaps for images with cam_id: {}".format(
