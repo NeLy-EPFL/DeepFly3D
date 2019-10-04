@@ -19,14 +19,15 @@ Code for data preparation and augmentation are taken from the [Stacked hourglass
 
 ## Changes
 ### Changes in 0.2
-- removing specific dependencies for numpy and scipy
-- changing name from deepfly3d to df3d
-- adding cli interface with df3d-cli
-- removing L/R buttons, so you can see all the data at once
-- faster startup time, less time spent on searching for the image folder
-- better drawing notebooks
-- adding procrustes support. now all the output is registere to template skeleton.
-- bug fixes in CameraNetwork. Now calibration with arbitrary camera sequence is possible.
+- Changing name from deepfly3d to df3d
+- Adding cli interface with df3d-cli
+- Removing specific dependencies for numpy and scipy
+- Removing L/R buttons, so you can see all the data at once
+- Removing the front camera
+- Faster startup time, less time spent on searching for the image folder
+- Better notebooks for plotting
+- Adding procrustes support. Now all the output is registere to template skeleton.
+- Bug fixes in CameraNetwork. Now calibration with arbitrary camera sequence is possible.
 
 ### Known Problems
 - Some insability in automatic correction
