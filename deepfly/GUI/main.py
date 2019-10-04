@@ -17,6 +17,9 @@ from .util.main_util import button_set_width
 from .util.optim_util import energy_drosoph
 from .util.os_util import *
 
+from deepfly.CLI.main import known_users
+import re
+
 
 class DrosophAnnot(QWidget):
     def __init__(self):
@@ -53,8 +56,19 @@ class DrosophAnnot(QWidget):
         self.state.max_num_images = max_num_images
 
         self.state.db = PoseDB(self.folder_output)
-        self.cidread2cid, self.cid2cidread = read_camera_order(self.folder_output)
 
+        # try to automatically set the camera order
+        self.cidread2cid, self.cid2cidread = read_camera_order(self.folder_output)
+        camera_order = None
+        for regex, ordering in known_users:
+            if re.search(regex, self.folder):
+                camera_order = ordering
+                print(f"Regexp success: {regex}, {ordering}")
+                break
+        if camera_order is not None:
+            write_camera_order(self.folder_output, np.array(camera_order))
+
+        # find number of images in the folder
         max_img_id = get_max_img_id(self.folder)
         self.state.num_images = max_img_id + 1
         if self.state.max_num_images is not None:

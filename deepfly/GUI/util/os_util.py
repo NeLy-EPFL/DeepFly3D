@@ -43,7 +43,6 @@ def read_camera_order(folder):
 
     cidread2cid = order.copy()
     cid2cidread = np.zeros(cidread2cid.size, dtype=int)
-
     for cidread, cid in enumerate(cidread2cid):
         cid2cidread[cid] = cidread
 

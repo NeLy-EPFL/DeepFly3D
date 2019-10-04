@@ -10,6 +10,10 @@ from ..GUI.util.os_util import get_max_img_id, write_camera_order
 
 logger = logging.getLogger(__name__)
 
+known_users = [  
+    # TODO: Put your regexes and ordering here.
+    (r'/CLC/', [0, 6, 5, 4, 3, 2, 1]),
+]
 
 def main():
     setup_logger()
@@ -37,6 +41,7 @@ def parse_cli_args():
         "input_folder", 
         help="Folder containing unlabeled images."
     )
+
     parser.add_argument(
         "-n", "--num-images-max",
         help="Maximal number of images to process.",
@@ -85,22 +90,16 @@ def setup_default_camera_ordering(args):
     """
     if args.camera_ids is not None:
         return 
-    
-    known_users = [  
-        # TODO: Put your regexes and ordering here.
-        (r'/CLC/', "0 6 5 4 3 2 1"),
-    ]
 
     for regex, ordering in known_users:
         if re.search(regex, args.input_folder):
             logger.debug('Using default ordering for current user: {}'.format(ordering))
-            args.camera_ids = ordering.strip().split(' ')
+            args.camera_ids = ordering
             return
-
 
 def save_camera_ordering(args):
     if args.camera_ids:
-        write_camera_order(args.input_folder, args.camera_ids)
+        write_camera_order(os.path.join(args.input_folder, './df3d/'), args.camera_ids)
         logger.debug('Camera ordering wrote to file in "{}"'.format(args.input_folder))
 
 

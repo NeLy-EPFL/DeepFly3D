@@ -33,8 +33,8 @@ from deepfly.GUI.Config import config
 import cv2
 
 
-def weighted_mse_loss(input, target, weights):
-    out = (input - target) ** 2
+def weighted_mse_loss(inp, target, weights):
+    out = (inp - target) ** 2
     out = out * weights.expand_as(out)
     loss = out.sum()
 
