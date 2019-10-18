@@ -2,23 +2,19 @@ import glob
 import os
 
 import numpy as np
-
+from pathlib import Path
 from ..Config import config
+import re
 
+image_name_re = re.compile(r'camera_0_img_([0-9]+).jpg')
 
 def get_max_img_id(path):
-    bound_low = 0
-    bound_high = 100000
-
-    curr = (bound_high + bound_low) // 2
-    while bound_high - bound_low > 1:
-        if image_exists_img_id(path, curr):
-            bound_low = curr
-        else:
-            bound_high = curr
-        curr = (bound_low + bound_high) // 2
-
-    return curr
+    files = os.listdir(path)
+    matches = (image_name_re.search(f) for f in files)
+    ids = [int(m.groups()[0]) for m in matches if m and m.groups()] 
+    m = max(ids) if ids else 0
+    print('Max id is {}'.format(m))
+    return m
 
 
 def image_exists_img_id(path, img_id):
@@ -75,6 +71,7 @@ def read_calib(folder):
 
 
 def parse_img_name(name):
+    #print('Parsing name: {}'.format(name))
     return int(name.split("_")[1]), int(name.split("_")[3].replace(".jpg", ""))
 
 

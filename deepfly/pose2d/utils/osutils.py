@@ -24,9 +24,10 @@ def join(path, *paths):
     return os.path.join(path, *paths)
 
 
+from pathlib import Path
 def find_leaf_recursive(path):
     l = list()
     for root, dirs, files in os.walk(path):
-        if not dirs:
+        if Path(root).name == 'images':
             l.append(root)
     return l
