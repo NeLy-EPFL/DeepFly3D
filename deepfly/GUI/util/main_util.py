@@ -9,7 +9,6 @@ def button_set_width(btn, text=" ", margin=20):
 
 
 def calibrate_calc(drosophAnnot, min_img_id, max_img_id):
-
     from deepfly.GUI.util.os_util import read_calib
     calib = read_calib(config["calib_fine"])
     assert(calib is not None)
