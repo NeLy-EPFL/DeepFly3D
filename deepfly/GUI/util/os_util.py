@@ -8,6 +8,7 @@ import re
 
 image_name_re = re.compile(r'camera_0_img_([0-9]+).jpg')
 
+
 def get_max_img_id(path):
     files = os.listdir(path)
     matches = (image_name_re.search(f) for f in files)
