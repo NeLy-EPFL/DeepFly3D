@@ -20,8 +20,9 @@ Code for data preparation and augmentation are taken from the [Stacked hourglass
 ## Changes
 ### Changes in 0.3
 - Results are saved in df3d folder instead of the image folder.
-- Much faster startup time.
+- Much faster startup time. 
 - Cameras are automatically ordered using Regular Expressions.
+- CLI improvements. Now it incluedes 3D pose.
 
 ### Changes in 0.2
 - Changing name from deepfly3d to df3d
