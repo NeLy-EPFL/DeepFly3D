@@ -17,6 +17,7 @@ class CameraNetwork:
     def __init__(
             self,
             image_folder,
+            output_folder,
             calibration=None,
             num_images=900,
             num_joints=config["skeleton"].num_joints,
@@ -31,6 +32,7 @@ class CameraNetwork:
             pred_path=None
     ):
         self.folder = image_folder
+        self.folder_output = output_folder
         self.dict_name = image_folder
         self.points3d_m = None
         self.mask_unique = None
@@ -48,8 +50,8 @@ class CameraNetwork:
 
         if not cam_list:
             if pred_path is None:
-                print(self.folder, glob.glob(os.path.join(self.folder, "pred*.pkl")))
-                pred_path_list = glob.glob(os.path.join(self.folder, "pred*.pkl"))
+                print(self.folder, glob.glob(os.path.join(self.folder_output, "pred*.pkl")))
+                pred_path_list = glob.glob(os.path.join(self.folder_output, "pred*.pkl"))
                 pred_path_list.sort(key=os.path.getmtime)
                 pred_path_list = pred_path_list[::-1]
             else:
@@ -67,7 +69,7 @@ class CameraNetwork:
                 pred = None
 
             if hm_path is None:
-                heatmap_path_list = glob.glob(os.path.join(self.folder, "heatmap*.pkl"))
+                heatmap_path_list = glob.glob(os.path.join(self.folder_output, "heatmap*.pkl"))
                 heatmap_path_list.sort(key=os.path.getmtime)
                 heatmap_path_list = heatmap_path_list[::-1]
             else:
@@ -144,8 +146,8 @@ class CameraNetwork:
                 )
 
         if calibration is None:
-            print("Reading calibration from {}".format(self.folder))
-            calibration = read_calib(self.folder)
+            print("Reading calibration from {}".format(self.folder_output))
+            calibration = read_calib(self.folder_output)
         if calibration is not None:
             _ = self.load_network(calibration)
 

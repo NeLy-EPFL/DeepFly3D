@@ -2,8 +2,9 @@ import glob
 import os
 
 import numpy as np
-
+from pathlib import Path
 from ..Config import config
+import re
 
 
 def get_max_img_id(path):
@@ -21,6 +22,7 @@ def get_max_img_id(path):
     return curr
 
 
+
 def image_exists_img_id(path, img_id):
     return os.path.isfile(os.path.join(path, constr_img_name(0, img_id, False)) + '.jpg') or os.path.isfile(
         os.path.join(path, constr_img_name(0, img_id, True)) + '.jpg')
@@ -34,6 +36,8 @@ def constr_img_name(cid, pid, pad=True):
 
 
 def read_camera_order(folder):
+    assert(folder.endswith('df3d/') or folder.endswith('df3d'))
+
     path = os.path.join(folder, "cam_order.npy")
     if os.path.isfile(path):
         order = np.load(file=path, allow_pickle=True)
@@ -43,7 +47,6 @@ def read_camera_order(folder):
 
     cidread2cid = order.copy()
     cid2cidread = np.zeros(cidread2cid.size, dtype=int)
-
     for cidread, cid in enumerate(cidread2cid):
         cid2cidread[cid] = cidread
 
@@ -51,6 +54,7 @@ def read_camera_order(folder):
 
 
 def write_camera_order(folder, cidread2cid):
+    assert (folder.endswith('df3d/') or folder.endswith('df3d'))
     path = os.path.join(folder, "cam_order")
     # print("Saving camera order {}: {}".format(path, cidread2cid))
     try:
@@ -73,6 +77,7 @@ def read_calib(folder):
 
 
 def parse_img_name(name):
+    #print('Parsing name: {}'.format(name))
     return int(name.split("_")[1]), int(name.split("_")[3].replace(".jpg", ""))
 
 

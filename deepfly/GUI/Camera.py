@@ -242,12 +242,9 @@ class Camera:
 
     def get_image(self, img_id, flip=False):
         try:
-            img = cv2.imread(
-                os.path.join(
-                    self.image_folder,
-                    "camera_{}_img_{:06}.jpg".format(self.cam_id_read, img_id),
-                )
-            )
+            image_path = os.path.join(self.image_folder,"camera_{}_img_{:06}.jpg".format(self.cam_id_read, img_id))
+            #print('Reading: ' + image_path)
+            img = cv2.imread(image_path)
             if img is None:
                 raise FileNotFoundError
         except FileNotFoundError:

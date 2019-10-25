@@ -1,5 +1,5 @@
 import argparse
-
+import os
 import deepfly.pose2d.models as models
 from deepfly.GUI.Config import config
 
@@ -84,7 +84,6 @@ def add_arguments(parser):
         help="LR is multiplied by gamma on schedule.",
     )
     # paths
-    import os
     file_path = os.path.abspath(os.path.dirname(__file__))
     parser.add_argument(
         "-c",
@@ -97,7 +96,7 @@ def add_arguments(parser):
     parser.add_argument(
         "--json-file",
         default=os.path.join(file_path, "../../data/drosophilaimaging-export.json"),
-        dest='json_file',
+        dest="json_file",
         type=str,
         metavar="PATH",
         help="path to save checkpoint (default: checkpoint)",
@@ -105,17 +104,25 @@ def add_arguments(parser):
     parser.add_argument(
         "--data-folder",
         dest="data_folder",
-        default="./data/drosophila/",
+        default="data/drosophila/",
         type=str,
         metavar="PATH",
         help="path to read data from",
     )
     parser.add_argument(
-        "--resume",
-        default=config['resume'],
+        "--output_folder",
+        dest="output_folder",
+        default="df3d/",
         type=str,
         metavar="PATH",
-        help="path to latest checkpoint (default: {})".format(config['resume']),
+        help="path to place final results",
+    )
+    parser.add_argument(
+        "--resume",
+        default=config["resume"],
+        type=str,
+        metavar="PATH",
+        help="path to latest checkpoint (default: {})".format(config["resume"]),
     )
     # debug
     parser.add_argument(
@@ -162,7 +169,8 @@ def add_arguments(parser):
     )
     parser.add_argument("--unlabeled", type=str, metavar="PATH", default=None)
     parser.add_argument(
-        "--unlabeled-recursive", "--recursive",
+        "--unlabeled-recursive",
+        "--recursive",
         dest="unlabeled_recursive",
         action="store_true",
         default=False,
@@ -178,7 +186,7 @@ def add_arguments(parser):
     parser.add_argument(
         "-s",
         "--stacks",
-        default=config['num_stacks'],
+        default=config["num_stacks"],
         type=int,
         metavar="N",
         help="Number of hourglasses to stack",
