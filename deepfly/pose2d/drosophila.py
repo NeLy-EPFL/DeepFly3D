@@ -21,7 +21,6 @@ from deepfly.pose2d.utils.osutils import isfile, join, find_leaf_recursive
 from deepfly.pose2d.utils.imutils import save_image, drosophila_image_overlay
 from deepfly.pose2d.ArgParse import create_parser
 from deepfly.GUI.util.os_util import *
-
 import deepfly.pose2d.datasets
 import deepfly.pose2d.models as models
 from deepfly.pose2d.utils.osutils import mkdir_p, isdir
@@ -29,6 +28,7 @@ import os
 from deepfly.pose2d.utils.misc import get_time, to_numpy
 from deepfly.GUI.Camera import Camera
 from deepfly.GUI.Config import config
+from pathlib import Path
 
 import cv2
 
@@ -156,13 +156,15 @@ def main(args):
         else:
             unlabeled_folder_list = [args.unlabeled]
 
-        print(unlabeled_folder_list)
+        print('Recursively found the following folders: {}'.format(unlabeled_folder_list))
         for unlabeled_folder in unlabeled_folder_list:
+            max_img_id = get_max_img_id(unlabeled_folder)
             try:
-                max_img_id = args.max_img_id
+                max_img_id = min(max_img_id, args.num_images_max-1)
             except:
-                max_img_id = None
-            print("Unlabeled folder {} ".format(unlabeled_folder))
+                pass
+            print('\nWorking in: ' + unlabeled_folder)
+            print('Going to process {} images'.format(max_img_id+1))
             unlabeled_loader = DataLoader(
                 deepfly.pose2d.datasets.Drosophila(
                     data_folder=args.data_folder,
@@ -193,7 +195,7 @@ def main(args):
 
             print("Saving Results, flipping heatmaps")
             cid_to_reverse = config["flip_cameras"]  # camera id to reverse predictions and heatmaps
-            cidread2cid, cid2cidread = read_camera_order(os.path.join(unlabeled_folder, './df3d'))
+            cidread2cid, cid2cidread = read_camera_order(os.path.join(unlabeled_folder, 'df3d'))
             cid_read_to_reverse = [cid2cidread[cid] for cid in cid_to_reverse]
             print(
                 "Flipping heatmaps for images with cam_id: {}".format(
@@ -475,8 +477,10 @@ def validate(val_loader, epoch, model, criterion, args, save_path=False):
             args.data_folder,
             "/{}".format(save_path),
             args.output_folder,
-            "./heatmap_{}.pkl".format(unlabeled_folder_replace),
+            "heatmap_{}.pkl".format(unlabeled_folder_replace),
         )
+        score_map_path = Path(score_map_filename)
+        score_map_path.parent.mkdir(exist_ok=True, parents=True)
         score_map_arr = np.memmap(
             score_map_filename,
             dtype="float32",

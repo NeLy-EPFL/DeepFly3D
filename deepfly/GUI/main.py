@@ -48,7 +48,7 @@ class DrosophAnnot(QWidget):
 
         if self.folder.endswith("/"):
             self.folder = self.folder[:-1]
-        self.folder_output = os.path.join(self.folder, './df3d/')
+        self.folder_output = os.path.join(self.folder, 'df3d/')
         if not os.path.exists(self.folder_output):
             print(self.folder_output)
             os.makedirs(self.folder_output)

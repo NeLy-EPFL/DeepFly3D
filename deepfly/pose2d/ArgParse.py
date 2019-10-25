@@ -104,7 +104,7 @@ def add_arguments(parser):
     parser.add_argument(
         "--data-folder",
         dest="data_folder",
-        default="./data/drosophila/",
+        default="data/drosophila/",
         type=str,
         metavar="PATH",
         help="path to read data from",
@@ -112,7 +112,7 @@ def add_arguments(parser):
     parser.add_argument(
         "--output_folder",
         dest="output_folder",
-        default="./df3d/",
+        default="df3d/",
         type=str,
         metavar="PATH",
         help="path to place final results",

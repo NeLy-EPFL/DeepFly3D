@@ -2,8 +2,9 @@ import glob
 import os
 
 import numpy as np
-
+from pathlib import Path
 from ..Config import config
+import re
 
 
 def get_max_img_id(path):
@@ -19,6 +20,7 @@ def get_max_img_id(path):
         curr = (bound_low + bound_high) // 2
 
     return curr
+
 
 
 def image_exists_img_id(path, img_id):
@@ -75,6 +77,7 @@ def read_calib(folder):
 
 
 def parse_img_name(name):
+    #print('Parsing name: {}'.format(name))
     return int(name.split("_")[1]), int(name.split("_")[3].replace(".jpg", ""))
 
 
