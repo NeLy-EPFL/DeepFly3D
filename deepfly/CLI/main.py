@@ -7,6 +7,8 @@ from deepfly.pose2d.drosophila import main as pose2d_main
 from deepfly.pose2d import ArgParse
 from ..GUI.Config import config
 from ..GUI.util.os_util import get_max_img_id, write_camera_order, read_calib, read_camera_order
+from ..GUI.util.plot_util import normalize_pose_3d
+from ..GUI.util.signal_util import *
 from ..GUI.CameraNetwork import CameraNetwork
 from deepfly.pose2d.utils.osutils import find_leaf_recursive
 from ..GUI.util.os_util import *
@@ -17,11 +19,12 @@ import itertools
 from deepfly.GUI.util.plot_util import plot_drosophila_3d
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d, Axes3D
-
+from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
 
 logger = logging.getLogger(__name__)
 img3d_dpi = 100  # this is the dpi for one image on the 3d video's grid
-img3d_aspect = (2, 1)  # this is the aspect ration for one image on the 3d video's grid
+img3d_aspect = (2, 2)  # this is the aspect ration for one image on the 3d video's grid
+img2d_aspect = (2, 1)  # this is the aspect ration for one image on the 3d video's grid
 video_width = 500  # total width of the 2d and 3d videos
 
 known_users = [  
@@ -180,21 +183,95 @@ def make_pose2d_video(args):
     make_video(args, 'pose2d.mp4', generator)
 
 
+def get_camNet(args, cam_id_list=range(7), cam_list=None):
+    """ Create and setup a CameraNetwork """
+
+    folder = os.path.join(args.input_folder, args.output_folder)
+    print('Looking for data in {}'.format(folder))
+    calib = read_calib(config['calib_fine'])
+    cid2cidread, _ = read_camera_order(folder)
+
+    camNet = CameraNetwork(
+        image_folder=args.input_folder, 
+        cam_id_list=cam_id_list, 
+        calibration=calib, 
+        cid2cidread=cid2cidread,
+        num_images=args.num_images, output_folder=folder, 
+        cam_list=cam_list
+    )
+
+    return camNet
+
+
+
+def getCamNets(args):
+    folder = os.path.join(args.input_folder, args.output_folder)
+    print('Looking for data in {}'.format(folder))
+    calib = read_calib(config['calib_fine'])
+    cid2cidread, _ = read_camera_order(folder)
+
+    camNetAll = CameraNetwork(
+        image_folder=args.input_folder,
+        output_folder=folder, 
+        cam_id_list=range(config["num_cameras"]),
+        cid2cidread=cid2cidread,
+        num_images=args.num_images,
+        calibration=calib,
+        num_joints=config["skeleton"].num_joints,
+        heatmap_shape=config["heatmap_shape"],
+    )
+    camNetLeft = CameraNetwork(
+        image_folder=args.input_folder,
+        output_folder=folder, 
+        cam_id_list=config["left_cameras"],
+        num_images=args.num_images,
+        calibration=calib,
+        num_joints=config["skeleton"].num_joints,
+        cid2cidread=[cid2cidread[cid] for cid in config["left_cameras"]],
+        heatmap_shape=config["heatmap_shape"],
+        cam_list=[cam for cam in camNetAll if cam.cam_id in config["left_cameras"]],
+    )
+    camNetRight = CameraNetwork(
+        image_folder=args.input_folder,
+        output_folder=folder, 
+        cam_id_list=config["right_cameras"],
+        num_images=args.num_images,
+        calibration=calib,
+        num_joints=config["skeleton"].num_joints,
+        cid2cidread=[cid2cidread[cid] for cid in config["right_cameras"]],
+        heatmap_shape=config["heatmap_shape"],
+        cam_list=[cam for cam in camNetAll if cam.cam_id in config["right_cameras"]],
+    )
+
+    camNetLeft.bone_param = config["bone_param"]
+    camNetRight.bone_param = config["bone_param"]
+    camNetAll.load_network(calib)
+    return camNetAll, camNetLeft, camNetRight
+
+
 def make_pose3d_video(args):
 
     # Here we create a generator (keyword "yield")
     def imgs_generator():
-        camNet1 = get_camNet(args, (0, 1, 2))
-        camNet2 = get_camNet(args, (4, 5, 6))
-        camNet1.triangulate()
-        camNet1.bundle_adjust()
-        camNet2.triangulate()
-        camNet2.bundle_adjust()
+        camNetAll, camNetLeft, camNetRight = getCamNets(args)
+
+        camNetLeft.triangulate()
+        camNetLeft.bundle_adjust(cam_id_list=(0,1,2), unique=False, prior=True)
+        
+        camNetRight.triangulate()
+        camNetRight.bundle_adjust(cam_id_list=(0,1,2), unique=False, prior=True)
+
+        camNetAll.triangulate()
+        camNetAll.points3d_m = procrustes_seperate(camNetAll.points3d_m)
+        camNetAll.points3d_m = normalize_pose_3d(camNetAll.points3d_m, rotate=True)
+        camNetAll.points3d_m = filter_batch(camNetAll.points3d_m)
+        for cam in camNetAll:
+            cam.points2d = smooth_pose2d(cam.points2d)
 
         def stack(img_id):
-            row1 = np.hstack([compute_2d_img(camNet1, img_id, cam_id) for cam_id in (0, 1, 2)])
-            row2 = np.hstack([compute_2d_img(camNet2, img_id, cam_id) for cam_id in (0, 1, 2)])
-            row3 = np.hstack([compute_3d_img(camNet2, img_id, cam_id) for cam_id in (0, 1, 2)])
+            row1 = np.hstack([compute_2d_img(camNetLeft, img_id, cam_id) for cam_id in (0, 1, 2)])
+            row2 = np.hstack([compute_2d_img(camNetRight, img_id, cam_id) for cam_id in (0, 1, 2)])
+            row3 = np.hstack([compute_3d_img(camNetAll, img_id, cam_id) for cam_id in (2, 3, 4)])
             img = np.vstack([row1, row2, row3])
             return img
         
@@ -235,20 +312,6 @@ def make_video(args, video_name, imgs):
     print('Video created at {}\n'.format(video_path))
 
 
-def get_camNet(args, cam_id_list=range(7)):
-    """ Create and setup a CameraNetwork """
-
-    folder = os.path.join(args.input_folder, args.output_folder)
-    print('Looking for data in {}'.format(folder))
-    calib = read_calib(config['calib_fine'])
-    cid2cidread, cidread2cid = read_camera_order(folder)
-
-    camNet = CameraNetwork(image_folder=args.input_folder, cam_id_list=cam_id_list, calibration=calib, 
-            cid2cidread=cid2cidread, num_images=args.num_images, output_folder=folder)
-
-    return camNet
-
-
 def resize(current_shape, new_width):
     width, height = current_shape
     ratio = new_width / width;
@@ -266,7 +329,7 @@ def setup_ax3d(ax1):
 
 def compute_2d_img(camNet1, img_id, cam_id):
     img = camNet1[cam_id].plot_2d(img_id)
-    img = cv2.resize(img, (img3d_aspect[0]*img3d_dpi, img3d_aspect[1]*img3d_dpi))
+    img = cv2.resize(img, (img2d_aspect[0]*img3d_dpi, img2d_aspect[1]*img3d_dpi))
     return img
 
 
@@ -279,7 +342,7 @@ def compute_3d_img(camNet1, img_id, cam_id):
 
     ax3d = Axes3D(fig)
     setup_ax3d(ax3d)
-    plot_drosophila_3d(ax3d, camNet1.points3d_m[img_id].copy(), cam_id=cam_id)
+    plot_drosophila_3d(ax3d, camNet1.points3d_m[img_id].copy(), cam_id=cam_id, lim=2, thickness=np.ones((camNet1.points3d_m.shape[1])) * 1.5)
 
     fig.canvas.draw()
     data = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
