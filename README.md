@@ -22,7 +22,7 @@ Code for data preparation and augmentation are taken from the [Stacked hourglass
 - Results are saved in df3d folder instead of the image folder.
 - Much faster startup time. 
 - Cameras are automatically ordered using Regular Expressions.
-- CLI improvements. Now it incluedes 3D pose.
+- CLI improvements. Now it includes 3D pose.
 
 ### Changes in 0.2
 - Changing name from deepfly3d to df3d
@@ -112,8 +112,9 @@ It is possible to use DeepFly3D on other animals! Check the [Adaptation](https:/
                João Compagnolo and
                Pavan Ramdya and
                Pascal Fua},
-  title     = {DeepFly3D: A deep learning-based approach for 3D limb and appendage tracking in tethered, adult Drosophila},
-  bookTitle = {bioRxiv}
+  title     = {DeepFly3D, a deep learning-based approach for 3D limb and appendage tracking in tethered, adult Drosophila},
+  bookTitle = {eLife},
+  doi       = {10.7554/eLife.48571},
   year      = {2019}
 }
 
