@@ -4,7 +4,8 @@ import pickle
 
 import matplotlib.pyplot as plt
 from scipy.optimize import least_squares
-
+from logging import getLogger
+import logging
 from deepfly.GUI.Config import config
 from .BP import LegBP
 from .Camera import Camera
@@ -50,13 +51,13 @@ class CameraNetwork:
 
         if not cam_list:
             if pred_path is None:
-                print(self.folder, glob.glob(os.path.join(self.folder_output, "pred*.pkl")))
+                getLogger('df3d').debug(f'{self.folder}, {glob.glob(os.path.join(self.folder_output, "pred*.pkl"))}')
                 pred_path_list = glob.glob(os.path.join(self.folder_output, "pred*.pkl"))
                 pred_path_list.sort(key=os.path.getmtime)
                 pred_path_list = pred_path_list[::-1]
             else:
                 pred_path_list = [pred_path]
-            print("Loading predictions {}".format(pred_path_list))
+            getLogger('df3d').debug("Loading predictions {}".format(pred_path_list))
             if pred is None and len(pred_path_list) != 0:
                 pred = np.load(file=pred_path_list[0], mmap_mode="r", allow_pickle=True)
                 if pred.shape[1] > num_images:
@@ -74,7 +75,7 @@ class CameraNetwork:
                 heatmap_path_list = heatmap_path_list[::-1]
             else:
                 heatmap_path_list = [hm_path]
-            print("Loading heatmaps {}".format(heatmap_path_list))
+            getLogger('df3d').debug("Loading heatmaps {}".format(heatmap_path_list))
             if heatmap is None and len(heatmap_path_list) and pred is not None:
                 try:
                     shape = (
@@ -84,7 +85,7 @@ class CameraNetwork:
                         self.heatmap_shape[0],
                         self.heatmap_shape[1],
                     )
-                    print("Heatmap shape: {}".format(shape))
+                    getLogger('df3d').debug("Heatmap shape: {}".format(shape))
                     heatmap = np.memmap(
                         filename=heatmap_path_list[0],
                         mode="r",
@@ -92,7 +93,7 @@ class CameraNetwork:
                         dtype="float32",
                     )
                 except BaseException as e:
-                    print(
+                    getLogger('df3d').debug(
                         "Cannot read heatmap as memory mapped: {}, {}".format(
                             heatmap_path_list, str(e)
                         )
@@ -131,7 +132,7 @@ class CameraNetwork:
                         pred_cam[:num_images_in_pred, :, :] = pred[cam_id_read, :
                                                               ] * self.image_shape
                 else:
-                    print("Skipping reading heatmaps and predictions")
+                    getLogger('df3d').debug("Skipping reading heatmaps and predictions")
                     heatmap = None
                     pred_cam = np.zeros(shape=(num_images, num_joints, 2), dtype=float)
                 self.cam_list.append(
@@ -146,7 +147,7 @@ class CameraNetwork:
                 )
 
         if calibration is None:
-            print("Reading calibration from {}".format(self.folder_output))
+            getLogger('df3d').debug("Reading calibration from {}".format(self.folder_output))
             calibration = read_calib(self.folder_output)
         if calibration is not None:
             _ = self.load_network(calibration)
@@ -184,7 +185,7 @@ class CameraNetwork:
             is_aligned = len(l) and ((np.max(l) - np.min(l)) < thr)
             self.mask_prior[img_id, joint_id, :] = is_aligned
 
-        print(
+        getLogger('df3d').debug(
             "Number of points close to prior epipolar line: {}".format(
                 np.sum(self.mask_prior) / 2
             )
@@ -251,7 +252,7 @@ class CameraNetwork:
         objectPoints = np.array(points3d_pnp)
         imagePoints = np.array(points2d_pnp)
 
-        print("objectPoints shape: {}".format(objectPoints.shape))
+        getLogger('df3d').debug("objectPoints shape: {}".format(objectPoints.shape))
         if objectPoints.shape[0] > 4:
             found, rvec, tvec = cv2.solvePnP(
                 objectPoints,
@@ -266,7 +267,7 @@ class CameraNetwork:
             self.cam_list[cam_id].set_R(R)
             self.cam_list[cam_id].set_tvec(tvec)
         else:
-            print("Skipping PnP, not enough points")
+            getLogger('df3d').debug("Skipping PnP, not enough points")
 
     def reprojection_error(self, cam_indices=None, ignore_joint_list=None):
         if ignore_joint_list is None:
@@ -285,7 +286,7 @@ class CameraNetwork:
                 err_list.append((cam.project(p3d) - cam[img_id, j_id]).ravel())
 
         err_mean = np.mean(np.abs(err_list))
-        print("Ignore_list {}:  {:.4f}".format(ignore_joint_list, err_mean))
+        getLogger('df3d').debug("Ignore_list {}:  {:.4f}".format(ignore_joint_list, err_mean))
         return err_list
 
     def prepare_bundle_adjust_param(
@@ -363,7 +364,7 @@ class CameraNetwork:
                         ]
                         c += 1
 
-        print("Replaced {} points".format(c))
+        getLogger('df3d').debug("Replaced {} points".format(c))
         points3d_ba = np.squeeze(np.array(points3d_ba))
         points2d_ba = np.squeeze(np.array(points2d_ba))
         cid2cidx = {v:k for (k,v) in enumerate(np.sort(np.unique(camera_indices)))}
@@ -411,8 +412,8 @@ class CameraNetwork:
             unique=unique,
             prior=prior,
         )
-
-        print("Number of points: ", n_points)
+        logger = getLogger('df3d')
+        logger.debug(f"Number of points: {n_points}")
         A = bundle_adjustment_sparsity(
             n_cameras, n_points, camera_indices, point_indices
         )
@@ -420,7 +421,7 @@ class CameraNetwork:
             fun,
             x0,
             jac_sparsity=A,
-            verbose=2,
+            verbose=2 if logger.isEnabledFor(logging.DEBUG) else 0,
             x_scale="jac",
             ftol=1e-4,
             method="trf",
@@ -435,7 +436,7 @@ class CameraNetwork:
             max_nfev=1000,
         )
 
-        print(
+        getLogger('df3d').debug(
             "Bundle adjustment, Average reprojection error: {}".format(
                 np.mean(np.abs(res.fun))
             )
@@ -472,14 +473,13 @@ class CameraNetwork:
                 )
             else:
                 pass
-                # print("Joints {} is not visible from at least two cameras".format(j_id_l))
+                # getLogger('df3d').debug("Joints {} is not visible from at least two cameras".format(j_id_l))
 
-        print(
-            [
+        getLogger('df3d').debug([
                 [len(leg[i].candid_list) for i in range(len(leg.jointbp))]
                 for leg in chain_list
-            ]
-        )
+            ])
+
         for chain in chain_list:
             chain.propagate()
             chain.solve()
@@ -527,7 +527,7 @@ class CameraNetwork:
                 cam.set_intrinsic(d[cam.cam_id]["intr"])
                 cam.set_distort(d[cam.cam_id]["distort"])
             else:
-                print("Camera {} is not on the calibration file".format(cam.cam_id))
+                getLogger('df3d').debug("Camera {} is not on the calibration file".format(cam.cam_id))
 
         return d["meta"]
 
@@ -545,7 +545,7 @@ class CameraNetwork:
             prob=0.9999,
             threshold=5,
         )
-        print("Essential matrix inlier ratio: {}".format(np.sum(mask) / mask.shape[0]))
+        getLogger('df3d').debug("Essential matrix inlier ratio: {}".format(np.sum(mask) / mask.shape[0]))
         return E, mask
 
     @staticmethod
