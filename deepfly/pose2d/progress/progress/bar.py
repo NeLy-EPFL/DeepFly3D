@@ -42,6 +42,23 @@ class Bar(WritelnMixin, Progress):
         self.writeln(line)
 
 
+class NoOutputBar(Bar):
+    def __init__(self, *args, **kwargs):
+        Bar.__init__(self, *args, **kwargs)
+
+    def update(self):
+        pass
+
+    def next(self):
+        pass
+
+    def finish(self):
+        pass
+
+    def start(self):
+        pass
+
+
 class ChargingBar(Bar):
     suffix = '%(percent)d%%'
     bar_prefix = ' '
