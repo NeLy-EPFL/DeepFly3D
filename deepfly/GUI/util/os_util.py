@@ -19,6 +19,9 @@ def get_max_img_id(path):
             bound_high = curr
         curr = (bound_low + bound_high) // 2
 
+    if not image_exists_img_id(path, curr):
+        raise FileNotFoundError("No image found.")
+
     return curr
 
 

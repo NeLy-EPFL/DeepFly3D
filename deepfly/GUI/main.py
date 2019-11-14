@@ -17,7 +17,7 @@ from .util.main_util import button_set_width
 from .util.optim_util import energy_drosoph
 from .util.os_util import *
 
-from deepfly.CLI.main import known_users
+from deepfly.CLI.core_api import known_users
 import re
 
 

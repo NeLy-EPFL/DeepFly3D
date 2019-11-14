@@ -6,12 +6,12 @@ from deepfly.GUI.util.os_util import *
 from deepfly.pose2d.utils.osutils import isfile
 from deepfly.pose2d.utils.transforms import *
 from deepfly.GUI.Config import config
-
+from logging import getLogger
+import logging
 import glob
 
 FOLDER_NAME = 0
 IMAGE_NAME = 1
-
 
 class Drosophila(data.Dataset):
     def __init__(
@@ -80,12 +80,12 @@ class Drosophila(data.Dataset):
                         self.annotation_dict[key] = np.array(pts)
 
         # read the manual correction for training data
-        print("Searching for manual corrections")
+        getLogger('df3d').debug("Searching for manual corrections")
         n_joints = set()
         if not self.unlabeled and self.train:
             pose_corr_path_list = []
             for root in manual_path_list:
-                print(
+                getLogger('df3d').debug(
                     "Searching recursively: {}".format(
                         root
                     )
@@ -97,7 +97,7 @@ class Drosophila(data.Dataset):
                         )
                     )
                 )
-                print(
+                getLogger('df3d').debug(
                     "Number of manual correction files: {}".format(
                         len(pose_corr_path_list)
                     )
@@ -216,13 +216,13 @@ class Drosophila(data.Dataset):
 
         self.mean, self.std = self._compute_mean()
 
-        print(
+        getLogger('df3d').debug(
             "Folders inside {} data: {}".format(
                 "train" if self.train else "validation",
                 set([k[0] for k in self.annotation_key]),
             )
         )
-        print("Successfully imported {} Images in Drosophila Dataset".format(len(self)))
+        getLogger('df3d').debug("Successfully imported {} Images in Drosophila Dataset".format(len(self)))
 
     def _compute_mean(self):
         file_path = os.path.abspath(os.path.dirname(__file__))
@@ -245,11 +245,11 @@ class Drosophila(data.Dataset):
             meanstd = {"mean": mean, "std": std}
             torch.save(meanstd, meanstd_file)
         if self.is_train:
-            print(
+            getLogger('df3d').debug(
                 "    Mean: %.4f, %.4f, %.4f"
                 % (meanstd["mean"][0], meanstd["mean"][1], meanstd["mean"][2])
             )
-            print(
+            getLogger('df3d').debug(
                 "    Std:  %.4f, %.4f, %.4f"
                 % (meanstd["std"][0], meanstd["std"][1], meanstd["std"][2])
             )
@@ -363,7 +363,8 @@ class Drosophila(data.Dataset):
         return img_norm, target, meta
 
     def greatest_image_id(self):
-        return max([parse_img_name(k[1])[1] for k in self.annotation_key])
+        ids = [parse_img_name(k[1])[1] for k in self.annotation_key]
+        return max(ids) if ids else 0
 
     def __len__(self):
         return len(self.annotation_key)
