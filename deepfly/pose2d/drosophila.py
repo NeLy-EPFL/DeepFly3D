@@ -44,6 +44,10 @@ def weighted_mse_loss(inp, target, weights):
     return loss
 
 
+def on_cuda(torch_var, *cuda_args, **cuda_kwargs):
+    return torch_var.cuda(*cuda_args, **cuda_kwargs) if torch.cuda.is_available() else torch_var
+
+
 def main(args):
     global best_acc
 
@@ -61,8 +65,8 @@ def main(args):
         init_stride=args.stride,
     )
 
-    model = torch.nn.DataParallel(model).cuda()
-    criterion = torch.nn.MSELoss(reduction='mean').cuda()  # deprecated: size_average=True
+    model = on_cuda(torch.nn.DataParallel(model))
+    criterion = on_cuda(torch.nn.MSELoss(reduction='mean'))  # deprecated: size_average=True
     optimizer = torch.optim.RMSprop(
         model.parameters(),
         lr=args.lr,
@@ -78,7 +82,8 @@ def main(args):
     if args.resume:
         if isfile(args.resume):
             getLogger('df3d').debug("Loading checkpoint '{}'".format(args.resume))
-            checkpoint = torch.load(args.resume)
+            checkpoint = torch.load(args.resume) if torch.cuda.is_available() else torch.load(args.resume, map_location=torch.device('cpu'))
+    
             if "mpii" in args.resume and not args.unlabeled:  # weights for sh trained on mpii dataset
                 getLogger('df3d').debug("Removing input/output layers")
                 ignore_weight_list_template = [
@@ -298,12 +303,8 @@ def train(train_loader, epoch, model, optimizer, criterion, args):
         np.random.seed()
         # measure data loading time
         data_time.update(time.time() - end)
-        input_var = (
-            torch.autograd.Variable(inputs.cuda())
-            if torch.cuda.is_available()
-            else torch.autograd.Variable(inputs)
-        )
-        target_var = torch.autograd.Variable(target.cuda(non_blocking=True))
+        input_var = (torch.autograd.Variable(on_cuda(inputs)))
+        target_var = torch.autograd.Variable(on_cuda(target, non_blocking=True))
 
         # compute output
         output = model(input_var)
@@ -317,7 +318,7 @@ def train(train_loader, epoch, model, optimizer, criterion, args):
 
         # logger.debug(loss_weight)
         loss_weight.requires_grad = True
-        loss_weight = loss_weight.cuda()
+        loss_weight = on_cuda(loss_weight)
         loss = weighted_mse_loss(output[0], target_var, weights=loss_weight)
         for j in range(1, len(output)):
             loss += weighted_mse_loss(output[j], target_var, weights=loss_weight)
@@ -490,8 +491,8 @@ def validate(val_loader, epoch, model, criterion, args, save_path=False):
         # measure data loading time
         data_time.update(time.time() - end)
 
-        target = target.cuda(non_blocking=True)
-        input_var = torch.autograd.Variable(inputs.cuda())
+        target = on_cuda(target, non_blocking=True)
+        input_var = torch.autograd.Variable(on_cuda(inputs))
         target_var = torch.autograd.Variable(target)
 
         # compute output
