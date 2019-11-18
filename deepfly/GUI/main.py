@@ -744,6 +744,7 @@ class DrosophAnnot(QWidget):
             pts3d = self.camNetAll.points3d_m
 
             dict_merge["points3d"] = pts3d
+            
         # apply procrustes
         if config["procrustes_apply"]:
             print("Applying Procrustes on 3D Points")

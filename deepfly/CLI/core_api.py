@@ -30,6 +30,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d, Axes3D
 from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
 from logging import getLogger
+import pickle
 
 img3d_dpi = 100  # this is the dpi for one image on the 3d video's grid
 img3d_aspect = (2, 2)  # this is the aspect ration for one image on the 3d video's grid
@@ -43,14 +44,20 @@ known_users = [
 #=========================================================================
 # Public interface
 
+
 def setup(input_folder, camera_ids, num_images_max):
     args = _get_pose2d_args(input_folder, camera_ids, num_images_max)
     _setup_default_camera_ordering(args)
     _save_camera_ordering(args)
     return args
 
-def pose_estimation(setup_data):
-    return pose2d_main(setup_data)
+
+def pose2d_estimation(setup_data):
+    pose2d_main(setup_data)
+
+
+def pose3d_estimation(setup_data):
+    _pose3d_estimation(setup_data)
 
 
 def pose2d_video(setup_data):
@@ -63,6 +70,7 @@ def pose3d_video(setup_data):
 
 #=========================================================================
 # Below is private implementation
+
 
 def _get_pose2d_args(input_folder, camera_ids, num_images_max):
     # Validate arguments
@@ -89,6 +97,7 @@ def _clean_args(args):
             raise ValueError('CAMERA-IDS argument must contain {} distinct ids, one per camera'.format(config['num_cameras']))
     return args
 
+
 def _setup_default_camera_ordering(args):
     """ This is a convenience function which automatically creates a default camera ordering for 
         frequent users in the neuro-engineering lab.
@@ -109,6 +118,32 @@ def _save_camera_ordering(args):
         path = os.path.join(args.input_folder, args.output_folder)
         write_camera_order(path, args.camera_ids)
         getLogger('df3d').debug('Camera ordering wrote to file in "{}"'.format(path))
+
+
+def _pose3d_estimation(args):
+    camNetAll, camNetLeft, camNetRight = _getCamNets(args)
+
+    pts2d = np.zeros((7, args.num_images, config["num_joints"], 2), dtype=float)
+    for cam in camNetAll:
+        pts2d[cam.cam_id, :] = cam.points2d.copy()
+
+    # some post-processing for body-coxa
+    if "fly" in config["name"]:
+        for cam_id in range(len(camNetAll.cam_list)):
+            for j in range(config["skeleton"].num_joints):
+                coxa_tracked = config["skeleton"].is_tracked_point(j, config["skeleton"].Tracked.BODY_COXA)
+                if config["skeleton"].camera_see_joint(cam_id, j) and coxa_tracked:
+                    pts2d[cam_id, :, j, 0] = np.median(pts2d[cam_id, :, j, 0])
+                    pts2d[cam_id, :, j, 1] = np.median(pts2d[cam_id, :, j, 1])
+
+    dict_merge = camNetAll.save_network(path=None)
+    dict_merge["points2d"] = pts2d
+    dict_merge["points3d"] = camNetAll.points3d_m
+        
+    path = os.path.join(args.input_folder, args.output_folder)
+    save_path = os.path.join(path, "pose_result_{}.pkl".format(args.input_folder.replace("/", "_")))
+    pickle.dump(dict_merge, open(save_path, "wb"))
+    getLogger('df3d').info(f"Pose estimation results saved at: {save_path}")
 
 
 def _make_pose2d_video(args):
@@ -193,6 +228,20 @@ def _getCamNets(args):
     camNetLeft.bone_param = config["bone_param"]
     camNetRight.bone_param = config["bone_param"]
     camNetAll.load_network(calib)
+
+    camNetLeft.triangulate()
+    camNetLeft.bundle_adjust(cam_id_list=(0,1,2), unique=False, prior=True)
+    
+    camNetRight.triangulate()
+    camNetRight.bundle_adjust(cam_id_list=(0,1,2), unique=False, prior=True)
+
+    camNetAll.triangulate()
+    camNetAll.points3d_m = procrustes_seperate(camNetAll.points3d_m)
+    camNetAll.points3d_m = normalize_pose_3d(camNetAll.points3d_m, rotate=True)
+    camNetAll.points3d_m = filter_batch(camNetAll.points3d_m)
+    for cam in camNetAll:
+        cam.points2d = smooth_pose2d(cam.points2d)
+
     return camNetAll, camNetLeft, camNetRight
 
 
@@ -200,19 +249,6 @@ def _make_pose3d_video(args):
     # Here we create a generator (keyword "yield")
     def imgs_generator():
         camNetAll, camNetLeft, camNetRight = _getCamNets(args)
-
-        camNetLeft.triangulate()
-        camNetLeft.bundle_adjust(cam_id_list=(0,1,2), unique=False, prior=True)
-        
-        camNetRight.triangulate()
-        camNetRight.bundle_adjust(cam_id_list=(0,1,2), unique=False, prior=True)
-
-        camNetAll.triangulate()
-        camNetAll.points3d_m = procrustes_seperate(camNetAll.points3d_m)
-        camNetAll.points3d_m = normalize_pose_3d(camNetAll.points3d_m, rotate=True)
-        camNetAll.points3d_m = filter_batch(camNetAll.points3d_m)
-        for cam in camNetAll:
-            cam.points2d = smooth_pose2d(cam.points2d)
 
         def stack(img_id):
             row1 = np.hstack([_compute_2d_img(camNetLeft, img_id, cam_id) for cam_id in (0, 1, 2)])
