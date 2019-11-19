@@ -1,6 +1,6 @@
 from enum import Enum
 from .DB import PoseDB
-
+from .util.os_util import get_max_img_id
 
 class State:
     def __init__(self, folder, max_num_images, folder_output):
@@ -15,8 +15,12 @@ class State:
         self.solve_bp = True  # Automatic correction
         self.already_corrected = False
         self.correction_skip = True  # Correction Skip
-        self.num_images = None
         self.max_num_images = max_num_images
+        
+        self.num_images = 1 + get_max_img_id(self.folder)
+        if max_num_images is not None:
+            self.num_images = min(self.num_images, self.max_num_images)
+        print("Number of images", self.num_images)
 
 
 class Mode(Enum):

@@ -2,13 +2,20 @@ from PyQt5.QtWidgets import QApplication
 from deepfly.GUI.main import DrosophAnnot
 import os.path
 from pathlib import Path
-    
-INPUT_DIRECTORY = Path(__file__).parent / '../data/test'
-print(INPUT_DIRECTORY)
+from itertools import product
 
+INPUT_DIRECTORY = Path(__file__).parent / '../data/test'
+NB_IMGS_IN_INPUT_DIR = 15
+NB_CAMERAS = 7
 
 def test_input_directory_exists():
     assert INPUT_DIRECTORY.is_dir()
+
+
+def test_imgs_in_input_dir():
+    for c_id,i_id in product(range(NB_CAMERAS), range(NB_IMGS_IN_INPUT_DIR)):
+        img = INPUT_DIRECTORY / f'camera_{c_id}_img_{i_id:06}.jpg'
+        assert img.is_file(), f'{img} does not exist'
 
 
 def test_can_instantiate(qtbot):
@@ -73,8 +80,6 @@ def test_setup_input_folder_prompted(qtbot):
 
     window = A()
     qtbot.addWidget(window)
-
-    import os.path
     window.setup()
     assert window.folder == os.path.abspath(INPUT_DIRECTORY)
 
@@ -84,4 +89,13 @@ def test_setup_num_images_max_from_args(qtbot):
     window = DrosophAnnot()
     qtbot.addWidget(window)
     window.setup(input_folder=INPUT_DIRECTORY, num_images_max=N)
+    assert N < NB_IMGS_IN_INPUT_DIR, "Choose a smaller number of images"
     assert window.state.max_num_images == N
+    assert window.state.num_images == N
+
+
+def test_num_images(qtbot):
+    window = DrosophAnnot()
+    qtbot.addWidget(window)
+    window.setup(input_folder=INPUT_DIRECTORY)
+    assert window.state.num_images == NB_IMGS_IN_INPUT_DIR

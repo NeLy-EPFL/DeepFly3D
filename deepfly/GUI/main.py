@@ -74,7 +74,6 @@ class DrosophAnnot(QWidget):
         self.state = State(self.folder, num_images_max, self.folder_output)
         
         self.setup_camera_ordering()
-        self.setup_number_of_images()
         self.set_cameras()
         self.set_layout()
         self.set_pose(self.state.img_id)
@@ -86,13 +85,6 @@ class DrosophAnnot(QWidget):
         if ordering:
             write_camera_order(self.folder_output, ordering)
         self.cidread2cid, self.cid2cidread = read_camera_order(self.folder_output)
-        
-
-    def setup_number_of_images(self):
-        self.state.num_images = 1 + get_max_img_id(self.folder)
-        if self.state.max_num_images is not None:
-            self.state.num_images = min(self.state.num_images, self.state.max_num_images)
-        print("Number of images: {}".format(self.state.num_images))
         
 
     def set_layout(self):
