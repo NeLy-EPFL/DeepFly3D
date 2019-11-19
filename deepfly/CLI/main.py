@@ -135,16 +135,14 @@ def run_from_file(args):
         getLogger('df3d').error(f'{args.input_folder} is a directory, please provide a file instead.')
         return 1
 
-    folders = list(dict.fromkeys(folders))  # removes duplicate entries
+    folders = list(dict.fromkeys(folders))       # removes duplicate entries
+    folders = [f for f in folders if f.strip()]  # remove blank lines
+    folders = [Path(f) for f in folders]         # convert to path objects
 
-    errors = False
-    current_directory = Path('.')
-    for folder in folders:
-        folder = Path(folder)
-        if not folder.is_dir():
-            getLogger('df3d').error(f'[Error] Not a directory or does not exist: {str(folder)}')
-            errors = True
-    if errors:
+    bad = [f for f in folders if not f.is_dir()]
+    for f in bad:
+        getLogger('df3d').error(f'[Error] Not a directory or does not exist: {str(folder)}')
+    if bad:
         return 1
 
     s = 's' if len(folders) > 1 else ''
@@ -166,9 +164,23 @@ def run_recursive(args):
 
 
 def run_in_folders(args, folders):
+    errors = []
     for folder in folders:
-        args.input_folder = folder
-        run(args)
+        try:
+            args.input_folder = folder
+            run(args)
+        except KeyboardInterrupt:
+            getLogger('df3d').warning(f'{Style.BRIGHT}Keyboard Interrupt received. Terminating...{Style.RESET_ALL}')
+            break
+        except Exception as e:
+            errors.append((folder, e))
+            getLogger('df3d').error(f'{Style.BRIGHT}An error occured while processing {folder}. Continuing...{Style.RESET_ALL}')
+    #
+    if errors:
+        getLogger('df3d').error(f'\n{Style.BRIGHT}{len(errors)} out of {len(folders)} folders terminated with errors.{Style.RESET_ALL}')
+        for (folder, exc) in errors:
+            getLogger('df3d').error(f'\n{Style.BRIGHT}In {folder}{Style.RESET_ALL}', exc_info=exc)
+
 
 
 def run(args):
@@ -178,7 +190,7 @@ def run(args):
         getLogger('df3d').info(f'{Style.BRIGHT}Nothing to do. Check your command-line arguments.{Style.RESET_ALL}')
         return 0
     
-    getLogger('df3d').info(f'{Style.BRIGHT}Working in {args.input_folder}{Style.RESET_ALL}')
+    getLogger('df3d').info(f'{Style.BRIGHT}\nWorking in {args.input_folder}{Style.RESET_ALL}')
     setup_data = core_api.setup(args.input_folder, args.camera_ids, args.num_images_max)
 
     if not args.skip_estimation:
