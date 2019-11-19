@@ -1,6 +1,7 @@
 import ast
 import pickle
 import sys
+from itertools import chain
 from PyQt5.QtCore import *
 from PyQt5.QtGui import QImage, QPixmap, QPainter
 from PyQt5.QtWidgets import QWidget, QApplication, QFileDialog, QHBoxLayout, QVBoxLayout, QCheckBox, QPushButton, QLineEdit, QComboBox, QInputDialog
@@ -81,9 +82,9 @@ class DrosophAnnot(QWidget):
         
 
     def setup_camera_ordering(self):
-        ordering = find_default_camera_ordering(self.folder)
-        if ordering:
-            write_camera_order(self.folder_output, ordering)
+        default = find_default_camera_ordering(self.folder)
+        if default:
+            write_camera_order(self.folder_output, default)
         self.cidread2cid, self.cid2cidread = read_camera_order(self.folder_output)
         
 
@@ -177,7 +178,7 @@ class DrosophAnnot(QWidget):
         self.combo_joint_id.activated[str].connect(self.combo_activated)
         self.combo_joint_id.setFixedWidth(100)
 
-        button_textbox_img_id_go.clicked.connect(self.set_img_id_tb)
+        button_textbox_img_id_go.clicked.connect(self.read_img_id_from_textbox)
         button_pose_estimate.clicked.connect(self.pose2d_estimation)
         button_rename_images.clicked.connect(self.rename_images)
 
@@ -261,9 +262,7 @@ class DrosophAnnot(QWidget):
             num_joints=config["skeleton"].num_joints,
             cid2cidread=[self.cid2cidread[cid] for cid in config["left_cameras"]],
             heatmap_shape=config["heatmap_shape"],
-            cam_list=[
-                cam for cam in self.camNetAll if cam.cam_id in config["left_cameras"]
-            ],
+            cam_list=[cam for cam in self.camNetAll if cam.cam_id in config["left_cameras"]],
         )
         self.camNetRight = CameraNetwork(
             image_folder=self.folder,
@@ -300,42 +299,32 @@ class DrosophAnnot(QWidget):
         text, ok_pressed = QInputDialog.getText(
             self, "Rename Images", "Camera order:", QLineEdit.Normal, ""
         )
-        if ok_pressed:
-            text = text.replace(" ", ",")
-            text = "[" + text + "]"
-            cidread2cid = ast.literal_eval(text)
-            if len(cidread2cid) != config["num_cameras"]:
-                print(
-                    "Cannot rename images as there are no {} values".format(
-                        config["num_cameras"]
-                    )
-                )
-                return
+        if not ok_pressed:
+            return
 
-            print("Camera order {}".format(cidread2cid))
+        text = "[" + text.replace(" ", ",") + "]"
+        cidread2cid = ast.literal_eval(text)
+        if len(cidread2cid) != config["num_cameras"]:
+            print("Cannot rename images as there are no {config['num_cameras']} values")
+            return
 
-            write_camera_order(self.folder_output, cidread2cid)
-            self.cidread2cid, self.cid2cidread = read_camera_order(self.folder_output)
+        print("Camera order {}".format(cidread2cid))
 
-            self.camNetAll.set_cid2cidread(self.cid2cidread)
-            self.update_frame()
+        write_camera_order(self.folder_output, cidread2cid)
+        self.cidread2cid, self.cid2cidread = read_camera_order(self.folder_output)
+
+        self.camNetAll.set_cid2cidread(self.cid2cidread)
+        self.update_frame()
 
 
     def checkbox_automatic_changed(self, state):
-        if state == Qt.Checked:
-            self.state.solve_bp = True
-        else:
-            self.state.solve_bp = False
-
+        self.state.solve_bp = (state == Qt.Checked)
         self.solve_bp()
 
 
     def checkbox_correction_clicked(self, state):
-        if state == Qt.Checked:
-            self.state.correction_skip = True
-        else:
-            self.state.correction_skip = False
-
+        self.state.correction_skip = (state == Qt.Checked)
+        
 
     def pose2d_estimation(self):
         parser = ArgParse.create_parser()
@@ -367,38 +356,29 @@ class DrosophAnnot(QWidget):
 
 
     def set_mode(self, mode):
-        if (
-            (
-                mode == Mode.POSE
-                and self.camNetLeft.has_pose()
-                and self.camNetRight.has_pose()
-            )
-            or (mode == Mode.HEATMAP and self.camNetLeft.has_heatmap())
-            or mode == Mode.IMAGE
+        if (   (mode == Mode.POSE       and self.camNetLeft.has_pose()     and self.camNetRight.has_pose() )
+            or (mode == Mode.HEATMAP    and self.camNetLeft.has_heatmap())
+            or  mode == Mode.IMAGE
             or (mode == Mode.CORRECTION and self.camNetLeft.has_pose())
         ):
             self.state.mode = mode
         else:
             print("Cannot set mode: {}".format(mode))
+        
         if self.state.mode == Mode.CORRECTION:
             self.set_pose(self.state.img_id)
+        
         self.update_frame()
 
-        for b in self.button_list_modes:
-            b.setChecked(False)
-        if self.state.mode == Mode.HEATMAP:
-            self.button_heatmap_mode.setChecked(True)
-        elif self.state.mode == Mode.POSE:
-            self.button_pose_mode.setChecked(True)
-        elif self.state.mode == Mode.IMAGE:
-            self.button_image_mode.setChecked(True)
-        elif self.state.mode == Mode.CORRECTION:
-            self.button_correction_mode.setChecked(True)
+        self.button_heatmap_mode.setChecked(self.state.mode == Mode.HEATMAP)
+        self.button_pose_mode.setChecked(self.state.mode == Mode.POSE)
+        self.button_image_mode.setChecked(self.state.mode == Mode.IMAGE)
+        self.button_correction_mode.setChecked(self.state.mode == Mode.CORRECTION)
 
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Return:
-            self.set_img_id_tb()
+            self.read_img_id_from_textbox()
             self.setFocus()
         if event.key() == Qt.Key_A:
             self.set_prev_image()
@@ -614,10 +594,12 @@ class DrosophAnnot(QWidget):
 
         for ip in self.image_pose_list:
             ip.clear_mc()
+        
         for ip in self.image_pose_list_bot:
             ip.clear_mc()
+        
         if self.state.mode == Mode.CORRECTION:
-            for ip in self.image_pose_list:
+            for ip in chain(self.image_pose_list, self.image_pose_list_bot):
                 pt = self.state.db.read(ip.cam.cam_id, self.state.img_id)
                 modified_joints = self.state.db.read_modified_joints(
                     ip.cam.cam_id, self.state.img_id
@@ -630,26 +612,7 @@ class DrosophAnnot(QWidget):
                 manual_correction = dict()
                 for joint_id in modified_joints:
                     manual_correction[joint_id] = pt[joint_id]
-                ip.dynamic_pose = DynamicPose(
-                    pt,
-                    ip.state.img_id,
-                    joint_id=None,
-                    manual_correction=manual_correction,
-                )
-
-            for ip in self.image_pose_list_bot:
-                pt = self.state.db.read(ip.cam.cam_id, self.state.img_id)
-                modified_joints = self.state.db.read_modified_joints(
-                    ip.cam.cam_id, self.state.img_id
-                )
-                if pt is None:
-                    pt = ip.cam.points2d[self.state.img_id, :]
-                else:
-                    pt *= config["image_shape"]
-
-                manual_correction = dict()
-                for joint_id in modified_joints:
-                    manual_correction[joint_id] = pt[joint_id]
+                
                 ip.dynamic_pose = DynamicPose(
                     pt,
                     ip.state.img_id,
@@ -672,7 +635,7 @@ class DrosophAnnot(QWidget):
         self.update_frame()
 
 
-    def set_img_id_tb(self):
+    def read_img_id_from_textbox(self):
         try:
             img_id = int(self.textbox_img_id.text().replace("Heatmap: ", ""))
             self.state.already_corrected = self.already_corrected(
@@ -698,22 +661,20 @@ class DrosophAnnot(QWidget):
             "0-{}".format(self.state.num_images - 1),
         )
 
-        if okPressed:
-            text = text.replace("-", ",")
-            text = "[" + text + "]"
+        if not okPressed:
+            return
 
-            try:
-                [min_img_id, max_img_id] = ast.literal_eval(text)
-            except BaseException as e:
-                min_img_id, max_img_id = 0, self.state.max_num_images
-            print(
-                "Calibration considering frames between {}:{}".format(
-                    min_img_id, max_img_id
-                )
-            )
-            ccalc(self, min_img_id, max_img_id)
+        text = "[" + text.replace("-", ",") + "]"
+        
+        try:
+            [min_img_id, max_img_id] = ast.literal_eval(text)
+        except BaseException:
+            min_img_id, max_img_id = 0, self.state.max_num_images
+        
+        print("Calibration considering frames between {min_img_id}:{max_img_id}")
+        ccalc(self, min_img_id, max_img_id)
 
-            self.set_cameras()
+        self.set_cameras()
 
 
     def save_calibration(self):
@@ -809,9 +770,7 @@ class DrosophAnnot(QWidget):
 
 
     def update_frame(self):
-        for image_pose in self.image_pose_list:
-            image_pose.update_image_pose()
-        for image_pose in self.image_pose_list_bot:
+        for image_pose in chain(self.image_pose_list, self.image_pose_list_bot):
             image_pose.update_image_pose()
 
 
