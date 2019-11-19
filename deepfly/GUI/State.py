@@ -1,4 +1,6 @@
 from enum import Enum
+
+
 class State:
     def __init__(self, folder):
         self.folder = folder

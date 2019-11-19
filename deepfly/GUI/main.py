@@ -3,7 +3,7 @@ import pickle
 import sys
 from PyQt5.QtCore import *
 from PyQt5.QtGui import QImage, QPixmap, QPainter
-from PyQt5.QtWidgets import *
+from PyQt5.QtWidgets import QWidget, QApplication, QFileDialog, QHBoxLayout, QVBoxLayout, QCheckBox, QPushButton, QLineEdit, QComboBox, QInputDialog
 from sklearn.neighbors import NearestNeighbors
 from deepfly.pose2d import ArgParse
 from deepfly.pose2d.drosophila import main as pose2d_main
@@ -17,76 +17,86 @@ from .util.main_util import button_set_width
 from .util.optim_util import energy_drosoph
 from .util.os_util import *
 
-from deepfly.CLI.core_api import known_users
+from deepfly.utils_ramdya_lab import find_default_camera_ordering
 import re
+
+
+def main():
+    app = QApplication([])
+    window = DrosophAnnot()
+
+    cli_args = parse_cli_args(sys.argv)
+    window.setup(**cli_args)
+    
+    screen = app.primaryScreen()
+    size = screen.size()
+    _, width = size.height(), size.width()
+    # hw_ratio = 960 * 2 / 360.0
+
+    hw_ratio = config["image_shape"][0] * 1.2 / config["image_shape"][1]
+    app_width = width
+    app_height = int(app_width / hw_ratio)
+    window.resize(app_width, app_height)
+    window.show()
+    app.exec_()
+
+
+def parse_cli_args(argv):
+    args = {}
+    try:
+        args['input_folder'] = argv[1]
+        args['num_images_max'] = int(argv[2])
+    except (IndexError, ValueError):
+        pass
+    return args
 
 
 class DrosophAnnot(QWidget):
     def __init__(self):
-        self.chosen_points = []
         QWidget.__init__(self)
+        self.chosen_points = []
+        self.folder = None
+        self.folder_output = None
+        self.state = None
+        self.cidread2cid = None
+        self.cid2cidread = None
 
-        # dialog for selecting the image folder
-        print("Input arguments: {}".format(sys.argv))
-        if len(sys.argv) <= 1:
-            dialog = QFileDialog.getExistingDirectory(
-                self,
-                directory="/",
-                caption="Select Directory",
-                options=QFileDialog.DontUseNativeDialog,
-            )
-            self.folder = str(dialog)
-        elif len(sys.argv) >= 2:
-            self.folder = str(sys.argv[1])
-            self.folder = os.path.abspath(self.folder)
-        assert os.path.isdir(self.folder) and os.path.exists(self.folder)
 
-        if len(sys.argv) >= 3:
-            max_num_images = int(sys.argv[2])
-        else:
-            max_num_images = None
+    def setup(self, input_folder=None, num_images_max=None):
+        self.folder = input_folder or self.prompt_for_directory()
+        self.folder = os.path.abspath(self.folder)
+        self.folder = self.folder.rstrip('/')
+        assert os.path.isdir(self.folder), self.folder
 
-        if self.folder.endswith("/"):
-            self.folder = self.folder[:-1]
         self.folder_output = os.path.join(self.folder, 'df3d/')
-        if not os.path.exists(self.folder_output):
-            print(self.folder_output)
-            os.makedirs(self.folder_output)
+        os.makedirs(self.folder_output, exist_ok=True)
+        assert os.path.isdir(self.folder_output), self.folder_output
+
         self.state = State(self.folder)
-        self.state.max_num_images = max_num_images
-
+        self.state.max_num_images = num_images_max
         self.state.db = PoseDB(self.folder_output)
-
-        # try to automatically set the camera order
-        self.cidread2cid, self.cid2cidread = read_camera_order(self.folder_output)
-        camera_order = None
-        for regex, ordering in known_users:
-            if re.search(regex, self.folder):
-                camera_order = ordering
-                print(f"Regexp success: {regex}, {ordering}")
-                break
-        if camera_order is not None:
-            write_camera_order(self.folder_output, np.array(camera_order))
-            self.cidread2cid, self.cid2cidread = read_camera_order(self.folder_output)
-            print(self.cid2cidread)
-
-        # find number of images in the folder
-        max_img_id = get_max_img_id(self.folder)
-        self.state.num_images = max_img_id + 1
-        if self.state.max_num_images is not None:
-            self.state.num_images = min(
-                self.state.num_images, self.state.max_num_images
-            )
-        else:
-            self.state.num_images = self.state.num_images
-        print("Number of images: {}".format(self.state.num_images))
         
+        self.setup_camera_ordering()
+        self.setup_number_of_images()
         self.set_cameras()
         self.set_layout()
-
-        # setting the initial state
         self.set_pose(self.state.img_id)
         self.set_mode(self.state.mode)
+        
+
+    def setup_camera_ordering(self):
+        ordering = find_default_camera_ordering(self.folder)
+        if ordering:
+            write_camera_order(self.folder_output, ordering)
+        self.cidread2cid, self.cid2cidread = read_camera_order(self.folder_output)
+        
+
+    def setup_number_of_images(self):
+        self.state.num_images = 1 + get_max_img_id(self.folder)
+        if self.state.max_num_images is not None:
+            self.state.num_images = min(self.state.num_images, self.state.max_num_images)
+        print("Number of images: {}".format(self.state.num_images))
+        
 
     def set_layout(self):
         layout_h_images = QHBoxLayout()
@@ -240,6 +250,7 @@ class DrosophAnnot(QWidget):
         self.setLayout(layout_v)
         self.setWindowTitle(self.folder)
 
+
     def set_cameras(self):
         calib = read_calib(self.folder_output)
         self.camNetAll = CameraNetwork(
@@ -286,6 +297,16 @@ class DrosophAnnot(QWidget):
         calib = read_calib(config["calib_fine"])
         self.camNetAll.load_network(calib)
 
+
+    def prompt_for_directory(self):
+        return str(QFileDialog.getExistingDirectory(
+                self,
+                directory="./",
+                caption="Select Directory",
+                options=QFileDialog.DontUseNativeDialog,
+            ))
+
+
     def rename_images(self):
         text, ok_pressed = QInputDialog.getText(
             self, "Rename Images", "Camera order:", QLineEdit.Normal, ""
@@ -310,6 +331,7 @@ class DrosophAnnot(QWidget):
             self.camNetAll.set_cid2cidread(self.cid2cidread)
             self.update_frame()
 
+
     def checkbox_automatic_changed(self, state):
         if state == Qt.Checked:
             self.state.solve_bp = True
@@ -318,11 +340,13 @@ class DrosophAnnot(QWidget):
 
         self.solve_bp()
 
+
     def checkbox_correction_clicked(self, state):
         if state == Qt.Checked:
             self.state.correction_skip = True
         else:
             self.state.correction_skip = False
+
 
     def pose2d_estimation(self):
         parser = ArgParse.create_parser()
@@ -351,6 +375,7 @@ class DrosophAnnot(QWidget):
             ip.cam = self.camNetAll[ip.cam.cam_id]
 
         self.update_frame()
+
 
     def set_mode(self, mode):
         if (
@@ -381,6 +406,7 @@ class DrosophAnnot(QWidget):
         elif self.state.mode == Mode.CORRECTION:
             self.button_correction_mode.setChecked(True)
 
+
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Return:
             self.set_img_id_tb()
@@ -407,6 +433,7 @@ class DrosophAnnot(QWidget):
         if event.key == Qt.Key_R:
             self.set_view(View.Right)
 
+
     def already_corrected(self, view, img_id):
         if view == View.Left:
             return (
@@ -423,6 +450,7 @@ class DrosophAnnot(QWidget):
         else:
             raise NotImplementedError
 
+
     def combo_activated(self, text):
         if text == "All":
             self.set_heatmap_joint_id(-1)
@@ -430,15 +458,18 @@ class DrosophAnnot(QWidget):
             self.set_heatmap_joint_id(int(text.replace("Prob. Map: ", "")))
         self.setFocus()
 
+
     def set_first_image(self):
         img_id = 0
         self.state.already_corrected = self.already_corrected(self.state.view, img_id)
         self.set_pose(img_id)
 
+
     def set_last_image(self):
         img_id = self.state.num_images - 1
         self.state.already_corrected = self.already_corrected(self.state.view, img_id)
         self.set_pose(img_id)
+
 
     def set_prev_image(self):
         if self.state.mode != Mode.CORRECTION or (
@@ -458,6 +489,7 @@ class DrosophAnnot(QWidget):
 
         self.set_pose(img_id)
 
+
     def set_next_image(self):
         if self.state.mode != Mode.CORRECTION or (
             not self.state.correction_skip
@@ -475,6 +507,7 @@ class DrosophAnnot(QWidget):
             )
 
         self.set_pose(img_id)
+
 
     def get_joint_reprojection_error(self, img_id, joint_id, camNet):
         visible_cameras = [
@@ -494,11 +527,13 @@ class DrosophAnnot(QWidget):
 
         return err_proj
 
+
     def next_error(self, img_id):
         return min(
             self.next_error_cam(img_id, self.camNetLeft),
             self.next_error_cam(img_id, self.camNetRight),
         )
+
 
     def next_error_cam(self, img_id, camNet):
         for img_id in range(img_id + 1, self.state.num_images):
@@ -512,11 +547,13 @@ class DrosophAnnot(QWidget):
 
         return self.state.num_images - 1
 
+
     def prev_error(self, img_id):
         return max(
             self.prev_error_cam(img_id, self.camNetLeft),
             self.prev_error_cam(img_id, self.camNetRight),
         )
+
 
     def prev_error_cam(self, curr_img_id, camNet):
         for img_id in range(curr_img_id - 1, 0, -1):
@@ -529,6 +566,7 @@ class DrosophAnnot(QWidget):
                     return img_id
 
         return 0
+
 
     def solve_bp(self, save_correction=False):
         if not (
@@ -580,6 +618,7 @@ class DrosophAnnot(QWidget):
                 ip.save_correction()
 
         print("Finished Belief Propagation")
+
 
     def set_pose(self, img_id):
         self.state.img_id = img_id
@@ -638,9 +677,11 @@ class DrosophAnnot(QWidget):
         self.update_frame()
         self.textbox_img_id.setText(str(self.state.img_id))
 
+
     def set_heatmap_joint_id(self, joint_id):
         self.state.hm_joint_id = joint_id
         self.update_frame()
+
 
     def set_img_id_tb(self):
         try:
@@ -652,8 +693,10 @@ class DrosophAnnot(QWidget):
         except BaseException as e:
             print("Textbox img id is not integer {}".format(str(e)))
 
+
     def set_joint_id_tb(self):
         self.set_heatmap_joint_id(int(self.textbox_joint_id.text()))
+
 
     def calibrate_calc(self):
         from .util.main_util import calibrate_calc as ccalc
@@ -683,12 +726,14 @@ class DrosophAnnot(QWidget):
 
             self.set_cameras()
 
+
     def save_calibration(self):
         calib_path = "{}/calib_{}.pkl".format(
             self.folder_output, self.folder.replace("/", "_")
         )
         print("Saving calibration {}".format(calib_path))
         self.camNetAll.save_network(calib_path)
+
 
     def save_pose(self):
         pts2d = np.zeros(
@@ -772,6 +817,7 @@ class DrosophAnnot(QWidget):
                 )
             )
         )
+
 
     def update_frame(self):
         for image_pose in self.image_pose_list:
@@ -1012,22 +1058,6 @@ class PrintImage(QWidget):
         painter.drawPixmap(
             QRect(0, 0, self.pixmap.width(), self.pixmap.height()), self.pixmap
         )
-
-
-def main():
-    app = QApplication([])
-    window = DrosophAnnot()
-    screen = app.primaryScreen()
-    size = screen.size()
-    _, width = size.height(), size.width()
-    # hw_ratio = 960 * 2 / 360.0
-
-    hw_ratio = config["image_shape"][0] * 1.2 / config["image_shape"][1]
-    app_width = width
-    app_height = int(app_width / hw_ratio)
-    window.resize(app_width, app_height)
-    window.show()
-    app.exec_()
 
 
 if __name__ == "__main__":
