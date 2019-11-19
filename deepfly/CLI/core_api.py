@@ -30,6 +30,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d, Axes3D
 from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
 from logging import getLogger
+from deepfly.utils_ramdya_lab import find_default_camera_ordering
 import pickle
 
 img3d_dpi = 100  # this is the dpi for one image on the 3d video's grid
@@ -37,9 +38,6 @@ img3d_aspect = (2, 2)  # this is the aspect ration for one image on the 3d video
 img2d_aspect = (2, 1)  # this is the aspect ration for one image on the 3d video's grid
 video_width = 500  # total width of the 2d and 3d videos
 
-known_users = [  
-    (r'/CLC/', [0, 6, 5, 4, 3, 2, 1]),
-]
 
 #=========================================================================
 # Public interface
@@ -102,19 +100,12 @@ def _setup_default_camera_ordering(args):
     """ This is a convenience function which automatically creates a default camera ordering for 
         frequent users in the neuro-engineering lab.
     """
-    if args.camera_ids is not None:
-        return 
-
-    for regex, ordering in known_users:
-        if re.search(regex, args.input_folder):
-            getLogger('df3d').debug('Using default ordering for current user: {}'.format(ordering))
-            args.camera_ids = ordering
-            return
+    args.camera_ids = np.array(args.camera_ids) if args.camera_ids else find_default_camera_ordering(args.input_folder)
 
 
 def _save_camera_ordering(args):
     """ Saves the camera ordering args.camera_ids to the output_folder """
-    if args.camera_ids:
+    if args.camera_ids is not None:
         path = os.path.join(args.input_folder, args.output_folder)
         write_camera_order(path, args.camera_ids)
         getLogger('df3d').debug('Camera ordering wrote to file in "{}"'.format(path))
