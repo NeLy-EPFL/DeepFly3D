@@ -10,7 +10,6 @@ from deepfly.pose2d.drosophila import main as pose2d_main
 from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
 
 from .CameraNetwork import CameraNetwork
-from .DB import PoseDB
 from .State import State, View, Mode
 
 from .util.main_util import button_set_width
@@ -72,9 +71,7 @@ class DrosophAnnot(QWidget):
         os.makedirs(self.folder_output, exist_ok=True)
         assert os.path.isdir(self.folder_output), self.folder_output
 
-        self.state = State(self.folder)
-        self.state.max_num_images = num_images_max
-        self.state.db = PoseDB(self.folder_output)
+        self.state = State(self.folder, num_images_max, self.folder_output)
         
         self.setup_camera_ordering()
         self.setup_number_of_images()
