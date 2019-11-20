@@ -71,7 +71,7 @@ def test_setup_input_folder_from_args(qtbot):
     window = DrosophAnnot()
     qtbot.addWidget(window)
     window.setup(INPUT_DIRECTORY)
-    assert window.folder == os.path.abspath(INPUT_DIRECTORY)
+    assert window.core.input_folder == os.path.abspath(INPUT_DIRECTORY)
 
 
 def test_setup_input_folder_prompted(qtbot):
@@ -88,7 +88,7 @@ def test_setup_input_folder_prompted(qtbot):
     qtbot.addWidget(window)
     window.setup()
     assert window.called, "prompt dialog not called"
-    assert window.folder == os.path.abspath(INPUT_DIRECTORY)
+    assert window.core.input_folder == os.path.abspath(INPUT_DIRECTORY)
 
 
 def test_setup_num_images_max_from_args(qtbot):

@@ -55,26 +55,13 @@ def parse_cli_args(argv):
 class DrosophAnnot(QWidget):
     def __init__(self):
         QWidget.__init__(self)
-        self.chosen_points = []
-        self.folder = None
-        self.folder_output = None
         self.state = None
         self.core = None
 
 
     def setup(self, input_folder=None, num_images_max=None):
-        self.folder = input_folder or self.prompt_for_directory()
-        self.folder = os.path.abspath(self.folder)
-        self.folder = self.folder.rstrip('/')
-        assert os.path.isdir(self.folder), self.folder
-
-        self.folder_output = os.path.join(self.folder, 'df3d/')
-        os.makedirs(self.folder_output, exist_ok=True)
-        assert os.path.isdir(self.folder_output), self.folder_output
-
-        self.state = State(self.folder, num_images_max, self.folder_output)
-        
-        self.core = Core(input_folder, self.folder_output)
+        self.core = Core(input_folder or self.prompt_for_directory())
+        self.state = State(self.core.input_folder, num_images_max, self.core.output_folder)
         
         self.set_cameras()
         self.set_layout()
@@ -232,14 +219,14 @@ class DrosophAnnot(QWidget):
         layout_v.setSpacing(0)
 
         self.setLayout(layout_v)
-        self.setWindowTitle(self.folder)
+        self.setWindowTitle(self.core.input_folder)
 
 
     def set_cameras(self):
-        calib = read_calib(self.folder_output)
+        calib = read_calib(self.core.output_folder)
         self.camNetAll = CameraNetwork(
-            image_folder=self.folder,
-            output_folder=self.folder_output,
+            image_folder=self.core.input_folder,
+            output_folder=self.core.output_folder,
             cam_id_list=range(config["num_cameras"]),
             cid2cidread=self.core.cid2cidread,
             num_images=self.state.num_images,
@@ -248,8 +235,8 @@ class DrosophAnnot(QWidget):
             heatmap_shape=config["heatmap_shape"],
         )
         self.camNetLeft = CameraNetwork(
-            image_folder=self.folder,
-            output_folder=self.folder_output,
+            image_folder=self.core.input_folder,
+            output_folder=self.core.output_folder,
             cam_id_list=config["left_cameras"],
             num_images=self.state.num_images,
             calibration=calib,
@@ -259,8 +246,8 @@ class DrosophAnnot(QWidget):
             cam_list=[cam for cam in self.camNetAll if cam.cam_id in config["left_cameras"]],
         )
         self.camNetRight = CameraNetwork(
-            image_folder=self.folder,
-            output_folder=self.folder_output,
+            image_folder=self.core.input_folder,
+            output_folder=self.core.output_folder,
             cam_id_list=config["right_cameras"],
             num_images=self.state.num_images,
             calibration=calib,
@@ -321,7 +308,7 @@ class DrosophAnnot(QWidget):
         parser = ArgParse.create_parser()
         args, _ = parser.parse_known_args()
         args.checkpoint = False
-        args.unlabeled = self.folder
+        args.unlabeled = self.core.input_folder
         args.resume = config["resume"]
         args.stacks = config["num_stacks"]
         args.test_batch = config["batch_size"]
@@ -657,6 +644,14 @@ class DrosophAnnot(QWidget):
         self.set_cameras()
 
 
+    def save_calibration(self):
+        calib_path = "{}/calib_{}.pkl".format(
+            self.core.output_folder, self.core.input_folder.replace("/", "_")
+        )
+        print("Saving calibration {}".format(calib_path))
+        self.camNetAll.save_network(calib_path)
+
+
     def save_pose(self):
         pts2d = np.zeros(
             (7, self.state.num_images, config["num_joints"], 2), dtype=float
@@ -725,8 +720,8 @@ class DrosophAnnot(QWidget):
             dict_merge,
             open(
                 os.path.join(
-                    self.folder_output,
-                    "pose_result_{}.pkl".format(self.folder.replace("/", "_")),
+                    self.core.output_folder,
+                    "pose_result_{}.pkl".format(self.core.input_folder.replace("/", "_")),
                 ),
                 "wb",
             ),
@@ -734,8 +729,8 @@ class DrosophAnnot(QWidget):
         print(
             "Saved the pose at: {}".format(
                 os.path.join(
-                    self.folder_output,
-                    "pose_result_{}.pkl".format(self.folder.replace("/", "_")),
+                    self.core.output_folder,
+                    "pose_result_{}.pkl".format(self.core.input_folder.replace("/", "_")),
                 )
             )
         )
