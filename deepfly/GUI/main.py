@@ -65,138 +65,95 @@ class DrosophAnnot(QWidget):
         self.set_mode(self.state.mode)
         
 
+    def make_button(self, text, onClick):
+        b = QPushButton(text, self)
+        button_set_width(b, text)
+        b.clicked.connect(onClick)
+        return b
+
+
     def set_layout(self):
-        layout_h_images = QHBoxLayout()
-        layout_h_images.setSpacing(1)
-
-        layout_h_images_bot = QHBoxLayout()
-        layout_h_images.setSpacing(1)
-
-        layout_h_buttons = QHBoxLayout()
-        layout_h_buttons.setSpacing(1)
-        layout_h_buttons_second = QHBoxLayout()
-        layout_h_buttons_second.setAlignment(Qt.AlignLeft)
-        layout_h_buttons_second.setSpacing(1)
-        layout_h_buttons_top = QHBoxLayout()
-        layout_h_buttons_top.setSpacing(3)
-        layout_h_buttons_top.setAlignment(Qt.AlignRight)
-        layout_v = QVBoxLayout()
-        self.image_pose_list = [
-            ImagePose(self.state, self.core, self.core.camNetLeft[0], self.solve_bp),
-            ImagePose(self.state, self.core, self.core.camNetLeft[1], self.solve_bp),
-            ImagePose(self.state, self.core, self.core.camNetLeft[2], self.solve_bp),
-        ]
-
-        self.image_pose_list_bot = [
-            ImagePose(self.state, self.core, self.core.camNetRight[0], self.solve_bp),
-            ImagePose(self.state, self.core, self.core.camNetRight[1], self.solve_bp),
-            ImagePose(self.state, self.core, self.core.camNetRight[2], self.solve_bp),
-        ]
-
-        for image_pose in self.image_pose_list:
-            layout_h_images.addWidget(image_pose)
-            image_pose.resize(image_pose.sizeHint())
-
-        for image_pose in self.image_pose_list_bot:
-            layout_h_images_bot.addWidget(image_pose)
-            image_pose.resize(image_pose.sizeHint())
-
-        self.button_list_modes = list()
+        # Create checkboxes
         self.checkbox_solve_bp = QCheckBox("Correction", self)
         self.checkbox_solve_bp.stateChanged.connect(self.checkbox_automatic_changed)
-        if self.state.solve_bp:
-            self.checkbox_solve_bp.setChecked(True)
+        self.checkbox_solve_bp.setChecked(self.state.solve_bp)
         self.checkbox_correction_skip = QCheckBox("Skip", self)
-        if self.state.correction_skip:
-            self.checkbox_correction_skip.setChecked(True)
-        self.checkbox_correction_skip.stateChanged.connect(
-            self.checkbox_correction_clicked
-        )
-        button_textbox_img_id_go = QPushButton("Go", self)
-        self.button_pose_estimate = QPushButton("2D Pose Estimation", self)
-        button_set_width(self.button_pose_estimate, "2D Pose Estimation")
-        self.button_rename_images = QPushButton("Rename Images", self)
-        button_set_width(self.button_rename_images, "Rename Images")
-        self.button_image_mode = QPushButton("Image", self)
-        self.button_image_mode.setCheckable(True)
-        button_set_width(self.button_image_mode, "Image")
-        self.button_heatmap_mode = QPushButton("Prob. Map", self)
-        button_set_width(self.button_heatmap_mode, "Prob. Map")
-        self.button_pose_mode = QPushButton("Pose", self)
-        button_set_width(self.button_pose_mode, "Pose")
-        self.button_correction_mode = QPushButton("Correction", self)
-        button_set_width(self.button_correction_mode, "Correction")
-        self.button_list_modes.append(self.button_image_mode)
-        self.button_list_modes.append(self.button_correction_mode)
-        self.button_list_modes.append(self.button_pose_mode)
-        self.button_list_modes.append(self.button_heatmap_mode)
-        for button in self.button_list_modes:
-            button.setCheckable(True)
-        self.button_image_mode.setCheckable(True)
-        self.button_first = QPushButton("<<", self)
-        self.button_prev = QPushButton("<", self)
-        self.button_next = QPushButton(">", self)
-        self.button_last = QPushButton(">>", self)
-        button_set_width(self.button_first, "<<")
-        button_set_width(self.button_last, ">>")
-        button_set_width(self.button_prev, "<")
-        button_set_width(self.button_next, ">")
-
-        self.button_calibrate_calc = QPushButton("Calibration", self)
-        self.button_pose_save = QPushButton("Save", self)
-
+        self.checkbox_correction_skip.setChecked(self.state.correction_skip)
+        self.checkbox_correction_skip.stateChanged.connect(self.checkbox_correction_clicked)
+        
+        # Create buttons
+        self.button_first           = self.make_button("<<",          self.set_first_image)
+        self.button_prev            = self.make_button("<",           self.set_prev_image)
+        self.button_next            = self.make_button(">",           self.set_next_image)
+        self.button_last            = self.make_button(">>",          self.set_last_image)
+        self.button_pose_mode       = self.make_button("Pose",        lambda b: self.set_mode(self.state.mode.POSE))
+        self.button_image_mode      = self.make_button("Image",       lambda b: self.set_mode(self.state.mode.IMAGE))
+        self.button_heatmap_mode    = self.make_button("Prob. Map",   lambda b: self.set_mode(self.state.mode.HEATMAP))
+        self.button_correction_mode = self.make_button("Correction",  lambda b: self.set_mode(self.state.mode.CORRECTION))
+        button_textbox_img_id_go    = self.make_button("Go",          self.read_img_id_from_textbox)
+        self.button_pose_save       = self.make_button("Save",        self.save_pose)
+        self.button_calibrate_calc  = self.make_button("Calibration", self.calibrate_calc)
+        self.button_rename_images   = self.make_button("Rename Images", self.rename_images)
+        self.button_pose_estimate   = self.make_button("2D Pose Estimation", self.pose2d_estimation)
+        #
+        self.button_image_mode.setCheckable(True) 
+        self.button_correction_mode.setCheckable(True)
+        self.button_pose_mode.setCheckable(True)
+        self.button_heatmap_mode.setCheckable(True)
+        
+        # Create combo list
         self.textbox_img_id = QLineEdit(str(self.state.img_id), self)
         self.textbox_img_id.setFixedWidth(100)
         self.combo_joint_id = QComboBox(self)
         self.combo_joint_id.addItem("All")
         for i in range(config["skeleton"].num_joints):
             self.combo_joint_id.addItem("Prob. Map: " + str(i))
-
         self.combo_joint_id.activated[str].connect(self.combo_activated)
         self.combo_joint_id.setFixedWidth(100)
+        
+        # Create images
+        self.image_pose_list = [
+            ImagePose(self.state, self.core, self.core.camNetLeft[0], self.solve_bp),
+            ImagePose(self.state, self.core, self.core.camNetLeft[1], self.solve_bp),
+            ImagePose(self.state, self.core, self.core.camNetLeft[2], self.solve_bp),
+        ]
+        #
+        self.image_pose_list_bot = [
+            ImagePose(self.state, self.core, self.core.camNetRight[0], self.solve_bp),
+            ImagePose(self.state, self.core, self.core.camNetRight[1], self.solve_bp),
+            ImagePose(self.state, self.core, self.core.camNetRight[2], self.solve_bp),
+        ]
 
-        button_textbox_img_id_go.clicked.connect(self.read_img_id_from_textbox)
-        self.button_pose_estimate.clicked.connect(self.pose2d_estimation)
-        self.button_rename_images.clicked.connect(self.rename_images)
+        # Layouts
+        layout_h_images = QHBoxLayout()
+        layout_h_images.setSpacing(1)
+        layout_h_images_bot = QHBoxLayout()
+        layout_h_images.setSpacing(1)
+        for image_pose in self.image_pose_list:
+            layout_h_images.addWidget(image_pose)
+            image_pose.resize(image_pose.sizeHint())
+        for image_pose in self.image_pose_list_bot:
+            layout_h_images_bot.addWidget(image_pose)
+            image_pose.resize(image_pose.sizeHint())
 
-        self.button_heatmap_mode.clicked.connect(
-            lambda b: self.set_mode(self.state.mode.HEATMAP)
-        )
-        self.button_image_mode.clicked.connect(
-            lambda b: self.set_mode(self.state.mode.IMAGE)
-        )
-        self.button_correction_mode.clicked.connect(
-            lambda b: self.set_mode(self.state.mode.CORRECTION)
-        )
-        self.button_pose_mode.clicked.connect(
-            lambda b: self.set_mode(self.state.mode.POSE)
-        )
-
-        self.button_first.clicked.connect(self.set_first_image)
-        self.button_last.clicked.connect(self.set_last_image)
-        self.button_prev.clicked.connect(self.set_prev_image)
-        self.button_next.clicked.connect(self.set_next_image)
-        self.button_calibrate_calc.clicked.connect(self.calibrate_calc)
-        self.button_pose_save.clicked.connect(self.save_pose)
-
-        layout_h_buttons_top.addWidget(self.button_pose_estimate, alignment=Qt.AlignLeft)
-        layout_h_buttons_top.addWidget(self.button_pose_save, alignment=Qt.AlignLeft)
+        layout_h_buttons_top = QHBoxLayout()
+        layout_h_buttons_top.setSpacing(3)
+        layout_h_buttons_top.setAlignment(Qt.AlignRight)
+        layout_h_buttons_top.addWidget(self.button_pose_estimate,  alignment=Qt.AlignLeft)
+        layout_h_buttons_top.addWidget(self.button_pose_save,      alignment=Qt.AlignLeft)
         layout_h_buttons_top.addWidget(self.button_calibrate_calc, alignment=Qt.AlignLeft)
-        layout_h_buttons_top.addWidget(self.button_rename_images, alignment=Qt.AlignLeft)
+        layout_h_buttons_top.addWidget(self.button_rename_images,  alignment=Qt.AlignLeft)
         layout_h_buttons_top.addStretch()
-        layout_h_buttons_top.addWidget(
-            self.button_heatmap_mode, alignment=Qt.AlignRight
-        )
-        layout_h_buttons_top.addWidget(self.button_image_mode, alignment=Qt.AlignRight)
-        layout_h_buttons_top.addWidget(self.button_pose_mode, alignment=Qt.AlignRight)
-        layout_h_buttons_top.addWidget(
-            self.button_correction_mode, alignment=Qt.AlignRight
-        )
-        layout_h_buttons_top.addWidget(
-            self.checkbox_correction_skip, alignment=Qt.AlignRight
-        )
-        layout_h_buttons_top.addWidget(self.checkbox_solve_bp, alignment=Qt.AlignRight)
 
+        layout_h_buttons_top.addWidget(self.button_heatmap_mode,      alignment=Qt.AlignRight)
+        layout_h_buttons_top.addWidget(self.button_image_mode,        alignment=Qt.AlignRight)
+        layout_h_buttons_top.addWidget(self.button_pose_mode,         alignment=Qt.AlignRight)
+        layout_h_buttons_top.addWidget(self.button_correction_mode,   alignment=Qt.AlignRight)
+        layout_h_buttons_top.addWidget(self.checkbox_correction_skip, alignment=Qt.AlignRight)
+        layout_h_buttons_top.addWidget(self.checkbox_solve_bp,        alignment=Qt.AlignRight)
+
+        layout_h_buttons = QHBoxLayout()
+        layout_h_buttons.setSpacing(1)
         layout_h_buttons.addWidget(self.button_first)
         layout_h_buttons.addWidget(self.button_prev)
         layout_h_buttons.addWidget(self.button_next)
@@ -205,8 +162,12 @@ class DrosophAnnot(QWidget):
         layout_h_buttons.addWidget(button_textbox_img_id_go)
         layout_h_buttons.addStretch()
 
+        layout_h_buttons_second = QHBoxLayout()
+        layout_h_buttons_second.setAlignment(Qt.AlignLeft)
+        layout_h_buttons_second.setSpacing(1)
         layout_h_buttons_second.addWidget(self.combo_joint_id, alignment=Qt.AlignRight)
-
+        
+        layout_v = QVBoxLayout()
         layout_v.addLayout(layout_h_buttons_top)
         layout_v.addLayout(layout_h_images)
         layout_v.addLayout(layout_h_images_bot)
