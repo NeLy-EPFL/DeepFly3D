@@ -1,10 +1,12 @@
 import os.path
 import math  # inf
+import numpy as np
 
 from deepfly.utils_ramdya_lab import find_default_camera_ordering
+from deepfly.GUI.CameraNetwork import CameraNetwork
 from deepfly.GUI.Config import config
 from deepfly.GUI.util.os_util import write_camera_order, read_camera_order, read_calib, get_max_img_id
-from deepfly.GUI.CameraNetwork import CameraNetwork
+from deepfly.GUI.util.optim_util import energy_drosoph
 from deepfly.pose2d import ArgParse
 from deepfly.pose2d.drosophila import main as pose2d_main
 
@@ -129,3 +131,63 @@ class Core:
 
         pose2d_main(args)   # will write output files in output directory
         self.set_cameras()  # makes sure cameras use the latest heatmaps and predictions
+
+
+    def get_joint_reprojection_error(self, img_id, joint_id, camNet):
+        visible_cameras = [
+            cam
+            for cam in camNet
+            if config["skeleton"].camera_see_joint(cam.cam_id, joint_id)
+        ]
+        if len(visible_cameras) >= 2:
+            pts = np.array(
+                [cam.points2d[img_id, joint_id, :] for cam in visible_cameras]
+            )
+            _, err_proj, _, _ = energy_drosoph(
+                visible_cameras, img_id, joint_id, pts / [960, 480]
+            )
+        else:
+            err_proj = 0
+
+        return err_proj
+
+
+    def next_error(self, img_id):
+        return min(
+            self.next_error_cam(img_id, self.camNetLeft),
+            self.next_error_cam(img_id, self.camNetRight),
+        )
+
+
+    def next_error_cam(self, img_id, camNet):
+        for img_id in range(img_id + 1, self.num_images):
+            for joint_id in range(config["skeleton"].num_joints):
+                if joint_id not in config["skeleton"].pictorial_joint_list:
+                    continue
+                err_proj = self.get_joint_reprojection_error(img_id, joint_id, camNet)
+                if err_proj > config["reproj_thr"][joint_id]:
+                    print("{} {} {}".format(img_id, joint_id, err_proj))
+                    return img_id
+
+        return self.max_img_id
+
+
+    def prev_error(self, img_id):
+        return max(
+            self.prev_error_cam(img_id, self.camNetLeft),
+            self.prev_error_cam(img_id, self.camNetRight),
+        )
+
+
+    def prev_error_cam(self, curr_img_id, camNet):
+        for img_id in range(curr_img_id - 1, 0, -1):
+            for joint_id in range(config["skeleton"].num_joints):
+                if joint_id not in config["skeleton"].pictorial_joint_list:
+                    continue
+                err_proj = self.get_joint_reprojection_error(img_id, joint_id, camNet)
+                if err_proj > config["reproj_thr"][joint_id]:
+                    print("{} {} {}".format(img_id, joint_id, err_proj))
+                    return img_id
+
+        return 0
+
