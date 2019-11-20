@@ -4,6 +4,7 @@ import numpy as np
 
 known_users = [  
     (r'/CLC/', [0, 6, 5, 4, 3, 2, 1]),
+    (r'data/test', [0, 1, 2, 3, 4, 5, 6])
 ]
 
 

@@ -12,6 +12,7 @@ INPUT_DIRECTORY = Path(__file__).parent / '../data/test'
 NB_IMGS_IN_INPUT_DIR = 15
 NB_CAMERAS = 7
 
+
 def test_input_directory_exists():
     assert INPUT_DIRECTORY.is_dir()
 
@@ -97,15 +98,15 @@ def test_setup_num_images_max_from_args(qtbot):
     qtbot.addWidget(window)
     window.setup(input_folder=INPUT_DIRECTORY, num_images_max=N)
     assert N < NB_IMGS_IN_INPUT_DIR, "Choose a smaller number of images"
-    assert window.state.max_num_images == N
-    assert window.state.num_images == N
+    assert window.core.num_images_max == N
+    assert window.core.num_images == N
 
 
 def test_num_images(qtbot):
     window = DrosophAnnot()
     qtbot.addWidget(window)
     window.setup(input_folder=INPUT_DIRECTORY)
-    assert window.state.num_images == NB_IMGS_IN_INPUT_DIR
+    assert window.core.num_images == NB_IMGS_IN_INPUT_DIR
 
 
 def test_rename_images(qtbot):
@@ -127,3 +128,111 @@ def test_rename_images(qtbot):
     qtbot.mouseClick(window.button_rename_images, QtCore.Qt.LeftButton)
     assert window.called, "prompt dialog not called"
     assert np.all(window.core.cidread2cid == np.array(ordering)), window.core.cidread2cid
+
+
+def test_calibration(qtbot):
+    class A(DrosophAnnot):
+        def __init__(self):
+            DrosophAnnot.__init__(self)
+            self.called = False
+        
+        def prompt_for_calibration_range(self):
+            self.called = True
+            return [0, NB_IMGS_IN_INPUT_DIR-1]
+
+    window = A()
+    qtbot.addWidget(window)
+    window.setup(INPUT_DIRECTORY)
+    qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
+    qtbot.mouseClick(window.button_calibrate_calc, QtCore.Qt.LeftButton)
+    assert window.called, "prompt dialog not called"
+
+
+def test_pose_save(qtbot):
+    window = DrosophAnnot()
+    qtbot.addWidget(window)
+    window.setup(INPUT_DIRECTORY)
+    qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
+    qtbot.mouseClick(window.button_pose_save, QtCore.Qt.LeftButton)    
+
+
+def test_mode_image(qtbot):
+    window = DrosophAnnot()
+    qtbot.addWidget(window)
+    window.setup(INPUT_DIRECTORY)
+    qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
+    
+    qtbot.mouseClick(window.button_image_mode, QtCore.Qt.LeftButton)
+    assert window.state.mode == window.state.mode.IMAGE
+    qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
+    assert window.state.img_id == 0
+    qtbot.mouseClick(window.button_next, QtCore.Qt.LeftButton)
+    assert window.state.img_id == 1
+    qtbot.mouseClick(window.button_prev, QtCore.Qt.LeftButton)
+    assert window.state.img_id == 0
+    qtbot.mouseClick(window.button_last, QtCore.Qt.LeftButton)
+    assert window.state.img_id == NB_IMGS_IN_INPUT_DIR -1 
+    
+
+def test_mode_pose(qtbot):
+    window = DrosophAnnot()
+    qtbot.addWidget(window)
+    window.setup(INPUT_DIRECTORY)
+    qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
+
+    qtbot.mouseClick(window.button_pose_mode, QtCore.Qt.LeftButton)
+    assert window.state.mode == window.state.mode.POSE
+    qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
+    assert window.state.img_id == 0
+    qtbot.mouseClick(window.button_next, QtCore.Qt.LeftButton)
+    assert window.state.img_id == 1
+    qtbot.mouseClick(window.button_prev, QtCore.Qt.LeftButton)
+    assert window.state.img_id == 0
+    qtbot.mouseClick(window.button_last, QtCore.Qt.LeftButton)
+    assert window.state.img_id == NB_IMGS_IN_INPUT_DIR -1 
+
+
+def test_mode_heatmap(qtbot):
+    window = DrosophAnnot()
+    qtbot.addWidget(window)
+    window.setup(INPUT_DIRECTORY)
+    qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
+
+    qtbot.mouseClick(window.button_heatmap_mode, QtCore.Qt.LeftButton)
+    assert window.state.mode == window.state.mode.HEATMAP
+    qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
+    assert window.state.img_id == 0
+    qtbot.mouseClick(window.button_next, QtCore.Qt.LeftButton)
+    assert window.state.img_id == 1
+    qtbot.mouseClick(window.button_prev, QtCore.Qt.LeftButton)
+    assert window.state.img_id == 0
+    qtbot.mouseClick(window.button_last, QtCore.Qt.LeftButton)
+    assert window.state.img_id == NB_IMGS_IN_INPUT_DIR -1 
+
+
+def test_mode_correction(qtbot):
+    window = DrosophAnnot()
+    qtbot.addWidget(window)
+    window.setup(INPUT_DIRECTORY)
+    qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
+    
+    qtbot.mouseClick(window.button_correction_mode, QtCore.Qt.LeftButton)
+    assert window.state.mode == window.state.mode.CORRECTION
+    
+    window.checkbox_correction_skip.setChecked(True)
+    qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
+    assert window.state.img_id == 0
+    qtbot.mouseClick(window.button_next, QtCore.Qt.LeftButton)
+    assert window.state.img_id == NB_IMGS_IN_INPUT_DIR -1  # skip activated
+
+    window.checkbox_correction_skip.setChecked(False)
+    qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
+    assert window.state.img_id == 0
+    qtbot.mouseClick(window.button_next, QtCore.Qt.LeftButton)
+    assert window.state.img_id == 1                        # skip not activated
+
+    qtbot.mouseClick(window.button_prev, QtCore.Qt.LeftButton)
+    assert window.state.img_id == 0
+    qtbot.mouseClick(window.button_last, QtCore.Qt.LeftButton)
+    assert window.state.img_id == NB_IMGS_IN_INPUT_DIR -1 
+    
