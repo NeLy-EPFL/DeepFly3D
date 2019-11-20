@@ -191,3 +191,48 @@ class Core:
 
         return 0
 
+
+
+    def calibrate_calc(self, drosophAnnot, min_img_id, max_img_id):
+        print(f"Calibration considering frames between {min_img_id}:{max_img_id}")
+        calib = read_calib(config["calib_fine"])
+        assert calib is not None
+        self.camNetAll.load_network(calib)
+
+        # take a copy of the current points2d
+        pts2d = np.zeros((config["num_cameras"], self.num_images, config["skeleton"].num_joints, 2), dtype=float)
+        for cam_id in range(config["num_cameras"]):
+            pts2d[cam_id, :] = self.camNetAll[cam_id].points2d.copy()
+
+        # ugly hack to temporarly incorporate manual corrections to calibration
+        c = 0
+        for cam_id in range(config["num_cameras"]):
+            for img_id in range(self.num_images):
+                if drosophAnnot.state.db.has_key(cam_id, img_id):
+                    pt = drosophAnnot.state.db.read(cam_id, img_id) * config["image_shape"]
+                    self.camNetAll[cam_id].points2d[img_id, :] = pt
+                    c += 1
+        print("Calibration: replaced {} points from manuall correction".format(c))
+
+        # keep the pts only in the range
+        for cam in self.camNetAll:
+            cam.points2d = cam.points2d[min_img_id:max_img_id, :]
+
+        self.camNetLeft.triangulate()
+        self.camNetLeft.bundle_adjust(cam_id_list=(0,1,2), unique=False, prior=True)
+        self.camNetRight.triangulate()
+        self.camNetRight.bundle_adjust(cam_id_list=(0,1,2), unique=False, prior=True)
+        
+        # put old values back
+        for cam_id in range(config["num_cameras"]):
+            self.camNetAll[cam_id].points2d = pts2d[cam_id, :].copy()
+
+        self.save_calibration()
+        self.set_cameras()
+
+
+    def save_calibration(self):
+        calib_path = f"{self.output_folder}/calib_{self.input_folder.replace('/', '_')}.pkl"
+        print("Saving calibration {}".format(calib_path))
+        self.camNetAll.save_network(calib_path)
+

@@ -11,7 +11,6 @@ from sklearn.neighbors import NearestNeighbors
 from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
 from .CameraNetwork import CameraNetwork
 from .State import State, View, Mode
-from .util.main_util import button_set_width, calibrate_calc as ccalc
 from .util.optim_util import energy_drosoph
 from .util.os_util import *
 
@@ -47,6 +46,11 @@ def parse_cli_args(argv):
     except (IndexError, ValueError):
         pass
     return args
+
+
+def button_set_width(btn, text=" ", margin=20):
+    width = btn.fontMetrics().boundingRect(text).width() + 7 + margin
+    btn.setMaximumWidth(width)
 
 
 class DrosophAnnot(QWidget):
@@ -248,11 +252,11 @@ class DrosophAnnot(QWidget):
         
         self.update_frame()
 
-        self.button_heatmap_mode.setChecked(self.state.mode == Mode.HEATMAP)
-        self.button_pose_mode.setChecked(self.state.mode == Mode.POSE)
-        self.button_image_mode.setChecked(self.state.mode == Mode.IMAGE)
         self.button_correction_mode.setChecked(self.state.mode == Mode.CORRECTION)
-
+        self.button_heatmap_mode.setChecked(self.state.mode == Mode.HEATMAP)
+        self.button_image_mode.setChecked(self.state.mode == Mode.IMAGE)
+        self.button_pose_mode.setChecked(self.state.mode == Mode.POSE)
+        
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Return:
@@ -464,19 +468,7 @@ class DrosophAnnot(QWidget):
             [min_img_id, max_img_id] = self.prompt_for_calibration_range()
         except BaseException:
             min_img_id, max_img_id = 0, self.core.max_img_id
-        
-        print("Calibration considering frames between {min_img_id}:{max_img_id}")
-        ccalc(self, min_img_id, max_img_id)
-
-        self.core.set_cameras()
-
-
-    def save_calibration(self):
-        calib_path = "{}/calib_{}.pkl".format(
-            self.core.output_folder, self.core.input_folder.replace("/", "_")
-        )
-        print("Saving calibration {}".format(calib_path))
-        self.core.camNetAll.save_network(calib_path)
+        self.core.calibrate_calc(self, min_img_id, max_img_id)
 
 
     def save_pose(self):
