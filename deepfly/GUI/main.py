@@ -1,21 +1,20 @@
-import ast
 import pickle
 import sys
 from itertools import chain
+import re
+
 from PyQt5.QtCore import *
 from PyQt5.QtGui import QImage, QPixmap, QPainter
 from PyQt5.QtWidgets import QWidget, QApplication, QFileDialog, QHBoxLayout, QVBoxLayout, \
                             QCheckBox, QPushButton, QLineEdit, QComboBox, QInputDialog, QMessageBox
-
 from sklearn.neighbors import NearestNeighbors
+
 from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
 from .CameraNetwork import CameraNetwork
 from .State import State, View, Mode
 from .util.optim_util import energy_drosoph
 from .util.os_util import *
-
 from deepfly.core import Core
-import re
 
 
 def main():
@@ -46,12 +45,7 @@ def parse_cli_args(argv):
     except (IndexError, ValueError):
         pass
     return args
-
-
-def button_set_width(btn, text=" ", margin=20):
-    width = btn.fontMetrics().boundingRect(text).width() + 7 + margin
-    btn.setMaximumWidth(width)
-
+    
 
 class DrosophAnnot(QWidget):
     def __init__(self):
@@ -71,7 +65,7 @@ class DrosophAnnot(QWidget):
 
     def make_button(self, text, onClick):
         b = QPushButton(text, self)
-        button_set_width(b, text)
+        b.setMaximumWidth(b.fontMetrics().boundingRect(text).width() + 27)
         b.clicked.connect(onClick)
         return b
 
