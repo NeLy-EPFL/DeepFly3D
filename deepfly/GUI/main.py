@@ -6,14 +6,11 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import QImage, QPixmap, QPainter
 from PyQt5.QtWidgets import QWidget, QApplication, QFileDialog, QHBoxLayout, QVBoxLayout, \
                             QCheckBox, QPushButton, QLineEdit, QComboBox, QInputDialog, QMessageBox
-from sklearn.neighbors import NearestNeighbors
-from deepfly.pose2d import ArgParse
-from deepfly.pose2d.drosophila import main as pose2d_main
-from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
 
+from sklearn.neighbors import NearestNeighbors
+from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
 from .CameraNetwork import CameraNetwork
 from .State import State, View, Mode
-
 from .util.main_util import button_set_width, calibrate_calc as ccalc
 from .util.optim_util import energy_drosoph
 from .util.os_util import *
@@ -61,7 +58,6 @@ class DrosophAnnot(QWidget):
 
     def setup(self, input_folder=None, num_images_max=None):
         self.core = Core(input_folder or self.prompt_for_directory(), num_images_max)
-        
         self.state = State(self.core.input_folder, num_images_max, self.core.output_folder)
     
         self.set_layout()
@@ -267,29 +263,10 @@ class DrosophAnnot(QWidget):
         
 
     def pose2d_estimation(self):
-        parser = ArgParse.create_parser()
-        args, _ = parser.parse_known_args()
-        args.checkpoint = False
-        args.unlabeled = self.core.input_folder
-        args.resume = config["resume"]
-        args.stacks = config["num_stacks"]
-        args.test_batch = config["batch_size"]
-        args.img_res = [config["heatmap_shape"][0] * 4, config["heatmap_shape"][1] * 4]
-        args.hm_res = config["heatmap_shape"]
-        args.num_classes = config["num_predict"]
-
-        args.max_img_id = self.core.max_img_id
-        # run the main, it will save the heatmaps and predictions in the image folder
-        _, _ = pose2d_main(args)
-
-        # makes sure cameras use the latest heatmaps and predictions
-        self.core.set_cameras()
+        self.core.pose2d_estimation()
         self.set_mode(Mode.POSE)
 
-        for ip in self.image_pose_list:
-            ip.cam = self.core.camNetAll[ip.cam.cam_id]
-
-        for ip in self.image_pose_list_bot:
+        for ip in chain(self.image_pose_list, self.image_pose_list_bot):
             ip.cam = self.core.camNetAll[ip.cam.cam_id]
 
         self.update_frame()

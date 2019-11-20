@@ -5,6 +5,8 @@ from deepfly.utils_ramdya_lab import find_default_camera_ordering
 from deepfly.GUI.Config import config
 from deepfly.GUI.util.os_util import write_camera_order, read_camera_order, read_calib, get_max_img_id
 from deepfly.GUI.CameraNetwork import CameraNetwork
+from deepfly.pose2d import ArgParse
+from deepfly.pose2d.drosophila import main as pose2d_main
 
 
 class Core:
@@ -70,7 +72,6 @@ class Core:
         self.camNetAll.set_cid2cidread(self.cid2cidread)
         return True
 
-    
 
     def set_cameras(self):
         calib = read_calib(self.output_folder)
@@ -111,3 +112,20 @@ class Core:
         self.camNetRight.bone_param = config["bone_param"]
         calib = read_calib(config["calib_fine"])
         self.camNetAll.load_network(calib)
+
+
+    def pose2d_estimation(self):
+        parser = ArgParse.create_parser()
+        args, _ = parser.parse_known_args()
+        args.checkpoint = False
+        args.unlabeled = self.input_folder
+        args.resume = config["resume"]
+        args.stacks = config["num_stacks"]
+        args.test_batch = config["batch_size"]
+        args.img_res = [config["heatmap_shape"][0] * 4, config["heatmap_shape"][1] * 4]
+        args.hm_res = config["heatmap_shape"]
+        args.num_classes = config["num_predict"]
+        args.max_img_id = self.max_img_id
+
+        pose2d_main(args)   # will write output files in output directory
+        self.set_cameras()  # makes sure cameras use the latest heatmaps and predictions
