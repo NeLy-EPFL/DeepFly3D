@@ -4,7 +4,7 @@ import sys
 from itertools import chain
 from PyQt5.QtCore import *
 from PyQt5.QtGui import QImage, QPixmap, QPainter
-from PyQt5.QtWidgets import QWidget, QApplication, QFileDialog, QHBoxLayout, QVBoxLayout, QCheckBox, QPushButton, QLineEdit, QComboBox, QInputDialog
+from PyQt5.QtWidgets import QWidget, QApplication, QFileDialog, QHBoxLayout, QVBoxLayout, QCheckBox, QPushButton, QLineEdit, QComboBox, QInputDialog, QMessageBox
 from sklearn.neighbors import NearestNeighbors
 from deepfly.pose2d import ArgParse
 from deepfly.pose2d.drosophila import main as pose2d_main
@@ -17,7 +17,7 @@ from .util.main_util import button_set_width
 from .util.optim_util import energy_drosoph
 from .util.os_util import *
 
-from deepfly.utils_ramdya_lab import find_default_camera_ordering
+from deepfly.core import Core
 import re
 
 
@@ -58,8 +58,7 @@ class DrosophAnnot(QWidget):
         self.folder = None
         self.folder_output = None
         self.state = None
-        self.cidread2cid = None
-        self.cid2cidread = None
+        self.core = None
 
 
     def setup(self, input_folder=None, num_images_max=None):
@@ -74,18 +73,13 @@ class DrosophAnnot(QWidget):
 
         self.state = State(self.folder, num_images_max, self.folder_output)
         
-        self.setup_camera_ordering()
+        self.core = Core(input_folder, self.folder_output)
+        self.core.setup_camera_ordering()
+
         self.set_cameras()
         self.set_layout()
         self.set_pose(self.state.img_id)
         self.set_mode(self.state.mode)
-        
-
-    def setup_camera_ordering(self):
-        default = find_default_camera_ordering(self.folder)
-        if default:
-            write_camera_order(self.folder_output, default)
-        self.cidread2cid, self.cid2cidread = read_camera_order(self.folder_output)
         
 
     def set_layout(self):
@@ -138,8 +132,8 @@ class DrosophAnnot(QWidget):
         button_textbox_img_id_go = QPushButton("Go", self)
         button_pose_estimate = QPushButton("2D Pose Estimation", self)
         button_set_width(button_pose_estimate, "2D Pose Estimation")
-        button_rename_images = QPushButton("Rename Images", self)
-        button_set_width(button_rename_images, "Rename Images")
+        self.button_rename_images = QPushButton("Rename Images", self)
+        button_set_width(self.button_rename_images, "Rename Images")
         self.button_image_mode = QPushButton("Image", self)
         self.button_image_mode.setCheckable(True)
         button_set_width(self.button_image_mode, "Image")
@@ -180,7 +174,7 @@ class DrosophAnnot(QWidget):
 
         button_textbox_img_id_go.clicked.connect(self.read_img_id_from_textbox)
         button_pose_estimate.clicked.connect(self.pose2d_estimation)
-        button_rename_images.clicked.connect(self.rename_images)
+        self.button_rename_images.clicked.connect(self.rename_images)
 
         self.button_heatmap_mode.clicked.connect(
             lambda b: self.set_mode(self.state.mode.HEATMAP)
@@ -205,7 +199,7 @@ class DrosophAnnot(QWidget):
         layout_h_buttons_top.addWidget(button_pose_estimate, alignment=Qt.AlignLeft)
         layout_h_buttons_top.addWidget(button_pose_save, alignment=Qt.AlignLeft)
         layout_h_buttons_top.addWidget(button_calibrate_calc, alignment=Qt.AlignLeft)
-        layout_h_buttons_top.addWidget(button_rename_images, alignment=Qt.AlignLeft)
+        layout_h_buttons_top.addWidget(self.button_rename_images, alignment=Qt.AlignLeft)
         layout_h_buttons_top.addStretch()
         layout_h_buttons_top.addWidget(
             self.button_heatmap_mode, alignment=Qt.AlignRight
@@ -247,7 +241,7 @@ class DrosophAnnot(QWidget):
             image_folder=self.folder,
             output_folder=self.folder_output,
             cam_id_list=range(config["num_cameras"]),
-            cid2cidread=self.cid2cidread,
+            cid2cidread=self.core.cid2cidread,
             num_images=self.state.num_images,
             calibration=calib,
             num_joints=config["skeleton"].num_joints,
@@ -260,7 +254,7 @@ class DrosophAnnot(QWidget):
             num_images=self.state.num_images,
             calibration=calib,
             num_joints=config["skeleton"].num_joints,
-            cid2cidread=[self.cid2cidread[cid] for cid in config["left_cameras"]],
+            cid2cidread=[self.core.cid2cidread[cid] for cid in config["left_cameras"]],
             heatmap_shape=config["heatmap_shape"],
             cam_list=[cam for cam in self.camNetAll if cam.cam_id in config["left_cameras"]],
         )
@@ -271,7 +265,7 @@ class DrosophAnnot(QWidget):
             num_images=self.state.num_images,
             calibration=calib,
             num_joints=config["skeleton"].num_joints,
-            cid2cidread=[self.cid2cidread[cid] for cid in config["right_cameras"]],
+            cid2cidread=[self.core.cid2cidread[cid] for cid in config["right_cameras"]],
             heatmap_shape=config["heatmap_shape"],
             cam_list=[self.camNetAll[cam_id] for cam_id in config["right_cameras"]],
         )
@@ -285,6 +279,17 @@ class DrosophAnnot(QWidget):
         calib = read_calib(config["calib_fine"])
         self.camNetAll.load_network(calib)
 
+ 
+    def rename_images(self):
+        cidread2cid = self.prompt_for_camera_ordering()
+        if self.core.update_camera_ordering(cidread2cid):
+            self.camNetAll.set_cid2cidread(self.core.cid2cidread)
+            self.update_frame()
+        else:
+            msgBox = QMessageBox()
+            msgBox.setText("Wrong format, ordering not changed.")
+            msgBox.exec()
+
 
     def prompt_for_directory(self):
         return str(QFileDialog.getExistingDirectory(
@@ -295,26 +300,12 @@ class DrosophAnnot(QWidget):
             ))
 
 
-    def rename_images(self):
-        text, ok_pressed = QInputDialog.getText(
-            self, "Rename Images", "Camera order:", QLineEdit.Normal, ""
-        )
-        if not ok_pressed:
-            return
-
-        text = "[" + text.replace(" ", ",") + "]"
-        cidread2cid = ast.literal_eval(text)
-        if len(cidread2cid) != config["num_cameras"]:
-            print("Cannot rename images as there are no {config['num_cameras']} values")
-            return
-
-        print("Camera order {}".format(cidread2cid))
-
-        write_camera_order(self.folder_output, cidread2cid)
-        self.cidread2cid, self.cid2cidread = read_camera_order(self.folder_output)
-
-        self.camNetAll.set_cid2cidread(self.cid2cidread)
-        self.update_frame()
+    def prompt_for_camera_ordering(self):
+        text, ok_pressed = QInputDialog.getText(self, "Rename Images", "Camera order:", QLineEdit.Normal, "")
+        if ok_pressed:
+            cidread2cid = re.findall(r'[0-9]+', text) 
+            cidread2cid = [int(x) for x in cidread2cid]
+            return cidread2cid
 
 
     def checkbox_automatic_changed(self, state):

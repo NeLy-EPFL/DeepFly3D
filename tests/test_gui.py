@@ -1,8 +1,12 @@
-from PyQt5.QtWidgets import QApplication
-from deepfly.GUI.main import DrosophAnnot
 import os.path
 from pathlib import Path
 from itertools import product
+import random
+
+import numpy as np
+from PyQt5 import QtCore
+
+from deepfly.GUI.main import DrosophAnnot
 
 INPUT_DIRECTORY = Path(__file__).parent / '../data/test'
 NB_IMGS_IN_INPUT_DIR = 15
@@ -74,13 +78,16 @@ def test_setup_input_folder_prompted(qtbot):
     class A(DrosophAnnot):
         def __init__(self, *args, **kwargs):
             DrosophAnnot.__init__(self, *args, **kwargs)
+            self.called = False
 
         def prompt_for_directory(self):
+            self.called = True
             return INPUT_DIRECTORY
 
     window = A()
     qtbot.addWidget(window)
     window.setup()
+    assert window.called, "prompt dialog not called"
     assert window.folder == os.path.abspath(INPUT_DIRECTORY)
 
 
@@ -99,3 +106,24 @@ def test_num_images(qtbot):
     qtbot.addWidget(window)
     window.setup(input_folder=INPUT_DIRECTORY)
     assert window.state.num_images == NB_IMGS_IN_INPUT_DIR
+
+
+def test_rename_images(qtbot):
+    ordering = list(range(NB_CAMERAS))
+    random.shuffle(ordering)
+
+    class A(DrosophAnnot):
+        def __init__(self):
+            DrosophAnnot.__init__(self)
+            self.called = False
+
+        def prompt_for_camera_ordering(self):
+            self.called = True
+            return list(ordering)  # create a copy to make sure ordering is not modified
+
+    window = A()
+    qtbot.addWidget(window)
+    window.setup(input_folder=INPUT_DIRECTORY)
+    qtbot.mouseClick(window.button_rename_images, QtCore.Qt.LeftButton)
+    assert window.called, "prompt dialog not called"
+    assert np.all(window.core.cidread2cid == np.array(ordering)), window.core.cidread2cid
