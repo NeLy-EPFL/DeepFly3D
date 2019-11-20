@@ -4,7 +4,8 @@ import sys
 from itertools import chain
 from PyQt5.QtCore import *
 from PyQt5.QtGui import QImage, QPixmap, QPainter
-from PyQt5.QtWidgets import QWidget, QApplication, QFileDialog, QHBoxLayout, QVBoxLayout, QCheckBox, QPushButton, QLineEdit, QComboBox, QInputDialog, QMessageBox
+from PyQt5.QtWidgets import QWidget, QApplication, QFileDialog, QHBoxLayout, QVBoxLayout, \
+                            QCheckBox, QPushButton, QLineEdit, QComboBox, QInputDialog, QMessageBox
 from sklearn.neighbors import NearestNeighbors
 from deepfly.pose2d import ArgParse
 from deepfly.pose2d.drosophila import main as pose2d_main
@@ -74,8 +75,7 @@ class DrosophAnnot(QWidget):
         self.state = State(self.folder, num_images_max, self.folder_output)
         
         self.core = Core(input_folder, self.folder_output)
-        self.core.setup_camera_ordering()
-
+        
         self.set_cameras()
         self.set_layout()
         self.set_pose(self.state.img_id)
@@ -438,14 +438,10 @@ class DrosophAnnot(QWidget):
             or not self.camNetLeft.has_pose()
         ):
             img_id = max(self.state.img_id - 1, 0)
-            self.state.already_corrected = self.already_corrected(
-                self.state.view, img_id
-            )
+            self.state.already_corrected = self.already_corrected(self.state.view, img_id)
         else:
             img_id = self.prev_error(self.state.img_id)
-            self.state.already_corrected = self.already_corrected(
-                self.state.view, img_id
-            )
+            self.state.already_corrected = self.already_corrected(self.state.view, img_id)
 
         self.set_pose(img_id)
 
@@ -457,14 +453,10 @@ class DrosophAnnot(QWidget):
             or not self.camNetLeft.has_pose()
         ):
             img_id = min(self.state.num_images - 1, self.state.img_id + 1)
-            self.state.already_corrected = self.already_corrected(
-                self.state.view, img_id
-            )
+            self.state.already_corrected = self.already_corrected(self.state.view, img_id)
         else:
             img_id = self.next_error(self.state.img_id)
-            self.state.already_corrected = self.already_corrected(
-                self.state.view, img_id
-            )
+            self.state.already_corrected = self.already_corrected(self.state.view, img_id)
 
         self.set_pose(img_id)
 
@@ -583,10 +575,7 @@ class DrosophAnnot(QWidget):
     def set_pose(self, img_id):
         self.state.img_id = img_id
 
-        for ip in self.image_pose_list:
-            ip.clear_mc()
-        
-        for ip in self.image_pose_list_bot:
+        for ip in chain(self.image_pose_list, self.image_pose_list_bot):
             ip.clear_mc()
         
         if self.state.mode == Mode.CORRECTION:
@@ -666,14 +655,6 @@ class DrosophAnnot(QWidget):
         ccalc(self, min_img_id, max_img_id)
 
         self.set_cameras()
-
-
-    def save_calibration(self):
-        calib_path = "{}/calib_{}.pkl".format(
-            self.folder_output, self.folder.replace("/", "_")
-        )
-        print("Saving calibration {}".format(calib_path))
-        self.camNetAll.save_network(calib_path)
 
 
     def save_pose(self):
@@ -793,8 +774,10 @@ class ImagePose(QWidget):
 
         self.f_solve_bp = f_solve_bp
 
+
     def clear_mc(self):
         self.dynamic_pose = None
+
 
     def get_joint_reprojection_error(self, img_id, joint_id, camNet):
         visible_cameras = [
@@ -814,16 +797,16 @@ class ImagePose(QWidget):
 
         return err_proj
 
+
     def update_image_pose(self):
         draw_joints = [
             j
             for j in range(config["skeleton"].num_joints)
             if config["skeleton"].camera_see_joint(self.cam.cam_id, j)
         ]
-        corrected_this_camera = self.state.db.has_key(
-            self.cam.cam_id, self.state.img_id
-        )
+        corrected_this_camera = self.state.db.has_key(self.cam.cam_id, self.state.img_id)
         zorder = config["skeleton"].get_zorder(self.cam.cam_id)
+        
         if self.state.mode == Mode.IMAGE:
             im = self.cam.get_image(self.state.img_id)
         elif self.state.mode == Mode.HEATMAP:
@@ -851,15 +834,8 @@ class ImagePose(QWidget):
             for joint_id in range(config["skeleton"].num_joints):
                 if joint_id not in config["skeleton"].pictorial_joint_list:
                     continue
-                camNet = (
-                    self.state.camNetLeft
-                    if self.cam.cam_id < 3
-                    else self.state.camNetRight
-                )
-                err_proj = self.get_joint_reprojection_error(
-                    self.state.img_id, joint_id, camNet
-                )
-
+                camNet = self.state.camNetLeft if (self.cam.cam_id < 3) else self.state.camNetRight
+                err_proj = self.get_joint_reprojection_error(self.state.img_id, joint_id, camNet)
                 if err_proj > config["reproj_thr"][joint_id]:
                     r_list[joint_id] = config["scatter_r"] * 2
 
@@ -879,6 +855,7 @@ class ImagePose(QWidget):
         self.im = QPixmap.fromImage(qIm)
 
         self.update()
+
 
     def save_correction(self, thr=30):
         points2d_prediction = self.cam.get_points2d(self.state.img_id)
@@ -923,6 +900,7 @@ class ImagePose(QWidget):
 
         return False
 
+
     def mouseMoveEvent(self, e):
         if self.state.mode == Mode.CORRECTION:
             x = int(
@@ -959,6 +937,7 @@ class ImagePose(QWidget):
             self.dynamic_pose.set_joint(self.dynamic_pose.joint_id, np.array([x, y]))
             self.update_image_pose()
 
+
     def mouseReleaseEvent(self, e):
         if self.state.mode == Mode.CORRECTION:
             self.dynamic_pose.joint_id = None  # make sure we forget the tracked joint
@@ -975,28 +954,12 @@ class ImagePose(QWidget):
             self.f_solve_bp(save_correction=True)
             self.update_image_pose()
 
-    def get_image_name(self, img_id):
-        img_path = self.get_image_path(self.state.folder, img_id)
-        img_name = os.path.basename(img_path).replace(".jpg", "")
-        return img_name
 
     def paintEvent(self, paint_event):
         painter = QPainter(self)
         painter.drawPixmap(self.rect(), self.im)
 
         self.update()
-
-
-class PrintImage(QWidget):
-    def __init__(self, pixmap, parent=None):
-        QWidget.__init__(self, parent=parent)
-        self.pixmap = pixmap
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.drawPixmap(
-            QRect(0, 0, self.pixmap.width(), self.pixmap.height()), self.pixmap
-        )
 
 
 if __name__ == "__main__":
