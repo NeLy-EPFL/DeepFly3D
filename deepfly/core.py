@@ -139,58 +139,27 @@ class Core:
             for cam in camNet
             if config["skeleton"].camera_see_joint(cam.cam_id, joint_id)
         ]
-        if len(visible_cameras) >= 2:
-            pts = np.array(
-                [cam.points2d[img_id, joint_id, :] for cam in visible_cameras]
-            )
-            _, err_proj, _, _ = energy_drosoph(
-                visible_cameras, img_id, joint_id, pts / [960, 480]
-            )
-        else:
+        if len(visible_cameras) < 2:
             err_proj = 0
-
+        else:
+            pts = np.array([ cam.points2d[img_id, joint_id, :] for cam in visible_cameras ])
+            _, err_proj, _, _ = energy_drosoph(visible_cameras, img_id, joint_id, pts / [960, 480])
         return err_proj
 
 
-    def next_error(self, img_id):
-        return min(
-            self.next_error_cam(img_id, self.camNetLeft),
-            self.next_error_cam(img_id, self.camNetRight),
-        )
-
-
-    def next_error_cam(self, img_id, camNet):
-        for img_id in range(img_id + 1, self.num_images):
-            for joint_id in range(config["skeleton"].num_joints):
-                if joint_id not in config["skeleton"].pictorial_joint_list:
-                    continue
-                err_proj = self.get_joint_reprojection_error(img_id, joint_id, camNet)
-                if err_proj > config["reproj_thr"][joint_id]:
-                    print("{} {} {}".format(img_id, joint_id, err_proj))
+    def next_error(self, img_id, step=+1):
+        joints = [j for j in range(config["skeleton"].num_joints) if j in config["skeleton"].pictorial_joint_list]
+        img_id += step
+        while 0 <= img_id and img_id <= self.max_img_id:
+            for joint_id in joints:
+                err_left  = self.get_joint_reprojection_error(img_id, joint_id, self.camNetLeft)
+                err_right = self.get_joint_reprojection_error(img_id, joint_id, self.camNetRight)
+                err = max(err_left, err_right)
+                if err > config["reproj_thr"][joint_id]:
+                    print(f"Error found at img={img_id} joint={joint_id} err={err}")
                     return img_id
-
-        return self.max_img_id
-
-
-    def prev_error(self, img_id):
-        return max(
-            self.prev_error_cam(img_id, self.camNetLeft),
-            self.prev_error_cam(img_id, self.camNetRight),
-        )
-
-
-    def prev_error_cam(self, curr_img_id, camNet):
-        for img_id in range(curr_img_id - 1, 0, -1):
-            for joint_id in range(config["skeleton"].num_joints):
-                if joint_id not in config["skeleton"].pictorial_joint_list:
-                    continue
-                err_proj = self.get_joint_reprojection_error(img_id, joint_id, camNet)
-                if err_proj > config["reproj_thr"][joint_id]:
-                    print("{} {} {}".format(img_id, joint_id, err_proj))
-                    return img_id
-
-        return 0
-
+            img_id += step
+        return img_id - step
 
 
     def calibrate_calc(self, drosophAnnot, min_img_id, max_img_id):

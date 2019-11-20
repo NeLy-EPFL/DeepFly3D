@@ -12,6 +12,10 @@ INPUT_DIRECTORY = Path(__file__).parent / '../data/test'
 NB_IMGS_IN_INPUT_DIR = 15
 NB_CAMERAS = 7
 
+INPUT_DIRECTORY2 = Path(__file__).parent / '../data/test-with-error'
+DIR2_ERROR_IMG1 = 2
+DIR2_ERROR_IMG2 = 3
+NB_IMGS_IN_INPUT_DIR2 = 6
 
 def test_input_directory_exists():
     assert INPUT_DIRECTORY.is_dir()
@@ -235,4 +239,27 @@ def test_mode_correction(qtbot):
     assert window.state.img_id == 0
     qtbot.mouseClick(window.button_last, QtCore.Qt.LeftButton)
     assert window.state.img_id == NB_IMGS_IN_INPUT_DIR -1 
+    
+
+def test_belief_propagation(qtbot):
+    window = DrosophAnnot()
+    qtbot.addWidget(window)
+    window.setup(INPUT_DIRECTORY2)
+    qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
+    #
+    qtbot.mouseClick(window.button_correction_mode, QtCore.Qt.LeftButton)
+    assert window.state.mode == window.state.mode.CORRECTION
+    #
+    window.checkbox_correction_skip.setChecked(True)
+    qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
+    assert window.state.img_id == 0
+    #
+    qtbot.mouseClick(window.button_next, QtCore.Qt.LeftButton)
+    assert window.state.img_id == DIR2_ERROR_IMG1
+    #
+    qtbot.mouseClick(window.button_last, QtCore.Qt.LeftButton)
+    assert window.state.img_id == NB_IMGS_IN_INPUT_DIR2 -1 
+    #
+    qtbot.mouseClick(window.button_prev, QtCore.Qt.LeftButton)
+    assert window.state.img_id == DIR2_ERROR_IMG2
     
