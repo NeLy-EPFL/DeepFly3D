@@ -113,7 +113,7 @@ def test_num_images(qtbot):
     assert window.core.num_images == NB_IMGS_IN_INPUT_DIR
 
 
-def test_rename_images(qtbot):
+def test_camera_order(qtbot):
     ordering = list(range(NB_CAMERAS))
     random.shuffle(ordering)
 
@@ -129,7 +129,7 @@ def test_rename_images(qtbot):
     window = A()
     qtbot.addWidget(window)
     window.setup(input_folder=INPUT_DIRECTORY)
-    qtbot.mouseClick(window.button_rename_images, QtCore.Qt.LeftButton)
+    qtbot.mouseClick(window.button_camera_order, QtCore.Qt.LeftButton)
     assert window.called, "prompt dialog not called"
     assert np.all(window.core.cidread2cid == np.array(ordering)), window.core.cidread2cid
 

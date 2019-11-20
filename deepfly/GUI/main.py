@@ -58,41 +58,34 @@ class DrosophAnnot(QWidget):
         self.core = Core(input_folder or self.prompt_for_directory(), num_images_max)
         self.state = State(self.core.input_folder, num_images_max, self.core.output_folder)
     
-        self.set_layout()
+        self.setup_layout()
         self.set_pose(self.state.img_id)
         self.set_mode(self.state.mode)
         
 
-    def make_button(self, text, onClick):
-        b = QPushButton(text, self)
-        b.setMaximumWidth(b.fontMetrics().boundingRect(text).width() + 27)
-        b.clicked.connect(onClick)
-        return b
-
-
-    def set_layout(self):
+    def setup_layout(self):
         # Create checkboxes
         self.checkbox_solve_bp = QCheckBox("Correction", self)
-        self.checkbox_solve_bp.stateChanged.connect(self.checkbox_automatic_changed)
+        self.checkbox_solve_bp.stateChanged.connect(self.onclick_checkbox_automatic)
         self.checkbox_solve_bp.setChecked(self.state.solve_bp)
         self.checkbox_correction_skip = QCheckBox("Skip", self)
         self.checkbox_correction_skip.setChecked(self.state.correction_skip)
-        self.checkbox_correction_skip.stateChanged.connect(self.checkbox_correction_clicked)
+        self.checkbox_correction_skip.stateChanged.connect(self.onclick_checkbox_correction)
         
         # Create buttons
-        self.button_first           = self.make_button("<<",          self.set_first_image)
-        self.button_prev            = self.make_button("<",           self.set_prev_image)
-        self.button_next            = self.make_button(">",           self.set_next_image)
-        self.button_last            = self.make_button(">>",          self.set_last_image)
+        self.button_first           = self.make_button("<<",          self.onclick_first_image)
+        self.button_prev            = self.make_button("<",           self.onclick_prev_image)
+        self.button_next            = self.make_button(">",           self.onclick_next_image)
+        self.button_last            = self.make_button(">>",          self.onclick_last_image)
         self.button_pose_mode       = self.make_button("Pose",        lambda b: self.set_mode(self.state.mode.POSE))
         self.button_image_mode      = self.make_button("Image",       lambda b: self.set_mode(self.state.mode.IMAGE))
         self.button_heatmap_mode    = self.make_button("Prob. Map",   lambda b: self.set_mode(self.state.mode.HEATMAP))
         self.button_correction_mode = self.make_button("Correction",  lambda b: self.set_mode(self.state.mode.CORRECTION))
         button_textbox_img_id_go    = self.make_button("Go",          self.read_img_id_from_textbox)
-        self.button_pose_save       = self.make_button("Save",        self.save_pose)
-        self.button_calibrate_calc  = self.make_button("Calibration", self.calibrate_calc)
-        self.button_rename_images   = self.make_button("Rename Images", self.rename_images)
-        self.button_pose_estimate   = self.make_button("2D Pose Estimation", self.pose2d_estimation)
+        self.button_pose_save       = self.make_button("Save",        self.onclick_save_pose)
+        self.button_calibrate_calc  = self.make_button("Calibration", self.onclick_calibrate)
+        self.button_camera_order    = self.make_button("Camera ordering", self.onclick_camera_order)
+        self.button_pose_estimate   = self.make_button("2D Pose Estimation", self.onclick_pose2d_estimation)
         #
         self.button_image_mode.setCheckable(True) 
         self.button_correction_mode.setCheckable(True)
@@ -106,7 +99,7 @@ class DrosophAnnot(QWidget):
         self.combo_joint_id.addItem("All")
         for i in range(config["skeleton"].num_joints):
             self.combo_joint_id.addItem("Prob. Map: " + str(i))
-        self.combo_joint_id.activated[str].connect(self.combo_activated)
+        self.combo_joint_id.activated[str].connect(self.onactivate_combo)
         self.combo_joint_id.setFixedWidth(100)
         
         # Create images
@@ -140,7 +133,7 @@ class DrosophAnnot(QWidget):
         layout_h_buttons_top.addWidget(self.button_pose_estimate,  alignment=Qt.AlignLeft)
         layout_h_buttons_top.addWidget(self.button_pose_save,      alignment=Qt.AlignLeft)
         layout_h_buttons_top.addWidget(self.button_calibrate_calc, alignment=Qt.AlignLeft)
-        layout_h_buttons_top.addWidget(self.button_rename_images,  alignment=Qt.AlignLeft)
+        layout_h_buttons_top.addWidget(self.button_camera_order,   alignment=Qt.AlignLeft)
         layout_h_buttons_top.addStretch()
 
         layout_h_buttons_top.addWidget(self.button_heatmap_mode,      alignment=Qt.AlignRight)
@@ -177,7 +170,18 @@ class DrosophAnnot(QWidget):
         self.setWindowTitle(self.core.input_folder)
 
 
-    def rename_images(self):
+    def make_button(self, text, onClick):
+        b = QPushButton(text, self)
+        b.setMaximumWidth(b.fontMetrics().boundingRect(text).width() + 27)
+        b.clicked.connect(onClick)
+        return b
+
+
+    # ------------------------------------------------------------------
+    # onclick callbacks
+
+
+    def onclick_camera_order(self):
         cidread2cid = self.prompt_for_camera_ordering()
         if self.core.update_camera_ordering(cidread2cid):
             self.update_frame()
@@ -187,41 +191,16 @@ class DrosophAnnot(QWidget):
             msgBox.exec()
 
 
-    def prompt_for_directory(self):
-        return str(QFileDialog.getExistingDirectory(
-                self,
-                directory="./",
-                caption="Select Directory",
-                options=QFileDialog.DontUseNativeDialog,
-            ))
-
-
-    def prompt_for_camera_ordering(self):
-        text, ok_pressed = QInputDialog.getText(self, "Rename Images", "Camera order:", QLineEdit.Normal, "")
-        if ok_pressed:
-            cidread2cid = re.findall(r'[0-9]+', text) 
-            cidread2cid = [int(x) for x in cidread2cid]
-            return cidread2cid
-
-
-    def prompt_for_calibration_range(self):
-        text, okPressed = QInputDialog.getText(self, "Calibration", "Range of images:", QLineEdit.Normal, f"0-{self.core.max_img_id}")
-        if okPressed:
-            numbers = re.findall(r'[0-9]+', text)
-            numbers = [int(x) for x in numbers]
-            return numbers
-
-
-    def checkbox_automatic_changed(self, state):
+    def onclick_checkbox_automatic(self, state):
         self.state.solve_bp = (state == Qt.Checked)
         self.solve_bp()
 
 
-    def checkbox_correction_clicked(self, state):
+    def onclick_checkbox_correction(self, state):
         self.state.correction_skip = (state == Qt.Checked)
         
 
-    def pose2d_estimation(self):
+    def onclick_pose2d_estimation(self):
         self.core.pose2d_estimation()
         self.set_mode(Mode.POSE)
 
@@ -231,72 +210,7 @@ class DrosophAnnot(QWidget):
         self.update_frame()
 
 
-    def set_mode(self, mode):
-        if (   (mode == Mode.POSE       and self.core.camNetLeft.has_pose()     and self.core.camNetRight.has_pose() )
-            or (mode == Mode.HEATMAP    and self.core.camNetLeft.has_heatmap())
-            or  mode == Mode.IMAGE
-            or (mode == Mode.CORRECTION and self.core.camNetLeft.has_pose())
-        ):
-            self.state.mode = mode
-        else:
-            print("Cannot set mode: {}".format(mode))
-        
-        if self.state.mode == Mode.CORRECTION:
-            self.set_pose(self.state.img_id)
-        
-        self.update_frame()
-
-        self.button_correction_mode.setChecked(self.state.mode == Mode.CORRECTION)
-        self.button_heatmap_mode.setChecked(self.state.mode == Mode.HEATMAP)
-        self.button_image_mode.setChecked(self.state.mode == Mode.IMAGE)
-        self.button_pose_mode.setChecked(self.state.mode == Mode.POSE)
-        
-
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Return:
-            self.read_img_id_from_textbox()
-            self.setFocus()
-        if event.key() == Qt.Key_A:
-            self.set_prev_image()
-        if event.key() == Qt.Key_D:
-            self.set_next_image()
-        if event.key() == Qt.Key_H:
-            self.set_mode(Mode.HEATMAP)
-        if event.key() == Qt.Key_I:
-            self.set_mode(Mode.IMAGE)
-        if event.key() == Qt.Key_X:
-            self.set_mode(Mode.POSE)
-        if event.key() == Qt.Key_C:
-            self.set_mode(Mode.CORRECTION)
-            self.update_frame()
-        if event.key() == Qt.Key_T:
-            for image_pose in self.image_pose_list:
-                image_pose.save_correction()
-            self.update_frame()
-        if event.key() == Qt.Key_L:
-            self.set_view(View.Left)
-        if event.key == Qt.Key_R:
-            self.set_view(View.Right)
-
-
-    def already_corrected(self, view, img_id):
-        if view == View.Left:
-            return (
-                self.state.db.has_key(0, img_id)
-                or self.state.db.has_key(1, img_id)
-                or self.state.db.has_key(2, img_id)
-            )
-        elif view == View.Right:
-            return (
-                self.state.db.has_key(4, img_id)
-                or self.state.db.has_key(5, img_id)
-                or self.state.db.has_key(6, img_id)
-            )
-        else:
-            raise NotImplementedError
-
-
-    def combo_activated(self, text):
+    def onactivate_combo(self, text):
         if text == "All":
             self.set_heatmap_joint_id(-1)
         else:
@@ -304,160 +218,37 @@ class DrosophAnnot(QWidget):
         self.setFocus()
 
 
-    def set_first_image(self):
-        img_id = 0
-        self.state.already_corrected = self.already_corrected(self.state.view, img_id)
-        self.set_pose(img_id)
+    def onclick_first_image(self):
+        self.display_img(0)
 
 
-    def set_last_image(self):
-        img_id = self.core.max_img_id
-        self.state.already_corrected = self.already_corrected(self.state.view, img_id)
-        self.set_pose(img_id)
+    def onclick_last_image(self):
+        self.display_img(self.core.max_img_id)
 
 
-    def set_prev_image(self):
-        if self.state.mode != Mode.CORRECTION or (
-            not self.state.correction_skip
-            or not self.core.camNetLeft.has_calibration()
-            or not self.core.camNetLeft.has_pose()
-        ):
-            img_id = max(self.state.img_id - 1, 0)
-            self.state.already_corrected = self.already_corrected(self.state.view, img_id)
-        else:
-            img_id = self.core.prev_error(self.state.img_id)
-            self.state.already_corrected = self.already_corrected(self.state.view, img_id)
-
-        self.set_pose(img_id)
-
-
-    def set_next_image(self):
-        if self.state.mode != Mode.CORRECTION or (
-            not self.state.correction_skip
-            or not self.core.camNetLeft.has_calibration()
-            or not self.core.camNetLeft.has_pose()
-        ):
-            img_id = min(self.core.max_img_id, self.state.img_id + 1)
-            self.state.already_corrected = self.already_corrected(self.state.view, img_id)
-        else:
-            img_id = self.core.next_error(self.state.img_id)
-            self.state.already_corrected = self.already_corrected(self.state.view, img_id)
-
-        self.set_pose(img_id)
-
-
-    
-    def solve_bp(self, save_correction=False):
-        if not (
-            self.state.mode == Mode.CORRECTION
-            and self.state.solve_bp
-            and self.core.camNetLeft.has_calibration()
+    def onclick_prev_image(self):
+        if (self.state.mode == Mode.CORRECTION 
+            and self.state.correction_skip 
+            and self.core.camNetLeft.has_calibration() 
             and self.core.camNetLeft.has_pose()
-        ):
-            return
-
-        prior = list()
-        for ip in self.image_pose_list:
-            if ip.dynamic_pose is not None:
-                for (joint_id, pt2d) in ip.dynamic_pose.manual_correction_dict.items():
-                    prior.append(
-                        (ip.cam.cam_id, joint_id, pt2d / config["image_shape"])
-                    )
-        # print("Prior for BP: {}".format(prior))
-        pts_bp = self.core.camNetLeft.solveBP(
-            self.state.img_id, config["bone_param"], prior=prior
-        )
-        pts_bp = np.array(pts_bp)
-
-        # set points which are not estimated by bp
-        for idx, image_pose in enumerate(self.image_pose_list):
-            pts_bp_ip = pts_bp[idx] * config["image_shape"]
-            pts_bp_rep = self.state.db.read(image_pose.cam.cam_id, self.state.img_id)
-            if pts_bp_rep is None:
-                pts_bp_rep = image_pose.cam.points2d[self.state.img_id, :]
-            else:
-                pts_bp_rep *= config["image_shape"]
-            pts_bp_ip[pts_bp_ip == 0] = pts_bp_rep[pts_bp_ip == 0]
-
-            # keep track of the manually corrected points
-            mcd = (
-                image_pose.dynamic_pose.manual_correction_dict
-                if image_pose.dynamic_pose is not None
-                else None
-            )
-            image_pose.dynamic_pose = DynamicPose(
-                pts_bp_ip, image_pose.state.img_id, joint_id=None, manual_correction=mcd
-            )
-        self.update_frame()
-
-        # save down corrections as training if any priors were given
-        if prior and save_correction:
-            print("Saving with prior")
-            for ip in self.image_pose_list:
-                ip.save_correction()
-
-        print("Finished Belief Propagation")
+            ):
+            self.display_img(self.core.next_error(self.state.img_id, step=-1))
+        else:
+            self.display_img(max(self.state.img_id - 1, 0))
 
 
-    def set_pose(self, img_id):
-        self.state.img_id = img_id
-
-        for ip in chain(self.image_pose_list, self.image_pose_list_bot):
-            ip.clear_mc()
-        
-        if self.state.mode == Mode.CORRECTION:
-            for ip in chain(self.image_pose_list, self.image_pose_list_bot):
-                pt = self.state.db.read(ip.cam.cam_id, self.state.img_id)
-                modified_joints = self.state.db.read_modified_joints(
-                    ip.cam.cam_id, self.state.img_id
-                )
-                if pt is None:
-                    pt = ip.cam.points2d[self.state.img_id, :]
-                else:
-                    pt *= config["image_shape"]
-
-                manual_correction = dict()
-                for joint_id in modified_joints:
-                    manual_correction[joint_id] = pt[joint_id]
-                
-                ip.dynamic_pose = DynamicPose(
-                    pt,
-                    ip.state.img_id,
-                    joint_id=None,
-                    manual_correction=manual_correction,
-                )
-
-            if self.core.camNetLeft.has_calibration():
-                self.solve_bp()
-
-            if self.core.camNetRight.has_calibration():
-                self.solve_bp()
-
-        self.update_frame()
-        self.textbox_img_id.setText(str(self.state.img_id))
+    def onclick_next_image(self):
+        if (self.state.mode == Mode.CORRECTION 
+            and self.state.correction_skip 
+            and self.core.camNetLeft.has_calibration() 
+            and self.core.camNetLeft.has_pose()
+            ):
+            self.display_img(self.core.next_error(self.state.img_id, step=+1))
+        else:
+            self.display_img(min(self.core.max_img_id, self.state.img_id + 1))
 
 
-    def set_heatmap_joint_id(self, joint_id):
-        self.state.hm_joint_id = joint_id
-        self.update_frame()
-
-
-    def read_img_id_from_textbox(self):
-        try:
-            img_id = int(self.textbox_img_id.text().replace("Heatmap: ", ""))
-            self.state.already_corrected = self.already_corrected(
-                self.state.view, img_id
-            )
-            self.set_pose(img_id)
-        except BaseException as e:
-            print("Textbox img id is not integer {}".format(str(e)))
-
-
-    def set_joint_id_tb(self):
-        self.set_heatmap_joint_id(int(self.textbox_joint_id.text()))
-
-
-    def calibrate_calc(self):
+    def onclick_calibrate(self):
         try:
             [min_img_id, max_img_id] = self.prompt_for_calibration_range()
         except BaseException:
@@ -465,7 +256,7 @@ class DrosophAnnot(QWidget):
         self.core.calibrate_calc(self, min_img_id, max_img_id)
 
 
-    def save_pose(self):
+    def onclick_save_pose(self):
         pts2d = np.zeros(
             (7, self.core.num_images, config["num_joints"], 2), dtype=float
         )
@@ -549,9 +340,226 @@ class DrosophAnnot(QWidget):
         )
 
 
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Return:
+            self.read_img_id_from_textbox()
+            self.setFocus()
+        if event.key() == Qt.Key_A:
+            self.onclick_prev_image()
+        if event.key() == Qt.Key_D:
+            self.onclick_next_image()
+        if event.key() == Qt.Key_H:
+            self.set_mode(Mode.HEATMAP)
+        if event.key() == Qt.Key_I:
+            self.set_mode(Mode.IMAGE)
+        if event.key() == Qt.Key_X:
+            self.set_mode(Mode.POSE)
+        if event.key() == Qt.Key_C:
+            self.set_mode(Mode.CORRECTION)
+            self.update_frame()
+        if event.key() == Qt.Key_T:
+            for image_pose in self.image_pose_list:
+                image_pose.save_correction()
+            self.update_frame()
+        if event.key() == Qt.Key_L:
+            self.set_view(View.Left)
+        if event.key == Qt.Key_R:
+            self.set_view(View.Right)
+
+
+    # ------------------------------------------------------------------
+    # prompt callbacks
+
+    
+    def prompt_for_directory(self):
+        return str(QFileDialog.getExistingDirectory(
+                self,
+                directory="./",
+                caption="Select Directory",
+                options=QFileDialog.DontUseNativeDialog,
+            ))
+
+
+    def prompt_for_camera_ordering(self):
+        text, ok_pressed = QInputDialog.getText(self, "Rename Images", "Camera order:", QLineEdit.Normal, "")
+        if ok_pressed:
+            cidread2cid = re.findall(r'[0-9]+', text) 
+            cidread2cid = [int(x) for x in cidread2cid]
+            return cidread2cid
+
+
+    def prompt_for_calibration_range(self):
+        text, okPressed = QInputDialog.getText(self, "Calibration", "Range of images:", QLineEdit.Normal, f"0-{self.core.max_img_id}")
+        if okPressed:
+            numbers = re.findall(r'[0-9]+', text)
+            numbers = [int(x) for x in numbers]
+            return numbers
+
+
+    # ------------------------------------------------------------------
+
+
+    def display_img(self, img_id):
+        self.state.already_corrected = self.already_corrected(self.state.view, img_id)
+        self.set_pose(img_id)
+
+
+    def set_mode(self, mode):
+        if (   (mode == Mode.POSE       and self.core.camNetLeft.has_pose()     and self.core.camNetRight.has_pose() )
+            or (mode == Mode.HEATMAP    and self.core.camNetLeft.has_heatmap())
+            or  mode == Mode.IMAGE
+            or (mode == Mode.CORRECTION and self.core.camNetLeft.has_pose())
+        ):
+            self.state.mode = mode
+        else:
+            print("Cannot set mode: {}".format(mode))
+        
+        if self.state.mode == Mode.CORRECTION:
+            self.set_pose(self.state.img_id)
+        
+        self.update_frame()
+
+        self.button_correction_mode.setChecked(self.state.mode == Mode.CORRECTION)
+        self.button_heatmap_mode.setChecked(self.state.mode == Mode.HEATMAP)
+        self.button_image_mode.setChecked(self.state.mode == Mode.IMAGE)
+        self.button_pose_mode.setChecked(self.state.mode == Mode.POSE)
+
+
     def update_frame(self):
         for image_pose in chain(self.image_pose_list, self.image_pose_list_bot):
             image_pose.update_image_pose()
+        
+
+    def set_pose(self, img_id):
+        self.state.img_id = img_id
+
+        for ip in chain(self.image_pose_list, self.image_pose_list_bot):
+            ip.clear_mc()
+        
+        if self.state.mode == Mode.CORRECTION:
+            for ip in chain(self.image_pose_list, self.image_pose_list_bot):
+                pt = self.state.db.read(ip.cam.cam_id, self.state.img_id)
+                modified_joints = self.state.db.read_modified_joints(
+                    ip.cam.cam_id, self.state.img_id
+                )
+                if pt is None:
+                    pt = ip.cam.points2d[self.state.img_id, :]
+                else:
+                    pt *= config["image_shape"]
+
+                manual_correction = dict()
+                for joint_id in modified_joints:
+                    manual_correction[joint_id] = pt[joint_id]
+                
+                ip.dynamic_pose = DynamicPose(
+                    pt,
+                    ip.state.img_id,
+                    joint_id=None,
+                    manual_correction=manual_correction,
+                )
+
+            if self.core.camNetLeft.has_calibration():
+                self.solve_bp()
+
+            if self.core.camNetRight.has_calibration():
+                self.solve_bp()
+
+        self.update_frame()
+        self.textbox_img_id.setText(str(self.state.img_id))
+
+
+    # ------------------------------------------------------------------
+
+
+    def already_corrected(self, view, img_id):
+        if view == View.Left:
+            return (
+                self.state.db.has_key(0, img_id)
+                or self.state.db.has_key(1, img_id)
+                or self.state.db.has_key(2, img_id)
+            )
+        elif view == View.Right:
+            return (
+                self.state.db.has_key(4, img_id)
+                or self.state.db.has_key(5, img_id)
+                or self.state.db.has_key(6, img_id)
+            )
+        else:
+            raise NotImplementedError
+
+    
+    def solve_bp(self, save_correction=False):
+        if not (
+            self.state.mode == Mode.CORRECTION
+            and self.state.solve_bp
+            and self.core.camNetLeft.has_calibration()
+            and self.core.camNetLeft.has_pose()
+        ):
+            return
+
+        prior = list()
+        for ip in self.image_pose_list:
+            if ip.dynamic_pose is not None:
+                for (joint_id, pt2d) in ip.dynamic_pose.manual_correction_dict.items():
+                    prior.append(
+                        (ip.cam.cam_id, joint_id, pt2d / config["image_shape"])
+                    )
+        # print("Prior for BP: {}".format(prior))
+        pts_bp = self.core.camNetLeft.solveBP(
+            self.state.img_id, config["bone_param"], prior=prior
+        )
+        pts_bp = np.array(pts_bp)
+
+        # set points which are not estimated by bp
+        for idx, image_pose in enumerate(self.image_pose_list):
+            pts_bp_ip = pts_bp[idx] * config["image_shape"]
+            pts_bp_rep = self.state.db.read(image_pose.cam.cam_id, self.state.img_id)
+            if pts_bp_rep is None:
+                pts_bp_rep = image_pose.cam.points2d[self.state.img_id, :]
+            else:
+                pts_bp_rep *= config["image_shape"]
+            pts_bp_ip[pts_bp_ip == 0] = pts_bp_rep[pts_bp_ip == 0]
+
+            # keep track of the manually corrected points
+            mcd = (
+                image_pose.dynamic_pose.manual_correction_dict
+                if image_pose.dynamic_pose is not None
+                else None
+            )
+            image_pose.dynamic_pose = DynamicPose(
+                pts_bp_ip, image_pose.state.img_id, joint_id=None, manual_correction=mcd
+            )
+        self.update_frame()
+
+        # save down corrections as training if any priors were given
+        if prior and save_correction:
+            print("Saving with prior")
+            for ip in self.image_pose_list:
+                ip.save_correction()
+
+        print("Finished Belief Propagation")
+
+
+    def set_heatmap_joint_id(self, joint_id):
+        self.state.hm_joint_id = joint_id
+        self.update_frame()
+
+
+    def read_img_id_from_textbox(self):
+        try:
+            img_id = int(self.textbox_img_id.text().replace("Heatmap: ", ""))
+            self.state.already_corrected = self.already_corrected(
+                self.state.view, img_id
+            )
+            self.set_pose(img_id)
+        except BaseException as e:
+            print("Textbox img id is not integer {}".format(str(e)))
+
+
+    def set_joint_id_tb(self):
+        self.set_heatmap_joint_id(int(self.textbox_joint_id.text()))
+
+
 
 
 class DynamicPose:
