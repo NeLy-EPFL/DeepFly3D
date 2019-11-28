@@ -5,8 +5,8 @@ import re
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import QImage, QPixmap, QPainter
-from PyQt5.QtWidgets import QWidget, QApplication, QFileDialog, QHBoxLayout, QVBoxLayout, \
-                            QCheckBox, QPushButton, QLineEdit, QComboBox, QInputDialog, QMessageBox
+from PyQt5.QtWidgets import (QWidget, QApplication, QFileDialog, QHBoxLayout, QVBoxLayout, 
+                            QCheckBox, QPushButton, QLineEdit, QComboBox, QInputDialog, QMessageBox)
 from sklearn.neighbors import NearestNeighbors
 
 from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
@@ -257,9 +257,7 @@ class DrosophAnnot(QWidget):
 
 
     def onclick_save_pose(self):
-        pts2d = np.zeros(
-            (7, self.core.num_images, config["num_joints"], 2), dtype=float
-        )
+        pts2d = np.zeros((7, self.core.num_images, config["num_joints"], 2), dtype=float)
         # pts3d = np.zeros((self.cfg.num_images, self.cfg.num_joints, 3), dtype=float)
 
         for cam in self.core.camNetAll:
@@ -366,7 +364,7 @@ class DrosophAnnot(QWidget):
         if event.key == Qt.Key_R:
             self.set_view(View.Right)
 
-
+        
     # ------------------------------------------------------------------
     # prompt callbacks
 
@@ -439,9 +437,7 @@ class DrosophAnnot(QWidget):
         if self.state.mode == Mode.CORRECTION:
             for ip in chain(self.image_pose_list, self.image_pose_list_bot):
                 pt = self.state.db.read(ip.cam.cam_id, self.state.img_id)
-                modified_joints = self.state.db.read_modified_joints(
-                    ip.cam.cam_id, self.state.img_id
-                )
+                modified_joints = self.state.db.read_modified_joints(ip.cam.cam_id, self.state.img_id)
                 if pt is None:
                     pt = ip.cam.points2d[self.state.img_id, :]
                 else:
@@ -497,38 +493,34 @@ class DrosophAnnot(QWidget):
         ):
             return
 
+        manual_corrections = lambda ip: ip.dynamic_pose.manual_correction_dict if ip.dynamic_pose else {}
+
+        # --------------
+        # Compute prior
         prior = list()
         for ip in self.image_pose_list:
-            if ip.dynamic_pose is not None:
-                for (joint_id, pt2d) in ip.dynamic_pose.manual_correction_dict.items():
-                    prior.append(
-                        (ip.cam.cam_id, joint_id, pt2d / config["image_shape"])
-                    )
-        # print("Prior for BP: {}".format(prior))
-        pts_bp = self.core.camNetLeft.solveBP(
-            self.state.img_id, config["bone_param"], prior=prior
-        )
+            for (joint_id, pt2d) in manual_corrections(ip).items():
+                prior.append((ip.cam.cam_id, joint_id, pt2d / config["image_shape"]))
+    
+        pts_bp = self.core.camNetLeft.solveBP(self.state.img_id, config["bone_param"], prior=prior)
         pts_bp = np.array(pts_bp)
 
+        # --------------
         # set points which are not estimated by bp
-        for idx, image_pose in enumerate(self.image_pose_list):
-            pts_bp_ip = pts_bp[idx] * config["image_shape"]
-            pts_bp_rep = self.state.db.read(image_pose.cam.cam_id, self.state.img_id)
+        for idx, ip in enumerate(self.image_pose_list):
+            
+            pts_bp_rep = self.state.db.read(ip.cam.cam_id, self.state.img_id)
             if pts_bp_rep is None:
-                pts_bp_rep = image_pose.cam.points2d[self.state.img_id, :]
+                pts_bp_rep = ip.cam.points2d[self.state.img_id, :]
             else:
                 pts_bp_rep *= config["image_shape"]
+            
+            pts_bp_ip = pts_bp[idx] * config["image_shape"]
             pts_bp_ip[pts_bp_ip == 0] = pts_bp_rep[pts_bp_ip == 0]
 
             # keep track of the manually corrected points
-            mcd = (
-                image_pose.dynamic_pose.manual_correction_dict
-                if image_pose.dynamic_pose is not None
-                else None
-            )
-            image_pose.dynamic_pose = DynamicPose(
-                pts_bp_ip, image_pose.state.img_id, joint_id=None, manual_correction=mcd
-            )
+            mc = manual_corrections(ip)
+            ip.dynamic_pose = DynamicPose(pts_bp_ip, ip.state.img_id, joint_id=None, manual_correction=mc)
         self.update_frame()
 
         # save down corrections as training if any priors were given
@@ -558,8 +550,6 @@ class DrosophAnnot(QWidget):
 
     def set_joint_id_tb(self):
         self.set_heatmap_joint_id(int(self.textbox_joint_id.text()))
-
-
 
 
 class DynamicPose:
@@ -606,6 +596,7 @@ class ImagePose(QWidget):
         
         if self.state.mode == Mode.IMAGE:
             im = self.cam.get_image(self.state.img_id)
+            #
         elif self.state.mode == Mode.HEATMAP:
             draw_joints = (
                 [self.state.hm_joint_id]
@@ -619,10 +610,12 @@ class ImagePose(QWidget):
             im = self.cam.plot_heatmap(
                 img_id=self.state.img_id, concat=False, scale=2, draw_joints=draw_joints
             )
+            #
         elif self.state.mode == Mode.POSE:
             im = self.cam.plot_2d(
                 img_id=self.state.img_id, draw_joints=draw_joints, zorder=zorder
             )
+            #
         elif self.state.mode == Mode.CORRECTION:
             circle_color = (0, 255, 0) if corrected_this_camera else (0, 0, 255)
 
@@ -644,6 +637,7 @@ class ImagePose(QWidget):
                 zorder=zorder,
                 r_list=r_list,
             )
+            #
         im = im.astype(np.uint8)
         height, width, channel = im.shape
 
@@ -698,39 +692,28 @@ class ImagePose(QWidget):
         return False
 
 
+    def find_nearest_joint(self, x, y):
+        joints = range(config["skeleton"].num_joints)
+        visible = lambda j_id: config["skeleton"].camera_see_joint(self.cam.cam_id, j_id)
+        unvisible_joints = [j_id for j_id in joints if not visible(j_id)]
+        
+        pts = self.dynamic_pose.points2d.copy()
+        pts[unvisible_joints] = [9999, 9999]
+
+        nbrs = NearestNeighbors(n_neighbors=1, algorithm="ball_tree").fit(pts)
+        _, indices = nbrs.kneighbors(np.array([[x, y]]))
+        return indices[0][0]
+        
+        
     def mouseMoveEvent(self, e):
         if self.state.mode == Mode.CORRECTION:
-            x = int(
-                e.x()
-                * np.array(config["image_shape"][0])
-                / self.frameGeometry().width()
-            )
-            y = int(
-                e.y()
-                * np.array(config["image_shape"][1])
-                / self.frameGeometry().height()
-            )
-            if (
-                self.dynamic_pose.joint_id is None
-            ):  # find the joint to be dragged with nearest neighbor
-                pts = self.dynamic_pose.points2d.copy()
-
-                # make sure we don't select points we cannot see
-                pts[
-                    [
-                        j_id
-                        for j_id in range(config["skeleton"].num_joints)
-                        if not config["skeleton"].camera_see_joint(
-                            self.cam.cam_id, j_id
-                        )
-                    ]
-                ] = [9999, 9999]
-
-                nbrs = NearestNeighbors(n_neighbors=1, algorithm="ball_tree").fit(pts)
-
-                _, indices = nbrs.kneighbors(np.array([[x, y]]))
-                self.dynamic_pose.joint_id = indices[0][0]
+            x = int(e.x() * np.array(config["image_shape"][0]) / self.frameGeometry().width())
+            y = int(e.y() * np.array(config["image_shape"][1]) / self.frameGeometry().height())
+            
+            if self.dynamic_pose.joint_id is None:
+                self.dynamic_pose.joint_id = self.find_nearest_joint(x, y)        
                 print("Selecting the joint: {}".format(self.dynamic_pose.joint_id))
+
             self.dynamic_pose.set_joint(self.dynamic_pose.joint_id, np.array([x, y]))
             self.update_image_pose()
 
@@ -755,7 +738,6 @@ class ImagePose(QWidget):
     def paintEvent(self, paint_event):
         painter = QPainter(self)
         painter.drawPixmap(self.rect(), self.im)
-
         self.update()
 
 
