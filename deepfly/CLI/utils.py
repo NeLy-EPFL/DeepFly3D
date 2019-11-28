@@ -10,17 +10,17 @@ def find_subfolders(path, name):
     Which is a performance improvement when target subfolders contain hundreds on thousands of images.
     """
     found = []
-    openlist = deque()
+    to_visit = deque()
     visited = set()
     
-    openlist.append(Path(path))
-    while openlist:
-        current = openlist.popleft()
+    to_visit.append(Path(path))
+    while to_visit:
+        current = to_visit.popleft()
         if current.is_dir() and current not in visited:
             visited.add(current)
             if current.name == name:
                 found.append(str(current))
             else:
                 for child in current.iterdir():
-                    openlist.append(child)
+                    to_visit.append(child)
     return found

@@ -141,7 +141,7 @@ def run_from_file(args):
 
     bad = [f for f in folders if not f.is_dir()]
     for f in bad:
-        getLogger('df3d').error(f'[Error] Not a directory or does not exist: {str(folder)}')
+        getLogger('df3d').error(f'[Error] Not a directory or does not exist: {str(f)}')
     if bad:
         return 1
 
