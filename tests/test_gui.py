@@ -2,6 +2,8 @@ import os.path
 from pathlib import Path
 from itertools import product
 import random
+import shutil
+import filecmp
 
 import numpy as np
 from PyQt5 import QtCore
@@ -16,6 +18,16 @@ INPUT_DIRECTORY2 = Path(__file__).parent / '../data/test-with-error'
 DIR2_ERROR_IMG1 = 2
 DIR2_ERROR_IMG2 = 3
 NB_IMGS_IN_INPUT_DIR2 = 6
+
+
+def reset_input_directory():
+    output_dir = INPUT_DIRECTORY / 'df3d'
+    reference_dir = INPUT_DIRECTORY / 'df3d.sav'
+    assert reference_dir.exists(), 'folder /df3d.sav/ does not exist'
+    shutil.rmtree(output_dir)
+    shutil.copytree(reference_dir, output_dir)
+    assert output_dir.is_dir(), f'{output_dir} not created'
+
 
 def test_input_directory_exists():
     assert INPUT_DIRECTORY.is_dir()
@@ -262,4 +274,34 @@ def test_belief_propagation(qtbot):
     #
     qtbot.mouseClick(window.button_prev, QtCore.Qt.LeftButton)
     assert window.state.img_id == DIR2_ERROR_IMG2
+
+
+def test_manual_corrections(qtbot):
+    window = DrosophAnnot()
+    qtbot.addWidget(window)
+    window.setup(INPUT_DIRECTORY)
+    canvas = window.image_pose_list[1]
+    #
+    reset_input_directory()
+    #
+    qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
+    qtbot.mouseClick(window.button_correction_mode, QtCore.Qt.LeftButton)
+    assert window.state.mode == window.state.mode.CORRECTION
+    #
+    for y in range(298, 60, -1):
+        qtbot.mouseMove(canvas, pos=QtCore.QPoint(200, y))
+    qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton)
+    qtbot.mouseClick(window.button_pose_save, QtCore.Qt.LeftButton)    
+    #
+    output = (INPUT_DIRECTORY / 'df3d').absolute()
+    expected = (INPUT_DIRECTORY / 'df3d.mc.expected').absolute()
+    assert output.is_dir(), "output directory not found"
+    assert expected.is_dir(), "directory for comparison not found"
+    files = [p.relative_to(expected) for p in expected.iterdir()]
+    match, mismatch, errors = filecmp.cmpfiles(output, expected, files)
+    assert len(mismatch) == 0, f"Mismatching output files: {mismatch}"
+    assert len(errors) == 0, f"Expected files not found: {errors}"
+    #
+    reset_input_directory()
+
     

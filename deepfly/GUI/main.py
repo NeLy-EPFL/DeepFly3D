@@ -3,6 +3,7 @@ import sys
 from itertools import chain
 import re
 
+from PyQt5.QtCore import Qt
 from PyQt5.QtCore import *
 from PyQt5.QtGui import QImage, QPixmap, QPainter
 from PyQt5.QtWidgets import (QWidget, QApplication, QFileDialog, QHBoxLayout, QVBoxLayout, 
@@ -678,6 +679,7 @@ class ImagePose(QWidget):
         
 
     def mouseMoveEvent(self, e):
+        print('MouseMove', e.pos())
         if self.state.mode == Mode.CORRECTION:
             x = int(e.x() * np.array(config["image_shape"][0]) / self.frameGeometry().width())
             y = int(e.y() * np.array(config["image_shape"][1]) / self.frameGeometry().height())
@@ -690,7 +692,7 @@ class ImagePose(QWidget):
             self.update_image_pose()
 
 
-    def mouseReleaseEvent(self, e):
+    def mouseReleaseEvent(self, _):
         if self.state.mode == Mode.CORRECTION:
             self.dynamic_pose.joint_id = None  # make sure we forget the tracked joint
             self.update_image_pose()
