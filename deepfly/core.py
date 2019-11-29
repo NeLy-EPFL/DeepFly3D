@@ -208,10 +208,12 @@ class Core:
 
     def save_pose(self, manual_corrections):
         pts2d = np.zeros((7, self.num_images, config["num_joints"], 2), dtype=float)
-        # pts3d = np.zeros((self.cfg.num_images, self.cfg.num_joints, 3), dtype=float)
 
         for cam in self.camNetAll:
             pts2d[cam.cam_id, :] = cam.points2d.copy()
+
+        # take a copy of unmodified points2d
+        pts2d_orig = pts2d.copy()
 
         # overwrite by manual correction
         count = 0
@@ -234,13 +236,6 @@ class Core:
 
         dict_merge = self.camNetAll.save_network(path=None)
         dict_merge["points2d"] = pts2d
-
-        # take a copy of the current points2d
-        pts2d_orig = np.zeros(
-            (7, self.num_images, config["num_joints"], 2), dtype=float
-        )
-        for cam_id in range(config["num_cameras"]):
-            pts2d_orig[cam_id, :] = self.camNetAll[cam_id].points2d.copy()
 
         # ugly hack to temporarly incorporate manual corrections
         c = 0
@@ -268,21 +263,6 @@ class Core:
         for cam_id in range(config["num_cameras"]):
             self.camNetAll[cam_id].points2d = pts2d_orig[cam_id, :].copy()
 
-        pickle.dump(
-            dict_merge,
-            open(
-                os.path.join(
-                    self.output_folder,
-                    "pose_result_{}.pkl".format(self.input_folder.replace("/", "_")),
-                ),
-                "wb",
-            ),
-        )
-        print(
-            "Saved the pose at: {}".format(
-                os.path.join(
-                    self.output_folder,
-                    "pose_result_{}.pkl".format(self.input_folder.replace("/", "_")),
-                )
-            )
-        )
+        save_path = os.path.join(self.output_folder,"pose_result_{}.pkl".format(self.input_folder.replace("/", "_")))
+        pickle.dump(dict_merge, open(save_path,"wb"))
+        print(f"Saved the pose at: {save_path}")
