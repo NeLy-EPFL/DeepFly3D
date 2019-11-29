@@ -9,7 +9,6 @@ from PyQt5.QtWidgets import (QWidget, QApplication, QFileDialog, QHBoxLayout, QV
                             QCheckBox, QPushButton, QLineEdit, QComboBox, QInputDialog, QMessageBox)
 from sklearn.neighbors import NearestNeighbors
 
-from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
 from .CameraNetwork import CameraNetwork
 from .State import State, Mode
 from .util.os_util import *
@@ -256,85 +255,7 @@ class DrosophAnnot(QWidget):
 
 
     def onclick_save_pose(self):
-        pts2d = np.zeros((7, self.core.num_images, config["num_joints"], 2), dtype=float)
-        # pts3d = np.zeros((self.cfg.num_images, self.cfg.num_joints, 3), dtype=float)
-
-        for cam in self.core.camNetAll:
-            pts2d[cam.cam_id, :] = cam.points2d.copy()
-
-        # overwrite by manual correction
-        count = 0
-        for cam_id in range(config["num_cameras"]):
-            for img_id in range(self.core.num_images):
-                if self.state.db.has_key(cam_id, img_id):
-                    pt = self.state.db.read(cam_id, img_id) * config["image_shape"]
-                    pts2d[cam_id, img_id, :] = pt
-                    count += 1
-
-        if "fly" in config["name"]:
-            # some post-processing for body-coxa
-            for cam_id in range(len(self.core.camNetAll.cam_list)):
-                for j in range(config["skeleton"].num_joints):
-                    if config["skeleton"].camera_see_joint(cam_id, j) and config[
-                        "skeleton"
-                    ].is_tracked_point(j, config["skeleton"].Tracked.BODY_COXA):
-                        pts2d[cam_id, :, j, 0] = np.median(pts2d[cam_id, :, j, 0])
-                        pts2d[cam_id, :, j, 1] = np.median(pts2d[cam_id, :, j, 1])
-
-        dict_merge = self.core.camNetAll.save_network(path=None)
-        dict_merge["points2d"] = pts2d
-
-        # take a copy of the current points2d
-        pts2d_orig = np.zeros(
-            (7, self.core.num_images, config["num_joints"], 2), dtype=float
-        )
-        for cam_id in range(config["num_cameras"]):
-            pts2d_orig[cam_id, :] = self.core.camNetAll[cam_id].points2d.copy()
-
-        # ugly hack to temporarly incorporate manual corrections
-        c = 0
-        for cam_id in range(config["num_cameras"]):
-            for img_id in range(self.core.num_images):
-                if self.state.db.has_key(cam_id, img_id):
-                    pt = self.state.db.read(cam_id, img_id) * config["image_shape"]
-                    self.core.camNetAll[cam_id].points2d[img_id, :] = pt
-                    c += 1
-        print("Replaced points2d with {} manual correction".format(count))
-
-        # do the triangulation if we have the calibration
-        if self.core.camNetLeft.has_calibration() and self.core.camNetLeft.has_pose():
-            self.core.camNetAll.triangulate()
-            pts3d = self.core.camNetAll.points3d_m
-
-            dict_merge["points3d"] = pts3d
-            
-        # apply procrustes
-        if config["procrustes_apply"]:
-            print("Applying Procrustes on 3D Points")
-            dict_merge["points3d"] = procrustes_seperate(dict_merge["points3d"])
-
-        # put old values back
-        for cam_id in range(config["num_cameras"]):
-            self.core.camNetAll[cam_id].points2d = pts2d_orig[cam_id, :].copy()
-
-        pickle.dump(
-            dict_merge,
-            open(
-                os.path.join(
-                    self.core.output_folder,
-                    "pose_result_{}.pkl".format(self.core.input_folder.replace("/", "_")),
-                ),
-                "wb",
-            ),
-        )
-        print(
-            "Saved the pose at: {}".format(
-                os.path.join(
-                    self.core.output_folder,
-                    "pose_result_{}.pkl".format(self.core.input_folder.replace("/", "_")),
-                )
-            )
-        )
+        self.core.save_pose(self.state.db.manual_corrections())
 
 
     def keyPressEvent(self, event):
@@ -439,7 +360,7 @@ class DrosophAnnot(QWidget):
                 
                 ip.update_manual_corrections(
                     pt,
-                    ip.state.img_id,
+                    self.state.img_id,
                     joint_id=None,
                     manual_correction=manual_correction,
                 )
@@ -486,7 +407,7 @@ class DrosophAnnot(QWidget):
             pts_bp_ip[pts_bp_ip == 0] = pts_bp_rep[pts_bp_ip == 0]
 
             # keep track of the manually corrected points
-            ip.update_manual_corrections(pts_bp_ip, ip.state.img_id, None, ip.manual_corrections())
+            ip.update_manual_corrections(pts_bp_ip, self.state.img_id, None, ip.manual_corrections())
         self.update_frame()
 
         # save down corrections as training if any priors were given

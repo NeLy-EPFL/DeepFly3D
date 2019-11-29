@@ -21,9 +21,9 @@ class DynamicPose:
 
 
 class ImagePose(QWidget):
-    def __init__(self, config, core, cam, f_solve_bp):
+    def __init__(self, state, core, cam, f_solve_bp):
         QWidget.__init__(self)
-        self.state = config
+        self.state = state
         self.core = core
         self.cam = cam
         self._dynamic_pose = None

@@ -9,6 +9,8 @@ from deepfly.GUI.util.os_util import write_camera_order, read_camera_order, read
 from deepfly.GUI.util.optim_util import energy_drosoph
 from deepfly.pose2d import ArgParse
 from deepfly.pose2d.drosophila import main as pose2d_main
+from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
+import pickle
 
 
 class Core:
@@ -203,3 +205,84 @@ class Core:
         print("Saving calibration {}".format(calib_path))
         self.camNetAll.save_network(calib_path)
 
+
+    def save_pose(self, manual_corrections):
+        pts2d = np.zeros((7, self.num_images, config["num_joints"], 2), dtype=float)
+        # pts3d = np.zeros((self.cfg.num_images, self.cfg.num_joints, 3), dtype=float)
+
+        for cam in self.camNetAll:
+            pts2d[cam.cam_id, :] = cam.points2d.copy()
+
+        # overwrite by manual correction
+        count = 0
+        for cam_id in range(config["num_cameras"]):
+            for img_id in range(self.num_images):
+                if img_id in manual_corrections.get(cam_id, {}):
+                    pts2d[cam_id, img_id, :] = manual_corrections[cam_id][img_id]
+                    count += 1
+
+
+        if "fly" in config["name"]:
+            # some post-processing for body-coxa
+            for cam_id in range(len(self.camNetAll.cam_list)):
+                for j in range(config["skeleton"].num_joints):
+                    if config["skeleton"].camera_see_joint(cam_id, j) and config[
+                        "skeleton"
+                    ].is_tracked_point(j, config["skeleton"].Tracked.BODY_COXA):
+                        pts2d[cam_id, :, j, 0] = np.median(pts2d[cam_id, :, j, 0])
+                        pts2d[cam_id, :, j, 1] = np.median(pts2d[cam_id, :, j, 1])
+
+        dict_merge = self.camNetAll.save_network(path=None)
+        dict_merge["points2d"] = pts2d
+
+        # take a copy of the current points2d
+        pts2d_orig = np.zeros(
+            (7, self.num_images, config["num_joints"], 2), dtype=float
+        )
+        for cam_id in range(config["num_cameras"]):
+            pts2d_orig[cam_id, :] = self.camNetAll[cam_id].points2d.copy()
+
+        # ugly hack to temporarly incorporate manual corrections
+        c = 0
+        for cam_id in range(config["num_cameras"]):
+            for img_id in range(self.num_images):
+                if img_id in manual_corrections.get(cam_id, {}):
+                    pt = manual_corrections[cam_id][img_id]
+                    self.camNetAll[cam_id].points2d[img_id, :] = pt
+                    c += 1
+        print("Replaced points2d with {} manual correction".format(count))
+
+        # do the triangulation if we have the calibration
+        if self.camNetLeft.has_calibration() and self.camNetLeft.has_pose():
+            self.camNetAll.triangulate()
+            pts3d = self.camNetAll.points3d_m
+
+            dict_merge["points3d"] = pts3d
+            
+        # apply procrustes
+        if config["procrustes_apply"]:
+            print("Applying Procrustes on 3D Points")
+            dict_merge["points3d"] = procrustes_seperate(dict_merge["points3d"])
+
+        # put old values back
+        for cam_id in range(config["num_cameras"]):
+            self.camNetAll[cam_id].points2d = pts2d_orig[cam_id, :].copy()
+
+        pickle.dump(
+            dict_merge,
+            open(
+                os.path.join(
+                    self.output_folder,
+                    "pose_result_{}.pkl".format(self.input_folder.replace("/", "_")),
+                ),
+                "wb",
+            ),
+        )
+        print(
+            "Saved the pose at: {}".format(
+                os.path.join(
+                    self.output_folder,
+                    "pose_result_{}.pkl".format(self.input_folder.replace("/", "_")),
+                )
+            )
+        )

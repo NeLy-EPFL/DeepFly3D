@@ -3,6 +3,7 @@ import os
 import pickle
 
 import numpy as np
+import copy
 
 from .Config import config
 
@@ -69,3 +70,12 @@ class PoseDB:
 
     def has_key(self, cam_id, img_id):
         return img_id in self.db[cam_id]
+
+    def manual_corrections(self):
+        mc = {cam_id: self.db[cam_id] for cam_id in range(config['num_cameras'])}
+        mc = copy.deepcopy(mc)
+        for cam_id in range(config["num_cameras"]):
+            for img_id in mc[cam_id]:
+                mc[cam_id][img_id] = np.array(mc[cam_id][img_id]) * config["image_shape"]
+        return mc
+                    
