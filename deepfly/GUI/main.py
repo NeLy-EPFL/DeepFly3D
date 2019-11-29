@@ -503,7 +503,7 @@ class DrosophAnnot(QWidget):
 
 
     def set_heatmap_joint_id(self, joint_id):
-        self.state.hm_joint_id = joint_id
+        self.state.heatmap_joint_id = joint_id
         self.update_frame()
 
 
@@ -566,8 +566,8 @@ class ImagePose(QWidget):
             #
         elif self.state.mode == Mode.HEATMAP:
             draw_joints = (
-                [self.state.hm_joint_id]
-                if self.state.hm_joint_id != -1
+                [self.state.heatmap_joint_id]
+                if self.state.heatmap_joint_id != -1
                 else [
                     j
                     for j in range(config["skeleton"].num_joints)
