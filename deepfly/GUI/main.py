@@ -12,7 +12,6 @@ from sklearn.neighbors import NearestNeighbors
 from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
 from .CameraNetwork import CameraNetwork
 from .State import State, View, Mode
-from .util.optim_util import energy_drosoph
 from .util.os_util import *
 from deepfly.core import Core
 
@@ -59,7 +58,7 @@ class DrosophAnnot(QWidget):
         self.state = State(self.core.input_folder, num_images_max, self.core.output_folder)
     
         self.setup_layout()
-        self.set_pose(self.state.img_id)
+        self.display_img(self.state.img_id)
         self.set_mode(self.state.mode)
         
 
@@ -397,11 +396,6 @@ class DrosophAnnot(QWidget):
     # ------------------------------------------------------------------
 
 
-    def display_img(self, img_id):
-        self.state.already_corrected = self.already_corrected(self.state.view, img_id)
-        self.set_pose(img_id)
-
-
     def set_mode(self, mode):
         if (   (mode == Mode.POSE       and self.core.camNetLeft.has_pose()     and self.core.camNetRight.has_pose() )
             or (mode == Mode.HEATMAP    and self.core.camNetLeft.has_heatmap())
@@ -413,7 +407,7 @@ class DrosophAnnot(QWidget):
             print("Cannot set mode: {}".format(mode))
         
         if self.state.mode == Mode.CORRECTION:
-            self.set_pose(self.state.img_id)
+            self.display_img(self.state.img_id)
         
         self.update_frame()
 
@@ -428,7 +422,8 @@ class DrosophAnnot(QWidget):
             image_pose.update_image_pose()
         
 
-    def set_pose(self, img_id):
+    def display_img(self, img_id):
+        self.state.already_corrected = self.already_corrected(self.state.view, img_id)
         self.state.img_id = img_id
 
         for ip in chain(self.image_pose_list, self.image_pose_list_bot):
@@ -454,11 +449,7 @@ class DrosophAnnot(QWidget):
                     manual_correction=manual_correction,
                 )
 
-            if self.core.camNetLeft.has_calibration():
-                self.solve_bp()
-
-            if self.core.camNetRight.has_calibration():
-                self.solve_bp()
+            self.solve_bp()
 
         self.update_frame()
         self.textbox_img_id.setText(str(self.state.img_id))
@@ -543,7 +534,7 @@ class DrosophAnnot(QWidget):
             self.state.already_corrected = self.already_corrected(
                 self.state.view, img_id
             )
-            self.set_pose(img_id)
+            self.display_img(img_id)
         except BaseException as e:
             print("Textbox img id is not integer {}".format(str(e)))
 
