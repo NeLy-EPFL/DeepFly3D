@@ -52,7 +52,6 @@ class Core:
         self._output_folder = value 
 
 
-
     def setup_camera_ordering(self):
         default = find_default_camera_ordering(self.input_folder)
         if default is not None:  # np.arrays don't evaluate to bool
@@ -149,8 +148,8 @@ class Core:
 
     def next_error(self, img_id, step=+1):
         joints = [j for j in range(config["skeleton"].num_joints) if j in config["skeleton"].pictorial_joint_list]
-        img_id += step
-        while 0 <= img_id and img_id <= self.max_img_id:
+        last_id = 0 if step < 0 else self.max_img_id
+        for img_id in range(img_id+step, last_id+step, step):
             for joint_id in joints:
                 err_left  = self.get_joint_reprojection_error(img_id, joint_id, self.camNetLeft)
                 err_right = self.get_joint_reprojection_error(img_id, joint_id, self.camNetRight)
@@ -158,8 +157,7 @@ class Core:
                 if err > config["reproj_thr"][joint_id]:
                     print(f"Error found at img={img_id} joint={joint_id} err={err}")
                     return img_id
-            img_id += step
-        return img_id - step
+        return last_id
 
 
     def calibrate_calc(self, drosophAnnot, min_img_id, max_img_id):
