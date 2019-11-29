@@ -11,7 +11,7 @@ from sklearn.neighbors import NearestNeighbors
 
 from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
 from .CameraNetwork import CameraNetwork
-from .State import State, View, Mode
+from .State import State, Mode
 from .util.os_util import *
 from deepfly.core import Core
 
@@ -358,10 +358,6 @@ class DrosophAnnot(QWidget):
             for image_pose in self.image_pose_list:
                 image_pose.save_correction()
             self.update_frame()
-        if event.key() == Qt.Key_L:
-            self.set_view(View.Left)
-        if event.key == Qt.Key_R:
-            self.set_view(View.Right)
 
         
     # ------------------------------------------------------------------
@@ -423,7 +419,7 @@ class DrosophAnnot(QWidget):
         
 
     def display_img(self, img_id):
-        self.state.already_corrected = self.already_corrected(self.state.view, img_id)
+        self.state.already_corrected = self.already_corrected(img_id)
         self.state.img_id = img_id
 
         for ip in chain(self.image_pose_list, self.image_pose_list_bot):
@@ -458,21 +454,8 @@ class DrosophAnnot(QWidget):
     # ------------------------------------------------------------------
 
 
-    def already_corrected(self, view, img_id):
-        if view == View.Left:
-            return (
-                self.state.db.has_key(0, img_id)
-                or self.state.db.has_key(1, img_id)
-                or self.state.db.has_key(2, img_id)
-            )
-        elif view == View.Right:
-            return (
-                self.state.db.has_key(4, img_id)
-                or self.state.db.has_key(5, img_id)
-                or self.state.db.has_key(6, img_id)
-            )
-        else:
-            raise NotImplementedError
+    def already_corrected(self, img_id):
+        return any((self.state.db.has_key(cam_id, img_id) for cam_id in range(7)))
 
     
     def solve_bp(self, save_correction=False):
@@ -531,9 +514,7 @@ class DrosophAnnot(QWidget):
     def read_img_id_from_textbox(self):
         try:
             img_id = int(self.textbox_img_id.text().replace("Heatmap: ", ""))
-            self.state.already_corrected = self.already_corrected(
-                self.state.view, img_id
-            )
+            self.state.already_corrected = self.already_corrected(img_id)
             self.display_img(img_id)
         except BaseException as e:
             print("Textbox img id is not integer {}".format(str(e)))
