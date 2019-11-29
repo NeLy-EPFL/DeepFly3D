@@ -561,7 +561,7 @@ class DynamicPose:
         if manual_correction is None:
             self.manual_correction_dict = dict()
 
-    def set_joint(self, joint_id, pt2d):
+    def move_joint(self, joint_id, pt2d):
         assert pt2d.shape[0] == 2
         self.points2d[joint_id] = pt2d
         self.manual_correction_dict[joint_id] = pt2d
@@ -704,7 +704,7 @@ class ImagePose(QWidget):
         _, indices = nbrs.kneighbors(np.array([[x, y]]))
         return indices[0][0]
         
-        
+
     def mouseMoveEvent(self, e):
         if self.state.mode == Mode.CORRECTION:
             x = int(e.x() * np.array(config["image_shape"][0]) / self.frameGeometry().width())
@@ -714,7 +714,7 @@ class ImagePose(QWidget):
                 self.dynamic_pose.joint_id = self.find_nearest_joint(x, y)        
                 print("Selecting the joint: {}".format(self.dynamic_pose.joint_id))
 
-            self.dynamic_pose.set_joint(self.dynamic_pose.joint_id, np.array([x, y]))
+            self.dynamic_pose.move_joint(self.dynamic_pose.joint_id, np.array([x, y]))
             self.update_image_pose()
 
 
