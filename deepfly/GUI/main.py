@@ -420,7 +420,6 @@ class DrosophAnnot(QWidget):
         
 
     def display_img(self, img_id):
-        self.state.already_corrected = self.already_corrected(img_id)
         self.state.img_id = img_id
 
         for ip in chain(self.image_pose_list, self.image_pose_list_bot):
@@ -455,10 +454,6 @@ class DrosophAnnot(QWidget):
     # ------------------------------------------------------------------
 
 
-    def already_corrected(self, img_id):
-        return any((self.state.db.has_key(cam_id, img_id) for cam_id in range(7)))
-
-    
     def solve_bp(self, save_correction=False):
         if not (
             self.state.mode == Mode.CORRECTION
@@ -515,7 +510,6 @@ class DrosophAnnot(QWidget):
     def read_img_id_from_textbox(self):
         try:
             img_id = int(self.textbox_img_id.text().replace("Heatmap: ", ""))
-            self.state.already_corrected = self.already_corrected(img_id)
             self.display_img(img_id)
         except BaseException as e:
             print("Textbox img id is not integer {}".format(str(e)))

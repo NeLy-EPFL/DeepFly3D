@@ -11,7 +11,6 @@ class State:
         self.db = PoseDB(folder_output)
         self.bone_param = None
         self.solve_bp = True  # Automatic correction
-        self.already_corrected = False
         self.correction_skip = True  # Correction Skip
     
 
