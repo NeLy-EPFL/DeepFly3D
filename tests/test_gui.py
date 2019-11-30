@@ -25,6 +25,7 @@ def reset_input_directory():
     reference_dir = INPUT_DIRECTORY / 'df3d.sav'
     assert reference_dir.exists(), 'folder /df3d.sav/ does not exist'
     shutil.rmtree(output_dir)
+    assert not output_dir.is_dir(), 'output directory not deleted'
     shutil.copytree(reference_dir, output_dir)
     assert output_dir.is_dir(), f'{output_dir} not created'
 

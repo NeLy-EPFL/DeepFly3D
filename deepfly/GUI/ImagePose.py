@@ -7,41 +7,54 @@ from .State import Mode
 from sklearn.neighbors import NearestNeighbors
 
 
-class DynamicPose:
-    def __init__(self, points2d, manual_corrections):
-        self.points2d = points2d
-        self.manual_correction_dict = manual_corrections
-        self.joint_id = None
-
-    def move_joint(self, joint_id, pt2d):
-        assert pt2d.shape[0] == 2
-        self.points2d[joint_id] = pt2d
-        self.manual_correction_dict[joint_id] = pt2d
-
-
 class ImagePose(QWidget):
     def __init__(self, state, core, cam, f_solve_bp):
         QWidget.__init__(self)
         self.state = state
         self.core = core
         self.cam = cam
-        self._dynamic_pose = None
+        self.f_solve_bp = f_solve_bp
+        self.clear_manual_corrections()
         self.update_image_pose()
         self.show()
-
-        self.f_solve_bp = f_solve_bp
-
+        
 
     def manual_corrections(self):
-        return self._dynamic_pose.manual_correction_dict if self._dynamic_pose else {}
+        return self._manual_corrections
 
 
     def update_manual_corrections(self, points2d, manual_corrections):
-        self._dynamic_pose = DynamicPose(points2d, manual_corrections)
+        self._points2d = points2d
+        self._manual_corrections = manual_corrections
 
 
     def clear_manual_corrections(self):
-        self._dynamic_pose = None
+        self._points2d = None
+        self._manual_corrections = {}
+        self._selected_joint = None
+
+
+    def move_joint(self, x, y):
+        if self._selected_joint is None:
+            self._selected_joint = self.find_nearest_joint(x, y)        
+            print("Selecting the joint: {}".format(self._selected_joint))
+            
+        pt2d = np.array([x, y])
+        self._points2d[self._selected_joint] = pt2d
+        self._manual_corrections[self._selected_joint] = pt2d
+
+
+    def find_nearest_joint(self, x, y):
+        joints = range(config["skeleton"].num_joints)
+        visible = lambda j_id: config["skeleton"].camera_see_joint(self.cam.cam_id, j_id)
+        unvisible_joints = [j_id for j_id in joints if not visible(j_id)]
+        
+        pts = self._points2d.copy()
+        pts[unvisible_joints] = [9999, 9999]
+
+        nbrs = NearestNeighbors(n_neighbors=1, algorithm="ball_tree").fit(pts)
+        _, indices = nbrs.kneighbors(np.array([[x, y]]))
+        return indices[0][0]
 
 
     def update_image_pose(self):
@@ -90,7 +103,7 @@ class ImagePose(QWidget):
 
             im = self.cam.plot_2d(
                 img_id=self.state.img_id,
-                pts=self._dynamic_pose.points2d,
+                pts=self._points2d,
                 circle_color=circle_color,
                 draw_joints=draw_joints,
                 zorder=zorder,
@@ -109,7 +122,7 @@ class ImagePose(QWidget):
 
     def save_correction(self, thr=30):
         points2d_prediction = self.cam.get_points2d(self.state.img_id)
-        points2d_correction = self._dynamic_pose.points2d
+        points2d_correction = self._points2d
 
         err = np.abs(points2d_correction - points2d_prediction)
         check_joint_id_list = [
@@ -141,28 +154,13 @@ class ImagePose(QWidget):
                     self.cam.cam_id,
                     self.state.img_id,
                     train=True,
-                    modified_joints=list(
-                        self._dynamic_pose.manual_correction_dict.keys()
-                    ),
+                    modified_joints=list(self._manual_corrections.keys()),
                 )
 
                 return True
 
         return False
 
-
-    def find_nearest_joint(self, x, y):
-        joints = range(config["skeleton"].num_joints)
-        visible = lambda j_id: config["skeleton"].camera_see_joint(self.cam.cam_id, j_id)
-        unvisible_joints = [j_id for j_id in joints if not visible(j_id)]
-        
-        pts = self._dynamic_pose.points2d.copy()
-        pts[unvisible_joints] = [9999, 9999]
-
-        nbrs = NearestNeighbors(n_neighbors=1, algorithm="ball_tree").fit(pts)
-        _, indices = nbrs.kneighbors(np.array([[x, y]]))
-        return indices[0][0]
-        
 
     def mouseMoveEvent(self, e):
         x = int(e.x() * np.array(config["image_shape"][0]) / self.frameGeometry().width())
@@ -172,28 +170,25 @@ class ImagePose(QWidget):
 
     def jointMovedEvent(self, x, y):
         """ This method was extracted because I couldn't use mouseMoveEvent for testing.
-        Outside tests, it should only be called only by mouseMoveEvent."""
+        Outside tests, it should only be called by mouseMoveEvent.
+        """
         if self.state.mode == Mode.CORRECTION:
-            if self._dynamic_pose.joint_id is None:
-                self._dynamic_pose.joint_id = self.find_nearest_joint(x, y)        
-                print("Selecting the joint: {}".format(self._dynamic_pose.joint_id))
-
-            self._dynamic_pose.move_joint(self._dynamic_pose.joint_id, np.array([x, y]))
+            self.move_joint(x, y)
             self.update_image_pose()
 
 
     def mouseReleaseEvent(self, _):
         if self.state.mode == Mode.CORRECTION:
-            self._dynamic_pose.joint_id = None  # make sure we forget the tracked joint
+            self.selected_joint = None  # make sure we forget the tracked joint
             self.update_image_pose()
 
             # solve BP again
             self.state.db.write(
-                self._dynamic_pose.points2d / config["image_shape"],
+                self._points2d / config["image_shape"],
                 self.cam.cam_id,
                 self.state.img_id,
                 train=True,
-                modified_joints=list(self._dynamic_pose.manual_correction_dict.keys()),
+                modified_joints=list(self._manual_corrections.keys()),
             )
             self.f_solve_bp(save_correction=True)
             self.update_image_pose()
