@@ -185,7 +185,7 @@ class DrosophAnnot(QWidget):
             self.update_frame()
         else:
             msgBox = QMessageBox()
-            msgBox.setText("Wrong format, ordering not changed.")
+            msgBox.setText("Ordering not changed (wrong format or canceled).")
             msgBox.exec()
 
 
