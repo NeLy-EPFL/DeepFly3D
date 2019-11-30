@@ -230,7 +230,7 @@ class DrosophAnnot(QWidget):
             and self.core.camNetLeft.has_calibration() 
             and self.core.camNetLeft.has_pose()
             ):
-            self.display_img(self.core.next_error(self.state.img_id, step=-1))
+            self.display_img(self.core.next_error(self.state.img_id, backward=True))
         else:
             self.display_img(max(self.state.img_id - 1, 0))
 
@@ -241,7 +241,7 @@ class DrosophAnnot(QWidget):
             and self.core.camNetLeft.has_calibration() 
             and self.core.camNetLeft.has_pose()
             ):
-            self.display_img(self.core.next_error(self.state.img_id, step=+1))
+            self.display_img(self.core.next_error(self.state.img_id))
         else:
             self.display_img(min(self.core.max_img_id, self.state.img_id + 1))
 

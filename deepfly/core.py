@@ -148,9 +148,10 @@ class Core:
         return err_proj
 
 
-    def next_error(self, img_id, step=+1):
+    def next_error(self, img_id, backward=False):
+        step = -1 if backward else +1
         joints = [j for j in range(config["skeleton"].num_joints) if j in config["skeleton"].pictorial_joint_list]
-        last_id = 0 if step < 0 else self.max_img_id
+        last_id = 0 if backward else self.max_img_id
         for img_id in range(img_id+step, last_id+step, step):
             for joint_id in joints:
                 err_left  = self.get_joint_reprojection_error(img_id, joint_id, self.camNetLeft)
