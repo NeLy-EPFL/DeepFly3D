@@ -37,7 +37,7 @@ class PoseDB:
 
     def read_modified_joints(self, cam_id, img_id):
         if img_id in self.db["modified"][cam_id]:
-            return np.array(self.db["modified"][cam_id][img_id])
+            return self.db["modified"][cam_id][img_id]
         else:
             return []
 
@@ -51,9 +51,19 @@ class PoseDB:
         self.db["train"][cam_id][img_id] = train
         self.db["modified"][cam_id][img_id] = modified_joints
 
-        # too slow?
-        self.dump()
         self.last_write_image_id = img_id
+
+
+    def remove_corrections(self, cam_id, img_id):
+        if img_id in self.db.get(cam_id, {}):
+            del self.db[cam_id][img_id]
+        #
+        if img_id in self.db['train'].get(cam_id, {}):
+            del self.db["train"][cam_id][img_id]
+        #
+        if img_id in self.db['modified'].get(cam_id, {}):
+            del self.db["modified"][cam_id][img_id]
+
 
     def dump(self):
         with open(self.db_path, "wb") as outfile:

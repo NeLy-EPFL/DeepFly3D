@@ -10,6 +10,9 @@ from deepfly.GUI.util.optim_util import energy_drosoph
 from deepfly.pose2d import ArgParse
 from deepfly.pose2d.drosophila import main as pose2d_main
 from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
+from deepfly.GUI.DB import PoseDB
+
+from sklearn.neighbors import NearestNeighbors
 import pickle
 
 
@@ -17,12 +20,11 @@ class Core:
     def __init__(self, input_folder, num_images_max):
         self.input_folder = input_folder
         self.output_folder = os.path.join(self.input_folder, 'df3d/')
-        
         self.num_images_max = num_images_max or math.inf
         max_img_id = get_max_img_id(self.input_folder)
         self.num_images = min(self.num_images_max, max_img_id + 1)
         self.max_img_id = self.num_images - 1
-
+        self.db = PoseDB(self.output_folder)
         self.setup_camera_ordering()
         self.set_cameras()
         
@@ -52,6 +54,14 @@ class Core:
         value = value.rstrip('/')
         assert os.path.isdir(value), f'Not a directory {value}'
         self._output_folder = value 
+
+
+    @property
+    def image_shape(self):
+        return config['image_shape']
+
+
+    # ----------------------------------------------------------------------------------------------------
 
 
     def setup_camera_ordering(self):
@@ -130,9 +140,9 @@ class Core:
         args.num_classes = config["num_predict"]
         args.max_img_id = self.max_img_id
 
-        pose2d_main(args)   # will write output files in output directory
-        self.set_cameras()  # makes sure cameras use the latest heatmaps and predictions
-
+        pose2d_main(args)    # will write output files in output directory
+        self.set_cameras()   # makes sure cameras use the latest heatmaps and predictions
+        
 
     def get_joint_reprojection_error(self, img_id, joint_id, camNet):
         visible_cameras = [
@@ -148,17 +158,20 @@ class Core:
         return err_proj
 
 
+    def joint_has_error(self, img_id, joint_id):
+        err_left  = self.get_joint_reprojection_error(img_id, joint_id, self.camNetLeft)
+        err_right = self.get_joint_reprojection_error(img_id, joint_id, self.camNetRight)
+        err = max(err_left, err_right)
+        return err > config["reproj_thr"][joint_id]
+
+
     def next_error(self, img_id, backward=False):
         step = -1 if backward else +1
         joints = [j for j in range(config["skeleton"].num_joints) if j in config["skeleton"].pictorial_joint_list]
         last_id = 0 if backward else self.max_img_id
         for img_id in range(img_id+step, last_id+step, step):
             for joint_id in joints:
-                err_left  = self.get_joint_reprojection_error(img_id, joint_id, self.camNetLeft)
-                err_right = self.get_joint_reprojection_error(img_id, joint_id, self.camNetRight)
-                err = max(err_left, err_right)
-                if err > config["reproj_thr"][joint_id]:
-                    print(f"Error found at img={img_id} joint={joint_id} err={err}")
+                if self.joint_has_error(img_id, joint_id):
                     return img_id
         return last_id
 
@@ -178,8 +191,8 @@ class Core:
         c = 0
         for cam_id in range(config["num_cameras"]):
             for img_id in range(self.num_images):
-                if drosophAnnot.state.db.has_key(cam_id, img_id):
-                    pt = drosophAnnot.state.db.read(cam_id, img_id) * config["image_shape"]
+                if self.db.has_key(cam_id, img_id):
+                    pt = self.db.read(cam_id, img_id) * config["image_shape"]
                     self.camNetAll[cam_id].points2d[img_id, :] = pt
                     c += 1
         print("Calibration: replaced {} points from manuall correction".format(c))
@@ -207,7 +220,8 @@ class Core:
         self.camNetAll.save_network(calib_path)
 
 
-    def save_pose(self, manual_corrections):
+    def save_pose(self):
+        manual_corrections = self.db.manual_corrections()
         pts2d = np.zeros((7, self.num_images, config["num_joints"], 2), dtype=float)
 
         for cam in self.camNetAll:
@@ -267,3 +281,163 @@ class Core:
         save_path = os.path.join(self.output_folder,"pose_result_{}.pkl".format(self.input_folder.replace("/", "_")))
         pickle.dump(dict_merge, open(save_path,"wb"))
         print(f"Saved the pose at: {save_path}")
+
+
+    # ----------------------------------------------------------------------------------------------------
+
+
+    def has_pose(self):
+        return self.camNetLeft.has_pose() and self.camNetRight.has_pose()
+
+
+    def has_heatmap(self):
+        return self.camNetLeft.has_heatmap() and self.camNetRight.has_heatmap()
+
+
+    def has_calibration(self):
+        return self.camNetLeft.has_calibration() and self.camNetRight.has_calibration()
+
+
+    # ----------------------------------------------------------------------------------------------------
+
+
+    def plot_2d(self, cam_id, img_id, with_corrections=False):
+        cam = self.camNetAll[cam_id]
+        joints = range(config["skeleton"].num_joints)
+        visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
+        visible_joints = [j_id for j_id in joints if visible(j_id)]
+        zorder = config["skeleton"].get_zorder(cam_id)
+        corrected_this_camera = self.db.has_key(cam_id, img_id)
+        
+        if not with_corrections:
+            return cam.plot_2d(img_id, draw_joints=visible_joints, zorder=zorder)
+        
+        circle_color = (0, 255, 0) if corrected_this_camera else (0, 0, 255)
+
+        # calculate the joints with large reprojection error
+        r_list = [config["scatter_r"]] * config["num_joints"]
+        for joint_id in range(config["skeleton"].num_joints):
+            if joint_id not in config["skeleton"].pictorial_joint_list:
+                continue
+            if self.joint_has_error(img_id, joint_id):
+                r_list[joint_id] = config["scatter_r"] * 2
+
+        # compute manual corrections
+        manual_corrections = self.db.manual_corrections()
+        points2d = cam.get_points2d(img_id).copy()
+        if img_id in manual_corrections.get(cam_id, {}):
+            points2d[:] = manual_corrections[cam_id][img_id]
+
+        return cam.plot_2d(img_id, 
+            points2d,
+            circle_color=circle_color, 
+            draw_joints=visible_joints, 
+            zorder=zorder,
+            r_list=r_list,
+        )
+
+
+    def plot_heatmap(self, cam_id, img_id):
+        cam = self.camNetAll[cam_id]
+        joints = range(config["skeleton"].num_joints)
+        visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
+        visible_joints = [j_id for j_id in joints if visible(j_id)]
+        return cam.plot_heatmap(img_id, concat=False, scale=2, draw_joints=visible_joints)
+
+
+    def get_image(self, cam_id, img_id):
+        return self.camNetAll[cam_id].get_image(img_id)
+
+
+    # ----------------------------------------------------------------------------------------------------
+
+
+    def nearest_joint(self, cam_id, img_id, x, y):
+        joints = range(config["skeleton"].num_joints)
+        visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
+        unvisible_joints = [j_id for j_id in joints if not visible(j_id)]
+        
+        pts = self.camNetAll[cam_id].get_points2d(img_id).copy()
+        pts[unvisible_joints] = [9999, 9999]
+
+        nbrs = NearestNeighbors(n_neighbors=1, algorithm="ball_tree").fit(pts)
+        _, indices = nbrs.kneighbors(np.array([[x, y]]))
+        return indices[0][0]
+
+
+    def move_joint(self, cam_id, img_id, joint_id, x, y):
+        if self.db.has_key(cam_id, img_id):
+            points = self.db.read(cam_id, img_id) * self.image_shape
+        else:
+            points = self.camNetAll[cam_id].get_points2d(img_id).copy()
+        
+        modified_joints = self.db.read_modified_joints(cam_id, img_id)
+        modified_joints = list(sorted(set(modified_joints + [joint_id])))
+
+        points[joint_id] = np.array([x, y])
+        self.write_corrections(cam_id, img_id, modified_joints, points)
+
+
+    def solve_bp(self, img_id):
+        if not (self.has_calibration() and self.has_pose()):
+            return
+        self.solve_bp_for_camnet(img_id, self.camNetLeft)
+        self.solve_bp_for_camnet(img_id, self.camNetRight)
+        
+
+    def solve_bp_for_camnet(self, img_id, camNet):
+        # Compute prior
+        prior = []
+        manual_corrections = self.db.manual_corrections()
+        for cam in camNet:
+            if cam.cam_id in manual_corrections and img_id in manual_corrections[cam.cam_id]:
+                for joint_id in range(manual_corrections[cam.cam_id][img_id].shape[0]):
+                    pt2d = manual_corrections[cam.cam_id][img_id][joint_id]
+                    prior.append((cam.cam_id, joint_id, pt2d / config["image_shape"]))
+        
+        # solve BP
+        pts_bp = camNet.solveBP(img_id, config["bone_param"], prior=prior)
+        pts_bp = np.array(pts_bp)
+
+        for idx, cam in enumerate(camNet):
+            # set points which are not estimated by bp
+            pts_bp_rep = self.db.read(cam.cam_id, img_id)
+            if pts_bp_rep is not None:
+                pts_bp_rep *= self.image_shape
+            else:
+                pts_bp_rep = cam.points2d[img_id, :]
+            
+            pts_bp_ip = pts_bp[idx] * self.image_shape
+            pts_bp_ip[pts_bp_ip == 0] = pts_bp_rep[pts_bp_ip == 0]
+
+            # save corrections
+            modified_joints = self.db.read_modified_joints(cam.cam_id, img_id)
+            self.write_corrections(cam.cam_id, img_id, modified_joints, pts_bp_ip)
+        
+        print("Finished Belief Propagation")
+
+
+    def write_corrections(self, cam_id, img_id, modified_joints, corrected_points2d):
+        l1_threshold = 30
+        original_points2d = self.camNetAll[cam_id].get_points2d(img_id)
+        l1_error = np.abs(original_points2d - corrected_points2d)
+        joints_to_check = [j
+            for j in range(config["num_joints"])
+            if (j not in config["skeleton"].ignore_joint_id)
+            and config["skeleton"].camera_see_joint(cam_id, j)
+        ]
+        unseen_joints = [j
+            for j in range(config["skeleton"].num_joints)
+            if not config["skeleton"].camera_see_joint(cam_id, j)
+        ]
+        if np.any(l1_error[joints_to_check] > l1_threshold):
+            points2d = corrected_points2d.copy()
+            points2d[unseen_joints, :] = 0.0
+            self.db.write(points2d / self.image_shape, cam_id, img_id, True, modified_joints)
+        else:
+            # the corrections are too similar to original predicted points, erase previous corrections
+            self.db.remove_corrections(cam_id, img_id)
+
+
+    def save_corrections(self):
+        self.db.dump()

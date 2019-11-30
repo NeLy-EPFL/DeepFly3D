@@ -8,8 +8,6 @@ class State:
         self.mode = Mode.IMAGE
         self.img_id = 0
         self.heatmap_joint_id = -1  # -1 corresponds to all joints
-        self.db = PoseDB(folder_output)
-        self.solve_bp = True  # Automatic correction
         self.correction_skip = True  # Correction Skip
     
 

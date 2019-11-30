@@ -292,7 +292,7 @@ def test_manual_corrections(qtbot):
     x, y = 312, 146
     qtbot.mousePress(canvas, QtCore.Qt.LeftButton, pos=QtCore.QPoint(x, y))
     for y in range(y, 55, -1):
-        canvas.jointMovedEvent(x, y)
+        canvas.move_joint(x, y)
     #
     qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton)
     qtbot.mouseClick(window.button_pose_save, QtCore.Qt.LeftButton)    

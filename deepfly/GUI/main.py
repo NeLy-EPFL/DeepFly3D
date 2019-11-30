@@ -8,11 +8,12 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import (QWidget, QApplication, QFileDialog, QHBoxLayout, QVBoxLayout, 
                             QCheckBox, QPushButton, QLineEdit, QComboBox, QInputDialog, QMessageBox)
 
-from .CameraNetwork import CameraNetwork
 from .State import State, Mode
-from .util.os_util import *
+#from .util.os_util import *
+from .Config import config
 from deepfly.core import Core
-from .ImagePose import ImagePose
+from .ImageView import ImageView
+
 
 def main():
     app = QApplication([])
@@ -56,15 +57,14 @@ class DrosophAnnot(QWidget):
         self.state = State(self.core.input_folder, num_images_max, self.core.output_folder)
     
         self.setup_layout()
-        self.display_img(self.state.img_id)
         self.set_mode(self.state.mode)
         
 
     def setup_layout(self):
         # Create checkboxes
         self.checkbox_solve_bp = QCheckBox("Correction", self)
+        self.checkbox_solve_bp.setChecked(True)
         self.checkbox_solve_bp.stateChanged.connect(self.onclick_checkbox_automatic)
-        self.checkbox_solve_bp.setChecked(self.state.solve_bp)
         self.checkbox_correction_skip = QCheckBox("Skip", self)
         self.checkbox_correction_skip.setChecked(self.state.correction_skip)
         self.checkbox_correction_skip.stateChanged.connect(self.onclick_checkbox_correction)
@@ -99,18 +99,8 @@ class DrosophAnnot(QWidget):
         self.combo_joint_id.activated[str].connect(self.onactivate_combo)
         self.combo_joint_id.setFixedWidth(100)
         
-        # Create images
-        self.image_pose_list = [
-            ImagePose(self.state, self.core, self.core.camNetLeft[0], self.solve_bp),
-            ImagePose(self.state, self.core, self.core.camNetLeft[1], self.solve_bp),
-            ImagePose(self.state, self.core, self.core.camNetLeft[2], self.solve_bp),
-        ]
-        #
-        self.image_pose_list_bot = [
-            ImagePose(self.state, self.core, self.core.camNetRight[0], self.solve_bp),
-            ImagePose(self.state, self.core, self.core.camNetRight[1], self.solve_bp),
-            ImagePose(self.state, self.core, self.core.camNetRight[2], self.solve_bp),
-        ]
+        self.image_pose_list     = [ImageView(self.core, i) for i in [0, 1, 2]]
+        self.image_pose_list_bot = [ImageView(self.core, i) for i in [4, 5, 6]]
 
         # Layouts
         layout_h_images = QHBoxLayout()
@@ -189,8 +179,7 @@ class DrosophAnnot(QWidget):
 
 
     def onclick_checkbox_automatic(self, state):
-        self.state.solve_bp = (state == Qt.Checked)
-        self.solve_bp()
+        self.update_frame()
 
 
     def onclick_checkbox_correction(self, state):
@@ -200,11 +189,6 @@ class DrosophAnnot(QWidget):
     def onclick_pose2d_estimation(self):
         self.core.pose2d_estimation()
         self.set_mode(Mode.POSE)
-
-        for ip in chain(self.image_pose_list, self.image_pose_list_bot):
-            ip.cam = self.core.camNetAll[ip.cam.cam_id]
-
-        self.update_frame()
 
 
     def onactivate_combo(self, text):
@@ -225,10 +209,10 @@ class DrosophAnnot(QWidget):
 
     def onclick_prev_image(self):
         if (self.state.mode == Mode.CORRECTION 
-            and self.state.correction_skip 
-            and self.core.camNetLeft.has_calibration() 
-            and self.core.camNetLeft.has_pose()
-            ):
+        and self.state.correction_skip 
+        and self.core.has_calibration() 
+        and self.core.has_pose()
+        ):
             self.display_img(self.core.next_error(self.state.img_id, backward=True))
         else:
             self.display_img(max(self.state.img_id - 1, 0))
@@ -236,10 +220,10 @@ class DrosophAnnot(QWidget):
 
     def onclick_next_image(self):
         if (self.state.mode == Mode.CORRECTION 
-            and self.state.correction_skip 
-            and self.core.camNetLeft.has_calibration() 
-            and self.core.camNetLeft.has_pose()
-            ):
+        and self.state.correction_skip 
+        and self.core.has_calibration() 
+        and self.core.has_pose()
+        ):
             self.display_img(self.core.next_error(self.state.img_id))
         else:
             self.display_img(min(self.core.max_img_id, self.state.img_id + 1))
@@ -254,7 +238,8 @@ class DrosophAnnot(QWidget):
 
 
     def onclick_save_pose(self):
-        self.core.save_pose(self.state.db.manual_corrections())
+        self.core.save_pose()
+        self.core.save_corrections()
 
 
     def keyPressEvent(self, event):
@@ -313,107 +298,40 @@ class DrosophAnnot(QWidget):
 
 
     def set_mode(self, mode):
-        if (   (mode == Mode.POSE       and self.core.camNetLeft.has_pose()     and self.core.camNetRight.has_pose() )
-            or (mode == Mode.HEATMAP    and self.core.camNetLeft.has_heatmap())
-            or  mode == Mode.IMAGE
-            or (mode == Mode.CORRECTION and self.core.camNetLeft.has_pose())
+        if (mode == Mode.IMAGE
+        or (mode == Mode.POSE       and self.core.has_pose())
+        or (mode == Mode.HEATMAP    and self.core.has_heatmap())
+        or (mode == Mode.CORRECTION and self.core.has_pose())
         ):
             self.state.mode = mode
         else:
             print("Cannot set mode: {}".format(mode))
         
-        if self.state.mode == Mode.CORRECTION:
-            self.display_img(self.state.img_id)
-        
-        self.update_frame()
-
         self.button_correction_mode.setChecked(self.state.mode == Mode.CORRECTION)
         self.button_heatmap_mode.setChecked(self.state.mode == Mode.HEATMAP)
         self.button_image_mode.setChecked(self.state.mode == Mode.IMAGE)
         self.button_pose_mode.setChecked(self.state.mode == Mode.POSE)
-
+        self.update_frame()
+      
 
     def update_frame(self):
-        for image_pose in chain(self.image_pose_list, self.image_pose_list_bot):
-            image_pose.update_image_pose()
+        self.display_img(self.state.img_id)
         
 
     def display_img(self, img_id):
         self.state.img_id = img_id
-
-        for ip in chain(self.image_pose_list, self.image_pose_list_bot):
-            ip.clear_manual_corrections()
-        
-        if self.state.mode == Mode.CORRECTION:
-            for ip in chain(self.image_pose_list, self.image_pose_list_bot):
-                pt = self.state.db.read(ip.cam.cam_id, self.state.img_id)
-                modified_joints = self.state.db.read_modified_joints(ip.cam.cam_id, self.state.img_id)
-                if pt is None:
-                    pt = ip.cam.points2d[self.state.img_id, :]
-                else:
-                    pt *= config["image_shape"]
-
-                manual_correction = dict()
-                for joint_id in modified_joints:
-                    manual_correction[joint_id] = pt[joint_id]
-                
-                ip.update_manual_corrections(
-                    pt,
-                    manual_correction,
-                )
-
-            self.solve_bp()
-
-        self.update_frame()
         self.textbox_img_id.setText(str(self.state.img_id))
 
+        if self.belief_propagation_enabled:
+            self.core.solve_bp(img_id)
 
-    # ------------------------------------------------------------------
+        for ip in chain(self.image_pose_list, self.image_pose_list_bot):
+            ip.show(img_id, self.state.mode)
+        
 
-
-    def solve_bp(self, save_correction=False):
-        if not (
-            self.state.mode == Mode.CORRECTION
-            and self.state.solve_bp
-            and self.core.camNetLeft.has_calibration()
-            and self.core.camNetLeft.has_pose()
-        ):
-            return
-
-        # --------------
-        # Compute prior
-        prior = list()
-        for ip in self.image_pose_list:
-            for (joint_id, pt2d) in ip.manual_corrections().items():
-                prior.append((ip.cam.cam_id, joint_id, pt2d / config["image_shape"]))
-    
-        pts_bp = self.core.camNetLeft.solveBP(self.state.img_id, config["bone_param"], prior=prior)
-        pts_bp = np.array(pts_bp)
-
-        # --------------
-        # set points which are not estimated by bp
-        for idx, ip in enumerate(self.image_pose_list):
-            
-            pts_bp_rep = self.state.db.read(ip.cam.cam_id, self.state.img_id)
-            if pts_bp_rep is None:
-                pts_bp_rep = ip.cam.points2d[self.state.img_id, :]
-            else:
-                pts_bp_rep *= config["image_shape"]
-            
-            pts_bp_ip = pts_bp[idx] * config["image_shape"]
-            pts_bp_ip[pts_bp_ip == 0] = pts_bp_rep[pts_bp_ip == 0]
-
-            # keep track of the manually corrected points
-            ip.update_manual_corrections(pts_bp_ip, ip.manual_corrections())
-        self.update_frame()
-
-        # save down corrections as training if any priors were given
-        if prior and save_correction:
-            print("Saving with prior")
-            for ip in self.image_pose_list:
-                ip.save_correction()
-
-        print("Finished Belief Propagation")
+    @property
+    def belief_propagation_enabled(self):
+        return (self.state.mode == Mode.CORRECTION) and self.checkbox_solve_bp.isChecked()
 
 
     def set_heatmap_joint_id(self, joint_id):
