@@ -7,7 +7,6 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import (QWidget, QApplication, QFileDialog, QHBoxLayout, QVBoxLayout, 
                             QCheckBox, QPushButton, QLineEdit, QComboBox, QInputDialog, QMessageBox)
-from sklearn.neighbors import NearestNeighbors
 
 from .CameraNetwork import CameraNetwork
 from .State import State, Mode
@@ -360,9 +359,7 @@ class DrosophAnnot(QWidget):
                 
                 ip.update_manual_corrections(
                     pt,
-                    self.state.img_id,
-                    joint_id=None,
-                    manual_correction=manual_correction,
+                    manual_correction,
                 )
 
             self.solve_bp()
@@ -407,7 +404,7 @@ class DrosophAnnot(QWidget):
             pts_bp_ip[pts_bp_ip == 0] = pts_bp_rep[pts_bp_ip == 0]
 
             # keep track of the manually corrected points
-            ip.update_manual_corrections(pts_bp_ip, self.state.img_id, None, ip.manual_corrections())
+            ip.update_manual_corrections(pts_bp_ip, ip.manual_corrections())
         self.update_frame()
 
         # save down corrections as training if any priors were given

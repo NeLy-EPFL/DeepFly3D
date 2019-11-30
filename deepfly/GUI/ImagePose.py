@@ -4,15 +4,14 @@ from PyQt5.QtWidgets import QWidget
 from PyQt5.QtGui import QImage, QPixmap, QPainter
 from .Config import config
 from .State import Mode
+from sklearn.neighbors import NearestNeighbors
+
 
 class DynamicPose:
-    def __init__(self, points2d, img_id, joint_id, manual_correction=None):
+    def __init__(self, points2d, manual_corrections):
         self.points2d = points2d
-        self.img_id = img_id
-        self.joint_id = joint_id
-        self.manual_correction_dict = manual_correction
-        if manual_correction is None:
-            self.manual_correction_dict = dict()
+        self.manual_correction_dict = manual_corrections
+        self.joint_id = None
 
     def move_joint(self, joint_id, pt2d):
         assert pt2d.shape[0] == 2
@@ -27,7 +26,6 @@ class ImagePose(QWidget):
         self.core = core
         self.cam = cam
         self._dynamic_pose = None
-
         self.update_image_pose()
         self.show()
 
@@ -38,8 +36,8 @@ class ImagePose(QWidget):
         return self._dynamic_pose.manual_correction_dict if self._dynamic_pose else {}
 
 
-    def update_manual_corrections(self, points2d, img_id, joint_id, manual_correction=None):
-        self._dynamic_pose = DynamicPose(points2d, img_id, joint_id, manual_correction)
+    def update_manual_corrections(self, points2d, manual_corrections):
+        self._dynamic_pose = DynamicPose(points2d, manual_corrections)
 
 
     def clear_manual_corrections(self):
@@ -167,11 +165,15 @@ class ImagePose(QWidget):
         
 
     def mouseMoveEvent(self, e):
-        print('MouseMove', e.pos())
+        x = int(e.x() * np.array(config["image_shape"][0]) / self.frameGeometry().width())
+        y = int(e.y() * np.array(config["image_shape"][1]) / self.frameGeometry().height())
+        self.jointMovedEvent(x, y)
+    
+
+    def jointMovedEvent(self, x, y):
+        """ This method was extracted because I couldn't use mouseMoveEvent for testing.
+        Outside tests, it should only be called only by mouseMoveEvent."""
         if self.state.mode == Mode.CORRECTION:
-            x = int(e.x() * np.array(config["image_shape"][0]) / self.frameGeometry().width())
-            y = int(e.y() * np.array(config["image_shape"][1]) / self.frameGeometry().height())
-            
             if self._dynamic_pose.joint_id is None:
                 self._dynamic_pose.joint_id = self.find_nearest_joint(x, y)        
                 print("Selecting the joint: {}".format(self._dynamic_pose.joint_id))

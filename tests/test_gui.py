@@ -288,8 +288,11 @@ def test_manual_corrections(qtbot):
     qtbot.mouseClick(window.button_correction_mode, QtCore.Qt.LeftButton)
     assert window.state.mode == window.state.mode.CORRECTION
     #
-    for y in range(298, 60, -1):
-        qtbot.mouseMove(canvas, pos=QtCore.QPoint(200, y))
+    x, y = 312, 146
+    qtbot.mousePress(canvas, QtCore.Qt.LeftButton, pos=QtCore.QPoint(x, y))
+    for y in range(y, 55, -1):
+        canvas.jointMovedEvent(x, y)
+    #
     qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton)
     qtbot.mouseClick(window.button_pose_save, QtCore.Qt.LeftButton)    
     #
