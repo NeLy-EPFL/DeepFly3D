@@ -301,9 +301,9 @@ class Core:
     # ----------------------------------------------------------------------------------------------------
 
 
-    def plot_2d(self, cam_id, img_id, with_corrections=False):
+    def plot_2d(self, cam_id, img_id, with_corrections=False, joints=[]):
         cam = self.camNetAll[cam_id]
-        joints = range(config["skeleton"].num_joints)
+        joints = joints if joints else range(config["skeleton"].num_joints)
         visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
         visible_joints = [j_id for j_id in joints if visible(j_id)]
         zorder = config["skeleton"].get_zorder(cam_id)
@@ -337,9 +337,9 @@ class Core:
         )
 
 
-    def plot_heatmap(self, cam_id, img_id):
+    def plot_heatmap(self, cam_id, img_id, joints=[]):
         cam = self.camNetAll[cam_id]
-        joints = range(config["skeleton"].num_joints)
+        joints = joints if joints else range(config["skeleton"].num_joints)
         visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
         visible_joints = [j_id for j_id in joints if visible(j_id)]
         return cam.plot_heatmap(img_id, concat=False, scale=2, draw_joints=visible_joints)

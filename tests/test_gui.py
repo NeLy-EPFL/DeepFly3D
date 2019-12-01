@@ -180,15 +180,15 @@ def test_mode_image(qtbot):
     qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
     
     qtbot.mouseClick(window.button_image_mode, QtCore.Qt.LeftButton)
-    assert window.state.mode == window.state.mode.IMAGE
+    assert window.mode == window.mode.IMAGE
     qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
-    assert window.state.img_id == 0
+    assert window.img_id == 0
     qtbot.mouseClick(window.button_next, QtCore.Qt.LeftButton)
-    assert window.state.img_id == 1
+    assert window.img_id == 1
     qtbot.mouseClick(window.button_prev, QtCore.Qt.LeftButton)
-    assert window.state.img_id == 0
+    assert window.img_id == 0
     qtbot.mouseClick(window.button_last, QtCore.Qt.LeftButton)
-    assert window.state.img_id == NB_IMGS_IN_INPUT_DIR -1 
+    assert window.img_id == NB_IMGS_IN_INPUT_DIR -1 
     
 
 def test_mode_pose(qtbot):
@@ -198,15 +198,15 @@ def test_mode_pose(qtbot):
     qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
 
     qtbot.mouseClick(window.button_pose_mode, QtCore.Qt.LeftButton)
-    assert window.state.mode == window.state.mode.POSE
+    assert window.mode == window.mode.POSE
     qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
-    assert window.state.img_id == 0
+    assert window.img_id == 0
     qtbot.mouseClick(window.button_next, QtCore.Qt.LeftButton)
-    assert window.state.img_id == 1
+    assert window.img_id == 1
     qtbot.mouseClick(window.button_prev, QtCore.Qt.LeftButton)
-    assert window.state.img_id == 0
+    assert window.img_id == 0
     qtbot.mouseClick(window.button_last, QtCore.Qt.LeftButton)
-    assert window.state.img_id == NB_IMGS_IN_INPUT_DIR -1 
+    assert window.img_id == NB_IMGS_IN_INPUT_DIR -1 
 
 
 def test_mode_heatmap(qtbot):
@@ -216,15 +216,15 @@ def test_mode_heatmap(qtbot):
     qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
 
     qtbot.mouseClick(window.button_heatmap_mode, QtCore.Qt.LeftButton)
-    assert window.state.mode == window.state.mode.HEATMAP
+    assert window.mode == window.mode.HEATMAP
     qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
-    assert window.state.img_id == 0
+    assert window.img_id == 0
     qtbot.mouseClick(window.button_next, QtCore.Qt.LeftButton)
-    assert window.state.img_id == 1
+    assert window.img_id == 1
     qtbot.mouseClick(window.button_prev, QtCore.Qt.LeftButton)
-    assert window.state.img_id == 0
+    assert window.img_id == 0
     qtbot.mouseClick(window.button_last, QtCore.Qt.LeftButton)
-    assert window.state.img_id == NB_IMGS_IN_INPUT_DIR -1 
+    assert window.img_id == NB_IMGS_IN_INPUT_DIR -1 
 
 
 def test_mode_correction(qtbot):
@@ -234,24 +234,24 @@ def test_mode_correction(qtbot):
     qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
     
     qtbot.mouseClick(window.button_correction_mode, QtCore.Qt.LeftButton)
-    assert window.state.mode == window.state.mode.CORRECTION
+    assert window.mode == window.mode.CORRECTION
     
     window.checkbox_correction_skip.setChecked(True)
     qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
-    assert window.state.img_id == 0
+    assert window.img_id == 0
     qtbot.mouseClick(window.button_next, QtCore.Qt.LeftButton)
-    assert window.state.img_id == NB_IMGS_IN_INPUT_DIR -1  # skip activated
+    assert window.img_id == NB_IMGS_IN_INPUT_DIR -1  # skip activated
 
     window.checkbox_correction_skip.setChecked(False)
     qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
-    assert window.state.img_id == 0
+    assert window.img_id == 0
     qtbot.mouseClick(window.button_next, QtCore.Qt.LeftButton)
-    assert window.state.img_id == 1                        # skip not activated
+    assert window.img_id == 1                        # skip not activated
 
     qtbot.mouseClick(window.button_prev, QtCore.Qt.LeftButton)
-    assert window.state.img_id == 0
+    assert window.img_id == 0
     qtbot.mouseClick(window.button_last, QtCore.Qt.LeftButton)
-    assert window.state.img_id == NB_IMGS_IN_INPUT_DIR -1 
+    assert window.img_id == NB_IMGS_IN_INPUT_DIR -1 
     
 
 def test_belief_propagation(qtbot):
@@ -261,20 +261,20 @@ def test_belief_propagation(qtbot):
     qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
     #
     qtbot.mouseClick(window.button_correction_mode, QtCore.Qt.LeftButton)
-    assert window.state.mode == window.state.mode.CORRECTION
+    assert window.mode == window.mode.CORRECTION
     #
     window.checkbox_correction_skip.setChecked(True)
     qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
-    assert window.state.img_id == 0
+    assert window.img_id == 0
     #
     qtbot.mouseClick(window.button_next, QtCore.Qt.LeftButton)
-    assert window.state.img_id == DIR2_ERROR_IMG1
+    assert window.img_id == DIR2_ERROR_IMG1
     #
     qtbot.mouseClick(window.button_last, QtCore.Qt.LeftButton)
-    assert window.state.img_id == NB_IMGS_IN_INPUT_DIR2 -1 
+    assert window.img_id == NB_IMGS_IN_INPUT_DIR2 -1 
     #
     qtbot.mouseClick(window.button_prev, QtCore.Qt.LeftButton)
-    assert window.state.img_id == DIR2_ERROR_IMG2
+    assert window.img_id == DIR2_ERROR_IMG2
 
 
 def test_manual_corrections(qtbot):
@@ -287,7 +287,7 @@ def test_manual_corrections(qtbot):
     #
     qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
     qtbot.mouseClick(window.button_correction_mode, QtCore.Qt.LeftButton)
-    assert window.state.mode == window.state.mode.CORRECTION
+    assert window.mode == window.mode.CORRECTION
     #
     x, y = 312, 146
     qtbot.mousePress(canvas, QtCore.Qt.LeftButton, pos=QtCore.QPoint(x, y))

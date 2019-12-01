@@ -14,18 +14,18 @@ class ImageView(QWidget):
         self.displayed_img = None
 
 
-    def show(self, img_id, mode):
+    def show(self, img_id, mode, joints_to_display=[]):
         if mode == Mode.IMAGE:
             im = self.core.get_image(self.cam_id, img_id)
         #
         elif mode == Mode.POSE:
-            im = self.core.plot_2d(self.cam_id, img_id)
+            im = self.core.plot_2d(self.cam_id, img_id, joints=joints_to_display)
         #
         elif mode == Mode.HEATMAP:
-            im = self.core.plot_heatmap(self.cam_id, img_id)
+            im = self.core.plot_heatmap(self.cam_id, img_id, joints=joints_to_display)
         #
         elif mode == Mode.CORRECTION:
-            im = self.core.plot_2d(self.cam_id, img_id, with_corrections=True)
+            im = self.core.plot_2d(self.cam_id, img_id, with_corrections=True, joints=joints_to_display)
         #
         else:
             raise RuntimeError(f'Unknown mode {mode}')
