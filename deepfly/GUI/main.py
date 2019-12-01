@@ -1,36 +1,23 @@
-import pickle
-import sys
-from itertools import chain
+from enum import Enum
+import numpy as np
 import re
+import sys
 
 from PyQt5.QtCore import Qt
-from PyQt5.QtCore import *
 from PyQt5.QtWidgets import (QWidget, QApplication, QFileDialog, QHBoxLayout, QVBoxLayout, 
                             QCheckBox, QPushButton, QLineEdit, QComboBox, QInputDialog, QMessageBox)
+from PyQt5.QtGui import QImage, QPixmap, QPainter
 
-from .State import State, Mode
-#from .util.os_util import *
-from .Config import config
 from deepfly.core import Core
-from .ImageView import ImageView
 
 
 def main():
+    cli_args = parse_cli_args(sys.argv)
+
     app = QApplication([])
     window = DrosophAnnot()
-
-    cli_args = parse_cli_args(sys.argv)
     window.setup(**cli_args)
-    
-    screen = app.primaryScreen()
-    size = screen.size()
-    _, width = size.height(), size.width()
-    # hw_ratio = 960 * 2 / 360.0
-
-    hw_ratio = config["image_shape"][0] * 1.2 / config["image_shape"][1]
-    app_width = width
-    app_height = int(app_width / hw_ratio)
-    window.resize(app_width, app_height)
+    window.set_width(app.primaryScreen().size().width())
     window.show()
     app.exec_()
 
@@ -43,7 +30,14 @@ def parse_cli_args(argv):
     except (IndexError, ValueError):
         pass
     return args
-    
+
+
+class Mode(Enum):
+    IMAGE = 1
+    HEATMAP = 2
+    POSE = 3
+    CORRECTION = 4
+
 
 class DrosophAnnot(QWidget):
     def __init__(self):
@@ -57,6 +51,12 @@ class DrosophAnnot(QWidget):
         self.core = Core(input_folder or self.prompt_for_directory(), num_images_max)
         self.setup_layout()
         self.set_mode(self.mode)
+    
+    
+    def set_width(self, width):
+        hw_ratio = self.core.image_shape[0] * 1.2 / self.core.image_shape[1]
+        height = int(width / hw_ratio)
+        self.resize(width, height)
         
 
     def setup_layout(self):
@@ -94,23 +94,23 @@ class DrosophAnnot(QWidget):
         
         self.combo_joint_id = QComboBox(self)
         self.combo_joint_id.addItem("View all joints", [])
-        for i in range(config["skeleton"].num_joints):
+        for i in range(self.core.number_of_joints):
             self.combo_joint_id.addItem(f'View joint {i}', [i])
         self.combo_joint_id.activated[str].connect(self.update_frame)
         
-        self.image_pose_list     = [ImageView(self.core, i) for i in [0, 1, 2]]
-        self.image_pose_list_bot = [ImageView(self.core, i) for i in [4, 5, 6]]
-
+        top_row    = [ImageView(self.core, i) for i in [0, 1, 2]]
+        bottom_row = [ImageView(self.core, i) for i in [4, 5, 6]]
+        self.image_views = top_row + bottom_row
         # Layouts
         layout_h_images = QHBoxLayout()
         layout_h_images.setSpacing(1)
-        for image_pose in self.image_pose_list:
+        for image_pose in top_row:
             layout_h_images.addWidget(image_pose)
             image_pose.resize(image_pose.sizeHint())
         
         layout_h_images_bot = QHBoxLayout()
         layout_h_images.setSpacing(1)
-        for image_pose in self.image_pose_list_bot:
+        for image_pose in bottom_row:
             layout_h_images_bot.addWidget(image_pose)
             image_pose.resize(image_pose.sizeHint())
 
@@ -245,11 +245,8 @@ class DrosophAnnot(QWidget):
             self.set_mode(Mode.POSE)
         if event.key() == Qt.Key_C:
             self.set_mode(Mode.CORRECTION)
-            self.update_frame()
         if event.key() == Qt.Key_T:
-            for image_pose in self.image_pose_list:
-                image_pose.save_correction()
-            self.update_frame()
+            self.onclick_save_pose()
 
         
     # ------------------------------------------------------------------
@@ -301,21 +298,21 @@ class DrosophAnnot(QWidget):
         self.update_frame()
       
 
-    def update_frame(self):
-        self.display_img(self.img_id)
-        
-
     def display_img(self, img_id):
         self.img_id = img_id
         self.textbox_img_id.setText(str(self.img_id))
+        self.update_frame()
 
+
+    def update_frame(self):
         if self.belief_propagation_enabled:
-            self.core.solve_bp(img_id)
+            self.core.solve_bp(self.img_id)
 
-        joints = self.combo_joint_id.currentData()
-        for ip in chain(self.image_pose_list, self.image_pose_list_bot):
-            ip.show(img_id, self.mode, joints)
-        
+        joints_to_display = self.combo_joint_id.currentData()
+
+        for image_view in self.image_views:
+            image_view.show(self.img_id, self.mode, joints_to_display)
+    
 
     @property
     def belief_propagation_enabled(self):
@@ -325,6 +322,72 @@ class DrosophAnnot(QWidget):
     @property
     def correction_skip_enabled(self):
         return self.checkbox_correction_skip.isChecked()
+
+
+class ImageView(QWidget):
+    def __init__(self, core, camera_id):
+        QWidget.__init__(self)
+        self.core = core
+        self.cam_id = camera_id 
+        self.corrections_enabled = False
+        self.joint_being_corrected = None
+        self.displayed_img = None
+        self.displayed_joints = None
+
+
+    def show(self, img_id, mode, joints_to_display=[]):
+        if mode == Mode.IMAGE:
+            im = self.core.get_image(self.cam_id, img_id)
+        #
+        elif mode == Mode.POSE:
+            im = self.core.plot_2d(self.cam_id, img_id, joints=joints_to_display)
+        #
+        elif mode == Mode.HEATMAP:
+            im = self.core.plot_heatmap(self.cam_id, img_id, joints=joints_to_display)
+        #
+        elif mode == Mode.CORRECTION:
+            im = self.core.plot_2d(self.cam_id, img_id, with_corrections=True, joints=joints_to_display)
+        #
+        else:
+            raise RuntimeError(f'Unknown mode {mode}')
+        #
+        self.displayed_img = img_id
+        self.displayed_joints = joints_to_display
+        self.corrections_enabled = (mode == Mode.CORRECTION)
+        self.update_pixmap(im)
+
+
+    def mouseMoveEvent(self, e):
+        if self.corrections_enabled:
+            x = int(e.x() * self.core.image_shape[0] / self.frameGeometry().width())
+            y = int(e.y() * self.core.image_shape[1] / self.frameGeometry().height())
+            self.move_joint(x, y)
+            
+            
+    def move_joint(self, x, y):
+        if self.joint_being_corrected is None:
+            self.joint_being_corrected = self.core.nearest_joint(self.cam_id, self.displayed_img, x, y)
+        self.core.move_joint(self.cam_id, self.displayed_img, self.joint_being_corrected, x, y)
+        self.show(self.displayed_img, Mode.CORRECTION, self.displayed_joints)
+            
+
+    def mouseReleaseEvent(self, _):
+        self.joint_being_corrected = None  # forget the tracked joint
+
+
+    def update_pixmap(self, image_array):
+        im = image_array.astype(np.uint8)
+        height, width, _ = im.shape
+        bytesPerLine = 3 * width
+        qIm = QImage(im, width, height, bytesPerLine, QImage.Format_RGB888)
+        self.pixmap = QPixmap.fromImage(qIm)
+        self.update()
+
+
+    def paintEvent(self, paint_event):
+        painter = QPainter(self)
+        painter.drawPixmap(self.rect(), self.pixmap)
+        self.update()
 
 
 if __name__ == "__main__":

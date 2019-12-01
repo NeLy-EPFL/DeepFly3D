@@ -281,7 +281,7 @@ def test_manual_corrections(qtbot):
     window = DrosophAnnot()
     qtbot.addWidget(window)
     window.setup(INPUT_DIRECTORY)
-    canvas = window.image_pose_list[1]
+    canvas = window.image_views[1]
     #
     reset_input_directory()
     #

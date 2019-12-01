@@ -61,6 +61,10 @@ class Core:
         return config['image_shape']
 
 
+    @property
+    def number_of_joints(self):
+        return config["skeleton"].num_joints
+
     # ----------------------------------------------------------------------------------------------------
 
 
