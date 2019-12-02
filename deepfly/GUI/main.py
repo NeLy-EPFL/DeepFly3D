@@ -43,14 +43,13 @@ class DrosophAnnot(QWidget):
     def __init__(self):
         QWidget.__init__(self)
         self.img_id = 0
-        self.mode = Mode.IMAGE
         self.core = None
 
 
     def setup(self, input_folder=None, num_images_max=None):
         self.core = Core(input_folder or self.prompt_for_directory(), num_images_max)
         self.setup_layout()
-        self.set_mode(self.mode)
+        self.switch_to_image_mode()
     
     
     def set_width(self, width):
@@ -74,10 +73,10 @@ class DrosophAnnot(QWidget):
         self.button_prev            = self.make_button("<",           self.onclick_prev_image)
         self.button_next            = self.make_button(">",           self.onclick_next_image)
         self.button_last            = self.make_button(">>",          self.onclick_last_image)
-        self.button_pose_mode       = self.make_button("Pose",        lambda b: self.set_mode(self.mode.POSE))
-        self.button_image_mode      = self.make_button("Image",       lambda b: self.set_mode(self.mode.IMAGE))
-        self.button_heatmap_mode    = self.make_button("Prob. Map",   lambda b: self.set_mode(self.mode.HEATMAP))
-        self.button_correction_mode = self.make_button("Correction",  lambda b: self.set_mode(self.mode.CORRECTION))
+        self.button_pose_mode       = self.make_button("Pose",        self.switch_to_pose_mode)
+        self.button_image_mode      = self.make_button("Image",       self.switch_to_image_mode)
+        self.button_heatmap_mode    = self.make_button("Prob. Map",   self.switch_to_heatmap_mode)
+        self.button_correction_mode = self.make_button("Correction",  self.switch_to_correction_mode)
         button_textbox_img_id_go    = self.make_button("Go",          self.onclick_goto_img)
         self.button_pose_save       = self.make_button("Save",        self.onclick_save_pose)
         self.button_calibrate_calc  = self.make_button("Calibration", self.onclick_calibrate)
@@ -175,7 +174,7 @@ class DrosophAnnot(QWidget):
 
     def onclick_pose2d_estimation(self):
         self.core.pose2d_estimation()
-        self.set_mode(Mode.POSE)
+        self.switch_to_correction_mode()
 
 
     def onclick_first_image(self):
@@ -187,22 +186,14 @@ class DrosophAnnot(QWidget):
 
 
     def onclick_prev_image(self):
-        if (self.mode == Mode.CORRECTION 
-        and self.correction_skip_enabled
-        and self.core.has_calibration() 
-        and self.core.has_pose()
-        ):
+        if self.correction_skip_enabled():
             self.display_img(self.core.next_error(self.img_id, backward=True))
         else:
             self.display_img(max(self.img_id - 1, 0))
 
 
     def onclick_next_image(self):
-        if (self.mode == Mode.CORRECTION 
-        and self.correction_skip_enabled
-        and self.core.has_calibration() 
-        and self.core.has_pose()
-        ):
+        if self.correction_skip_enabled():
             self.display_img(self.core.next_error(self.img_id))
         else:
             self.display_img(min(self.core.max_img_id, self.img_id + 1))
@@ -238,13 +229,13 @@ class DrosophAnnot(QWidget):
         if event.key() == Qt.Key_D:
             self.onclick_next_image()
         if event.key() == Qt.Key_H:
-            self.set_mode(Mode.HEATMAP)
+            self.switch_to_heatmap_mode()
         if event.key() == Qt.Key_I:
-            self.set_mode(Mode.IMAGE)
+            self.switch_to_image_mode()
         if event.key() == Qt.Key_X:
-            self.set_mode(Mode.POSE)
+            self.switch_to_pose_mode()
         if event.key() == Qt.Key_C:
-            self.set_mode(Mode.CORRECTION)
+            self.switch_to_correction_mode()
         if event.key() == Qt.Key_T:
             self.onclick_save_pose()
 
@@ -281,22 +272,66 @@ class DrosophAnnot(QWidget):
     # ------------------------------------------------------------------
 
 
-    def set_mode(self, mode):
-        if (mode == Mode.IMAGE
-        or (mode == Mode.POSE       and self.core.has_pose())
-        or (mode == Mode.HEATMAP    and self.core.has_heatmap())
-        or (mode == Mode.CORRECTION and self.core.has_pose())
-        ):
-            self.mode = mode
-        else:
-            print("Cannot set mode: {}".format(mode))
-        
-        self.button_correction_mode.setChecked(self.mode == Mode.CORRECTION)
-        self.button_heatmap_mode.setChecked(self.mode == Mode.HEATMAP)
-        self.button_image_mode.setChecked(self.mode == Mode.IMAGE)
-        self.button_pose_mode.setChecked(self.mode == Mode.POSE)
+    def uncheck_mode_buttons(self):
+        self.button_correction_mode.setChecked(False)
+        self.button_heatmap_mode.setChecked(False)
+        self.button_image_mode.setChecked(False)
+        self.button_pose_mode.setChecked(False)
+
+
+    def switch_to_image_mode(self):
+        self.uncheck_mode_buttons()
+        self.button_image_mode.setChecked(True)
+        self.combo_joint_id.setEnabled(False)
+        self.checkbox_solve_bp.setEnabled(False)
+        self.checkbox_correction_skip.setEnabled(False)
+        self.belief_propagation_enabled = lambda: False
+        self.correction_skip_enabled = lambda: False
+        self.display_method = lambda v, i, j: v.show(i, Mode.IMAGE, j)
         self.update_frame()
-      
+
+
+    def switch_to_pose_mode(self):
+        if not self.core.has_pose():
+            return False
+        self.uncheck_mode_buttons()
+        self.button_pose_mode.setChecked(True)
+        self.combo_joint_id.setEnabled(True)
+        self.checkbox_solve_bp.setEnabled(False)
+        self.checkbox_correction_skip.setEnabled(False)
+        self.belief_propagation_enabled = lambda: False
+        self.correction_skip_enabled = lambda: False
+        self.display_method = lambda v, i, j: v.show(i, Mode.POSE, j)
+        self.update_frame()
+
+
+    def switch_to_correction_mode(self):
+        if not self.core.has_pose():
+            return False
+        self.uncheck_mode_buttons()
+        self.button_correction_mode.setChecked(True)
+        self.combo_joint_id.setEnabled(True)
+        self.checkbox_solve_bp.setEnabled(True)
+        self.checkbox_correction_skip.setEnabled(True)
+        self.belief_propagation_enabled = lambda: self.checkbox_solve_bp.isChecked()
+        self.correction_skip_enabled = lambda: self.core.has_calibration() and self.checkbox_correction_skip.isChecked()
+        self.display_method = lambda v, i, j: v.show(i, Mode.CORRECTION, j)
+        self.update_frame()
+
+
+    def switch_to_heatmap_mode(self):
+        if not self.core.has_heatmap():
+            return False
+        self.uncheck_mode_buttons()
+        self.button_heatmap_mode.setChecked(True)
+        self.combo_joint_id.setEnabled(True)
+        self.checkbox_solve_bp.setEnabled(False)
+        self.checkbox_correction_skip.setEnabled(False)
+        self.belief_propagation_enabled = lambda: False
+        self.correction_skip_enabled = lambda: False
+        self.display_method = lambda v, i, j: v.show(i, Mode.HEATMAP, j)
+        self.update_frame()
+
 
     def display_img(self, img_id):
         self.img_id = img_id
@@ -305,23 +340,13 @@ class DrosophAnnot(QWidget):
 
 
     def update_frame(self):
-        if self.belief_propagation_enabled:
+        if self.belief_propagation_enabled():
             self.core.solve_bp(self.img_id)
 
         joints_to_display = self.combo_joint_id.currentData()
 
         for image_view in self.image_views:
-            image_view.show(self.img_id, self.mode, joints_to_display)
-    
-
-    @property
-    def belief_propagation_enabled(self):
-        return (self.mode == Mode.CORRECTION) and self.checkbox_solve_bp.isChecked()
-
-
-    @property
-    def correction_skip_enabled(self):
-        return self.checkbox_correction_skip.isChecked()
+            self.display_method(image_view, self.img_id, joints_to_display)
 
 
 class ImageView(QWidget):
@@ -330,27 +355,23 @@ class ImageView(QWidget):
         self.core = core
         self.cam_id = camera_id 
         self.corrections_enabled = False
-        self.joint_being_corrected = None
         self.displayed_img = None
         self.displayed_joints = None
+        self.joint_being_corrected = None
 
 
     def show(self, img_id, mode, joints_to_display=[]):
         if mode == Mode.IMAGE:
             im = self.core.get_image(self.cam_id, img_id)
-        #
         elif mode == Mode.POSE:
             im = self.core.plot_2d(self.cam_id, img_id, joints=joints_to_display)
-        #
         elif mode == Mode.HEATMAP:
             im = self.core.plot_heatmap(self.cam_id, img_id, joints=joints_to_display)
-        #
         elif mode == Mode.CORRECTION:
             im = self.core.plot_2d(self.cam_id, img_id, with_corrections=True, joints=joints_to_display)
-        #
         else:
             raise RuntimeError(f'Unknown mode {mode}')
-        #
+
         self.displayed_img = img_id
         self.displayed_joints = joints_to_display
         self.corrections_enabled = (mode == Mode.CORRECTION)
