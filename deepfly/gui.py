@@ -13,7 +13,7 @@ def main():
     cli_args = parse_cli_args(sys.argv)
 
     app = QW.QApplication([])
-    window = DrosophAnnot()
+    window = DeepflyGUI()
     window.setup(**cli_args)
     window.set_width(app.primaryScreen().size().width())
     window.show()
@@ -30,7 +30,7 @@ def parse_cli_args(argv):
     return args
 
 
-class DrosophAnnot(QW.QWidget):
+class DeepflyGUI(QW.QWidget):
     def __init__(self):
         QW.QWidget.__init__(self)
         self.img_id = 0
