@@ -209,7 +209,7 @@ class DeepflyGUI(QW.QWidget):
     def onclick_calibrate(self):
         rng = self.prompt_for_calibration_range()
         if rng is not None:  # not canceled
-            self.core.calibrate_calc(self, *rng)
+            self.core.calibrate_calc(*rng)
 
 
     def onclick_save_pose(self):

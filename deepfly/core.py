@@ -180,7 +180,7 @@ class Core:
         return last_id
 
 
-    def calibrate_calc(self, DeepflyGUI, min_img_id, max_img_id):
+    def calibrate_calc(self, min_img_id, max_img_id):
         print(f"Calibration considering frames between {min_img_id}:{max_img_id}")
         calib = read_calib(config["calib_fine"])
         assert calib is not None
