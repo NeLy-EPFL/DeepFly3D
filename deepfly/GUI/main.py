@@ -1,10 +1,9 @@
 import numpy as np
 import re
 
+from PyQt5 import QtWidgets as QW
 from PyQt5.QtCore import Qt, QEvent
-from PyQt5.QtWidgets import (QWidget, QApplication, QFileDialog, QHBoxLayout, QVBoxLayout, 
-                            QCheckBox, QPushButton, QLineEdit, QComboBox, QInputDialog, QMessageBox, QLabel)
-from PyQt5.QtGui import QImage, QPixmap, QPainter
+from PyQt5.QtGui import QImage, QPixmap
 
 from deepfly.core import Core
 
@@ -13,7 +12,7 @@ def main():
     import sys
     cli_args = parse_cli_args(sys.argv)
 
-    app = QApplication([])
+    app = QW.QApplication([])
     window = DrosophAnnot()
     window.setup(**cli_args)
     window.set_width(app.primaryScreen().size().width())
@@ -31,9 +30,9 @@ def parse_cli_args(argv):
     return args
 
 
-class DrosophAnnot(QWidget):
+class DrosophAnnot(QW.QWidget):
     def __init__(self):
-        QWidget.__init__(self)
+        QW.QWidget.__init__(self)
         self.img_id = 0
         self.core = None
 
@@ -52,11 +51,11 @@ class DrosophAnnot(QWidget):
 
     def setup_layout(self):
         # --- Create checkboxes ---
-        self.checkbox_solve_bp = QCheckBox("Auto-correct", self)
+        self.checkbox_solve_bp = QW.QCheckBox("Auto-correct", self)
         self.checkbox_solve_bp.setChecked(True)
         self.checkbox_solve_bp.stateChanged.connect(self.update_frame)
 
-        self.checkbox_correction_skip = QCheckBox("Skip to next error", self)
+        self.checkbox_correction_skip = QW.QCheckBox("Skip to next error", self)
         self.checkbox_correction_skip.setChecked(True)
         self.checkbox_correction_skip.stateChanged.connect(self.update_frame)
         
@@ -80,10 +79,10 @@ class DrosophAnnot(QWidget):
         self.button_pose_mode.setCheckable(True)
         self.button_heatmap_mode.setCheckable(True)
         
-        self.textbox_img_id = QLineEdit(str(self.img_id), self)
+        self.textbox_img_id = QW.QLineEdit(str(self.img_id), self)
         self.textbox_img_id.setFixedWidth(100)
         
-        self.combo_joint_id = QComboBox(self)
+        self.combo_joint_id = QW.QComboBox(self)
         self.combo_joint_id.addItem("View all joints", [])
         for i in range(self.core.number_of_joints):
             self.combo_joint_id.addItem(f'View joint {i}', [i])
@@ -91,7 +90,7 @@ class DrosophAnnot(QWidget):
         
         # --- Create widgets to display images and pose results ---
         def make_image_view(cam_id):
-            iv = QLabel()
+            iv = QW.QLabel()
             iv.setScaledContents(True)
             iv.cam_id = cam_id
             return iv
@@ -104,19 +103,19 @@ class DrosophAnnot(QWidget):
             image_view.installEventFilter(self)
 
         # --- Layouts ---
-        layout_h_images = QHBoxLayout()
+        layout_h_images = QW.QHBoxLayout()
         layout_h_images.setSpacing(1)
         for image_pose in top_row:
             layout_h_images.addWidget(image_pose)
             image_pose.resize(image_pose.sizeHint())
         
-        layout_h_images_bot = QHBoxLayout()
+        layout_h_images_bot = QW.QHBoxLayout()
         layout_h_images_bot.setSpacing(1)
         for image_pose in bottom_row:
             layout_h_images_bot.addWidget(image_pose)
             image_pose.resize(image_pose.sizeHint())
 
-        layout_h_buttons_top = QHBoxLayout()
+        layout_h_buttons_top = QW.QHBoxLayout()
         layout_h_buttons_top.setSpacing(3)
         layout_h_buttons_top.setAlignment(Qt.AlignRight)
         layout_h_buttons_top.addWidget(self.button_pose_estimate,  alignment=Qt.AlignLeft)
@@ -129,7 +128,7 @@ class DrosophAnnot(QWidget):
         layout_h_buttons_top.addWidget(self.button_correction_mode,   alignment=Qt.AlignRight)
         layout_h_buttons_top.addWidget(self.button_heatmap_mode,      alignment=Qt.AlignRight)
         
-        layout_h_buttons = QHBoxLayout()
+        layout_h_buttons = QW.QHBoxLayout()
         layout_h_buttons.setSpacing(1)
         layout_h_buttons.addWidget(self.button_first)
         layout_h_buttons.addWidget(self.button_prev)
@@ -143,7 +142,7 @@ class DrosophAnnot(QWidget):
         layout_h_buttons.addStretch()
         layout_h_buttons.addWidget(self.combo_joint_id, alignment=Qt.AlignRight)
         
-        layout_v = QVBoxLayout()
+        layout_v = QW.QVBoxLayout()
         layout_v.addLayout(layout_h_buttons_top)
         layout_v.addLayout(layout_h_images)
         layout_v.addLayout(layout_h_images_bot)
@@ -155,11 +154,16 @@ class DrosophAnnot(QWidget):
 
 
     def make_button(self, text, onClick):
-        b = QPushButton(text, self)
+        b = QW.QPushButton(text, self)
         b.setMaximumWidth(b.fontMetrics().boundingRect(text).width() + 27)
         b.clicked.connect(onClick)
         return b
 
+
+    def display_error_message(self, message):
+        msgBox = QW.QMessageBox()
+        msgBox.setText(message)
+        msgBox.exec()
 
     # ------------------------------------------------------------------
     # onclick callbacks
@@ -167,12 +171,12 @@ class DrosophAnnot(QWidget):
 
     def onclick_camera_order(self):
         cidread2cid = self.prompt_for_camera_ordering()
+        if cidread2cid is None:  # canceled
+            return
         if self.core.update_camera_ordering(cidread2cid):
             self.update_frame()
         else:
-            msgBox = QMessageBox()
-            msgBox.setText("Ordering not changed (wrong format or canceled).")
-            msgBox.exec()
+            self.display_error_message("Ordering not changed (wrong format).")
 
 
     def onclick_pose2d_estimation(self):
@@ -203,11 +207,9 @@ class DrosophAnnot(QWidget):
 
 
     def onclick_calibrate(self):
-        try:
-            [min_img_id, max_img_id] = self.prompt_for_calibration_range()
-        except BaseException:
-            min_img_id, max_img_id = 0, self.core.max_img_id
-        self.core.calibrate_calc(self, min_img_id, max_img_id)
+        rng = self.prompt_for_calibration_range()
+        if rng is not None:  # not canceled
+            self.core.calibrate_calc(self, *rng)
 
 
     def onclick_save_pose(self):
@@ -217,16 +219,17 @@ class DrosophAnnot(QWidget):
 
     def onclick_goto_img(self):
         try:
-            img_id = int(self.textbox_img_id.text().replace("Heatmap: ", ""))
+            img_id = int(self.textbox_img_id.text())
             self.display_img(img_id)
-        except BaseException as e:
-            print("Textbox img id is not integer {}".format(str(e)))
+            self.setFocus()
+        except BaseException:
+            self.display_error_message("Textbox content should be an integer image id")
+            self.textbox_img_id.setText(str(self.img_id))
 
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Return:
             self.onclick_goto_img()
-            self.setFocus()
         if event.key() == Qt.Key_A:
             self.onclick_prev_image()
         if event.key() == Qt.Key_D:
@@ -248,16 +251,16 @@ class DrosophAnnot(QWidget):
 
     
     def prompt_for_directory(self):
-        return str(QFileDialog.getExistingDirectory(
+        return str(QW.QFileDialog.getExistingDirectory(
                 self,
                 directory="./",
                 caption="Select Directory",
-                options=QFileDialog.DontUseNativeDialog,
+                options=QW.QFileDialog.DontUseNativeDialog,
             ))
 
 
     def prompt_for_camera_ordering(self):
-        text, ok_pressed = QInputDialog.getText(self, "Rename Images", "Camera order:", QLineEdit.Normal, "")
+        text, ok_pressed = QW.QInputDialog.getText(self, "Rename Images", "Camera order:", QW.QLineEdit.Normal, "")
         if ok_pressed:
             cidread2cid = re.findall(r'[0-9]+', text) 
             cidread2cid = [int(x) for x in cidread2cid]
@@ -265,11 +268,14 @@ class DrosophAnnot(QWidget):
 
 
     def prompt_for_calibration_range(self):
-        text, okPressed = QInputDialog.getText(self, "Calibration", "Range of images:", QLineEdit.Normal, f"0-{self.core.max_img_id}")
+        text, okPressed = QW.QInputDialog.getText(self, "Calibration", "Range of images:", QW.QLineEdit.Normal, f"0-{self.core.max_img_id}")
         if okPressed:
             numbers = re.findall(r'[0-9]+', text)
             numbers = [int(x) for x in numbers]
-            return numbers
+            if len(numbers) == 2:
+                return numbers[0], numbers[1]
+            else:
+                self.display_error_message('Please provide a range such as: 0-10')
 
 
     # ------------------------------------------------------------------
