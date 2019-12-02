@@ -180,7 +180,7 @@ def test_mode_image(qtbot):
     qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
     
     qtbot.mouseClick(window.button_image_mode, QtCore.Qt.LeftButton)
-    assert window.mode == window.mode.IMAGE
+    assert window.button_image_mode.isChecked()
     qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
     assert window.img_id == 0
     qtbot.mouseClick(window.button_next, QtCore.Qt.LeftButton)
@@ -198,7 +198,7 @@ def test_mode_pose(qtbot):
     qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
 
     qtbot.mouseClick(window.button_pose_mode, QtCore.Qt.LeftButton)
-    assert window.mode == window.mode.POSE
+    assert window.button_pose_mode.isChecked()
     qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
     assert window.img_id == 0
     qtbot.mouseClick(window.button_next, QtCore.Qt.LeftButton)
@@ -216,7 +216,7 @@ def test_mode_heatmap(qtbot):
     qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
 
     qtbot.mouseClick(window.button_heatmap_mode, QtCore.Qt.LeftButton)
-    assert window.mode == window.mode.HEATMAP
+    assert window.button_heatmap_mode.isChecked()
     qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
     assert window.img_id == 0
     qtbot.mouseClick(window.button_next, QtCore.Qt.LeftButton)
@@ -234,7 +234,7 @@ def test_mode_correction(qtbot):
     qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
     
     qtbot.mouseClick(window.button_correction_mode, QtCore.Qt.LeftButton)
-    assert window.mode == window.mode.CORRECTION
+    assert window.button_correction_mode.isChecked()
     
     window.checkbox_correction_skip.setChecked(True)
     qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
@@ -261,7 +261,7 @@ def test_belief_propagation(qtbot):
     qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
     #
     qtbot.mouseClick(window.button_correction_mode, QtCore.Qt.LeftButton)
-    assert window.mode == window.mode.CORRECTION
+    assert window.button_correction_mode.isChecked()
     #
     window.checkbox_correction_skip.setChecked(True)
     qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
@@ -281,20 +281,42 @@ def test_manual_corrections(qtbot):
     window = DrosophAnnot()
     qtbot.addWidget(window)
     window.setup(INPUT_DIRECTORY)
-    canvas = window.image_views[1]
-    #
+    window.set_width(3840)
+    window.show()
+    canvas = window.image_views[0]
+
+    def windowsReady():
+        assert canvas.frameGeometry().width() > 0
+    qtbot.waitUntil(windowsReady)
+    
     reset_input_directory()
-    #
+    
     qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
     qtbot.mouseClick(window.button_correction_mode, QtCore.Qt.LeftButton)
-    assert window.mode == window.mode.CORRECTION
-    #
-    x, y = 312, 146
-    qtbot.mousePress(canvas, QtCore.Qt.LeftButton, pos=QtCore.QPoint(x, y))
-    for y in range(y, 55, -1):
-        canvas.move_joint(x, y)
-    #
-    qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton)
+    assert window.button_correction_mode.isChecked()
+    
+    import time
+    
+    x = 327
+    y = 154        
+
+    class FakeEvent: pass
+    e = FakeEvent
+    e.buttons = lambda: QtCore.Qt.LeftButton
+    e.type = lambda: QtCore.QEvent.MouseButtonPress
+    e.x = lambda: x
+    e.y = lambda: y
+        
+    window.eventFilter(canvas, e)
+    qtbot.wait(1)   
+    
+    for y_ in range(154, 50, -1):
+        e.type = lambda: QtCore.QEvent.MouseMove
+        e.x = lambda: x
+        e.y = lambda: y_
+        window.eventFilter(canvas, e)
+        qtbot.wait(1)
+            
     qtbot.mouseClick(window.button_pose_save, QtCore.Qt.LeftButton)    
     #
     output = (INPUT_DIRECTORY / 'df3d').absolute()
