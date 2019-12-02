@@ -1,9 +1,7 @@
-from enum import Enum
 import numpy as np
 import re
-import sys
 
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QEvent
 from PyQt5.QtWidgets import (QWidget, QApplication, QFileDialog, QHBoxLayout, QVBoxLayout, 
                             QCheckBox, QPushButton, QLineEdit, QComboBox, QInputDialog, QMessageBox)
 from PyQt5.QtGui import QImage, QPixmap, QPainter
@@ -12,6 +10,7 @@ from deepfly.core import Core
 
 
 def main():
+    import sys
     cli_args = parse_cli_args(sys.argv)
 
     app = QApplication([])
@@ -30,13 +29,6 @@ def parse_cli_args(argv):
     except (IndexError, ValueError):
         pass
     return args
-
-
-class Mode(Enum):
-    IMAGE = 1
-    HEATMAP = 2
-    POSE = 3
-    CORRECTION = 4
 
 
 class DrosophAnnot(QWidget):
@@ -97,9 +89,12 @@ class DrosophAnnot(QWidget):
             self.combo_joint_id.addItem(f'View joint {i}', [i])
         self.combo_joint_id.activated[str].connect(self.update_frame)
         
-        top_row    = [ImageView(self.core, i) for i in [0, 1, 2]]
-        bottom_row = [ImageView(self.core, i) for i in [4, 5, 6]]
+        top_row    = [ImageView(cam_id) for cam_id in [0, 1, 2]]
+        bottom_row = [ImageView(cam_id) for cam_id in [4, 5, 6]]
         self.image_views = top_row + bottom_row
+        for image_view in self.image_views:
+            image_view.installEventFilter(self)
+
         # Layouts
         layout_h_images = QHBoxLayout()
         layout_h_images.setSpacing(1)
@@ -287,7 +282,7 @@ class DrosophAnnot(QWidget):
         self.checkbox_correction_skip.setEnabled(False)
         self.belief_propagation_enabled = lambda: False
         self.correction_skip_enabled = lambda: False
-        self.display_method = lambda v, i, j: v.show(i, Mode.IMAGE, j)
+        self.display_method = lambda c,i,j: self.core.get_image(c, i)
         self.update_frame()
 
 
@@ -301,7 +296,7 @@ class DrosophAnnot(QWidget):
         self.checkbox_correction_skip.setEnabled(False)
         self.belief_propagation_enabled = lambda: False
         self.correction_skip_enabled = lambda: False
-        self.display_method = lambda v, i, j: v.show(i, Mode.POSE, j)
+        self.display_method = lambda c,i,j: self.core.plot_2d(c, i, joints=j)
         self.update_frame()
 
 
@@ -314,8 +309,9 @@ class DrosophAnnot(QWidget):
         self.checkbox_solve_bp.setEnabled(True)
         self.checkbox_correction_skip.setEnabled(True)
         self.belief_propagation_enabled = lambda: self.checkbox_solve_bp.isChecked()
-        self.correction_skip_enabled = lambda: self.core.has_calibration() and self.checkbox_correction_skip.isChecked()
-        self.display_method = lambda v, i, j: v.show(i, Mode.CORRECTION, j)
+        self.correction_skip_enabled = \
+            lambda: self.core.has_calibration() and self.checkbox_correction_skip.isChecked()
+        self.display_method = lambda c,i,j: self.core.plot_2d(c, i, with_corrections=True, joints=j)
         self.update_frame()
 
 
@@ -329,7 +325,7 @@ class DrosophAnnot(QWidget):
         self.checkbox_correction_skip.setEnabled(False)
         self.belief_propagation_enabled = lambda: False
         self.correction_skip_enabled = lambda: False
-        self.display_method = lambda v, i, j: v.show(i, Mode.HEATMAP, j)
+        self.display_method = lambda c,i,j: self.core.plot_heatmap(c, i, joints=j)
         self.update_frame()
 
 
@@ -343,60 +339,46 @@ class DrosophAnnot(QWidget):
         if self.belief_propagation_enabled():
             self.core.solve_bp(self.img_id)
 
-        joints_to_display = self.combo_joint_id.currentData()
+        for iv in self.image_views:
+            self.update_image_view(iv)
+            
 
-        for image_view in self.image_views:
-            self.display_method(image_view, self.img_id, joints_to_display)
+    def update_image_view(self, iv):
+        joints_to_display = self.combo_joint_id.currentData()
+        iv.display_image(self.display_method(iv.cam_id, self.img_id, joints_to_display))
+
+
+    def eventFilter(self, iv, e):
+        """ Event filter listening to ImageView's mouse events to handle manual corrections """
+
+        left_press = e.type() == QEvent.MouseButtonPress and e.buttons() == Qt.LeftButton
+        left_move = e.type() == QEvent.MouseMove and e.buttons() == Qt.LeftButton
+        correction_mode = self.button_correction_mode.isChecked()
+        
+        if correction_mode and (left_press or left_move):
+            x = int(e.x() * self.core.image_shape[0] / iv.frameGeometry().width())
+            y = int(e.y() * self.core.image_shape[1] / iv.frameGeometry().height())
+
+            if left_press:
+                self.joint_being_corrected = self.core.nearest_joint(iv.cam_id, self.img_id, x, y)
+                return False
+
+            elif left_move:
+                self.core.move_joint(iv.cam_id, self.img_id, self.joint_being_corrected, x, y)
+                self.update_image_view(iv)
+                return False
+
+        return super().eventFilter(iv, e)
+
 
 
 class ImageView(QWidget):
-    def __init__(self, core, camera_id):
+    def __init__(self, camera_id):
         QWidget.__init__(self)
-        self.core = core
         self.cam_id = camera_id 
-        self.corrections_enabled = False
-        self.displayed_img = None
-        self.displayed_joints = None
-        self.joint_being_corrected = None
+    
 
-
-    def show(self, img_id, mode, joints_to_display=[]):
-        if mode == Mode.IMAGE:
-            im = self.core.get_image(self.cam_id, img_id)
-        elif mode == Mode.POSE:
-            im = self.core.plot_2d(self.cam_id, img_id, joints=joints_to_display)
-        elif mode == Mode.HEATMAP:
-            im = self.core.plot_heatmap(self.cam_id, img_id, joints=joints_to_display)
-        elif mode == Mode.CORRECTION:
-            im = self.core.plot_2d(self.cam_id, img_id, with_corrections=True, joints=joints_to_display)
-        else:
-            raise RuntimeError(f'Unknown mode {mode}')
-
-        self.displayed_img = img_id
-        self.displayed_joints = joints_to_display
-        self.corrections_enabled = (mode == Mode.CORRECTION)
-        self.update_pixmap(im)
-
-
-    def mouseMoveEvent(self, e):
-        if self.corrections_enabled:
-            x = int(e.x() * self.core.image_shape[0] / self.frameGeometry().width())
-            y = int(e.y() * self.core.image_shape[1] / self.frameGeometry().height())
-            self.move_joint(x, y)
-            
-            
-    def move_joint(self, x, y):
-        if self.joint_being_corrected is None:
-            self.joint_being_corrected = self.core.nearest_joint(self.cam_id, self.displayed_img, x, y)
-        self.core.move_joint(self.cam_id, self.displayed_img, self.joint_being_corrected, x, y)
-        self.show(self.displayed_img, Mode.CORRECTION, self.displayed_joints)
-            
-
-    def mouseReleaseEvent(self, _):
-        self.joint_being_corrected = None  # forget the tracked joint
-
-
-    def update_pixmap(self, image_array):
+    def display_image(self, image_array):
         im = image_array.astype(np.uint8)
         height, width, _ = im.shape
         bytesPerLine = 3 * width
