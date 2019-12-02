@@ -237,22 +237,19 @@ class DeepflyGUI(QW.QWidget):
 
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Return:
-            self.onclick_goto_img()
-        if event.key() == Qt.Key_A:
-            self.onclick_prev_image()
-        if event.key() == Qt.Key_D:
-            self.onclick_next_image()
-        if event.key() == Qt.Key_H:
-            self.switch_to_heatmap_mode()
-        if event.key() == Qt.Key_I:
-            self.switch_to_image_mode()
-        if event.key() == Qt.Key_X:
-            self.switch_to_pose_mode()
-        if event.key() == Qt.Key_C:
-            self.switch_to_correction_mode()
-        if event.key() == Qt.Key_T:
-            self.onclick_save_pose()
+        switch = {
+            Qt.Key_Return: self.onclick_goto_img,
+            Qt.Key_A: self.onclick_prev_image,
+            Qt.Key_D: self.onclick_next_image,
+            Qt.Key_H: self.switch_to_heatmap_mode,
+            Qt.Key_I: self.switch_to_image_mode,
+            Qt.Key_X: self.switch_to_pose_mode,
+            Qt.Key_C: self.switch_to_correction_mode,
+            Qt.Key_T: self.onclick_save_pose,
+        }
+        default_action = lambda: None
+        action = switch.get(event.key(), default_action)
+        action()
 
         
     # ------------------------------------------------------------------
