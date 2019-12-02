@@ -61,7 +61,12 @@ class DeepflyGUI(QW.QWidget):
         self.checkbox_correction_skip.stateChanged.connect(self.update_frame)
         
         # --- Create buttons ---
-        mb = self.make_button
+        def mb(text, onClick):
+            b = QW.QPushButton(text, self)
+            b.setMaximumWidth(b.fontMetrics().boundingRect(text).width() + 27)
+            b.clicked.connect(onClick)
+            return b
+
         self.button_first        = mb("<<", self.onclick_first_image)
         self.button_prev         = mb("<", self.onclick_prev_image)
         self.button_next         = mb(">", self.onclick_next_image)
@@ -160,18 +165,6 @@ class DeepflyGUI(QW.QWidget):
         self.setLayout(layout_v)
         self.setWindowTitle(self.core.input_folder)
 
-
-    def make_button(self, text, onClick):
-        b = QW.QPushButton(text, self)
-        b.setMaximumWidth(b.fontMetrics().boundingRect(text).width() + 27)
-        b.clicked.connect(onClick)
-        return b
-
-
-    def display_error_message(self, message):
-        msgBox = QW.QMessageBox()
-        msgBox.setText(message)
-        msgBox.exec()
 
     # ------------------------------------------------------------------
     # onclick callbacks
@@ -288,6 +281,12 @@ class DeepflyGUI(QW.QWidget):
             else:
                 msg = 'Please provide a range such as: 0-10'
                 self.display_error_message(msg)
+
+
+    def display_error_message(self, message):
+        msgBox = QW.QMessageBox()
+        msgBox.setText(message)
+        msgBox.exec()
 
 
     # ------------------------------------------------------------------
