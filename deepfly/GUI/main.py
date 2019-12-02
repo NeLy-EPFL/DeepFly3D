@@ -3,7 +3,7 @@ import re
 
 from PyQt5.QtCore import Qt, QEvent
 from PyQt5.QtWidgets import (QWidget, QApplication, QFileDialog, QHBoxLayout, QVBoxLayout, 
-                            QCheckBox, QPushButton, QLineEdit, QComboBox, QInputDialog, QMessageBox)
+                            QCheckBox, QPushButton, QLineEdit, QComboBox, QInputDialog, QMessageBox, QLabel)
 from PyQt5.QtGui import QImage, QPixmap, QPainter
 
 from deepfly.core import Core
@@ -51,7 +51,7 @@ class DrosophAnnot(QWidget):
         
 
     def setup_layout(self):
-        # Create checkboxes
+        # --- Create checkboxes ---
         self.checkbox_solve_bp = QCheckBox("Auto-correct", self)
         self.checkbox_solve_bp.setChecked(True)
         self.checkbox_solve_bp.stateChanged.connect(self.update_frame)
@@ -60,7 +60,7 @@ class DrosophAnnot(QWidget):
         self.checkbox_correction_skip.setChecked(True)
         self.checkbox_correction_skip.stateChanged.connect(self.update_frame)
         
-        # Create buttons
+        # --- Create buttons ---
         self.button_first           = self.make_button("<<",          self.onclick_first_image)
         self.button_prev            = self.make_button("<",           self.onclick_prev_image)
         self.button_next            = self.make_button(">",           self.onclick_next_image)
@@ -89,13 +89,21 @@ class DrosophAnnot(QWidget):
             self.combo_joint_id.addItem(f'View joint {i}', [i])
         self.combo_joint_id.activated[str].connect(self.update_frame)
         
-        top_row    = [ImageView(cam_id) for cam_id in [0, 1, 2]]
-        bottom_row = [ImageView(cam_id) for cam_id in [4, 5, 6]]
+        # --- Create widgets to display images and pose results ---
+        def make_image_view(cam_id):
+            iv = QLabel()
+            iv.setScaledContents(True)
+            iv.cam_id = cam_id
+            return iv
+
+        top_row    = [make_image_view(cam_id) for cam_id in [0, 1, 2]]
+        bottom_row = [make_image_view(cam_id) for cam_id in [4, 5, 6]]
         self.image_views = top_row + bottom_row
+
         for image_view in self.image_views:
             image_view.installEventFilter(self)
 
-        # Layouts
+        # --- Layouts ---
         layout_h_images = QHBoxLayout()
         layout_h_images.setSpacing(1)
         for image_pose in top_row:
@@ -103,7 +111,7 @@ class DrosophAnnot(QWidget):
             image_pose.resize(image_pose.sizeHint())
         
         layout_h_images_bot = QHBoxLayout()
-        layout_h_images.setSpacing(1)
+        layout_h_images_bot.setSpacing(1)
         for image_pose in bottom_row:
             layout_h_images_bot.addWidget(image_pose)
             image_pose.resize(image_pose.sizeHint())
@@ -345,7 +353,12 @@ class DrosophAnnot(QWidget):
 
     def update_image_view(self, iv):
         joints_to_display = self.combo_joint_id.currentData()
-        iv.display_image(self.display_method(iv.cam_id, self.img_id, joints_to_display))
+        image_array = self.display_method(iv.cam_id, self.img_id, joints_to_display)
+        im = image_array.astype(np.uint8)
+        height, width, _ = im.shape
+        bytesPerLine = 3 * width
+        qIm = QImage(im, width, height, bytesPerLine, QImage.Format_RGB888)
+        iv.setPixmap(QPixmap.fromImage(qIm))
 
 
     def eventFilter(self, iv, e):
@@ -369,28 +382,6 @@ class DrosophAnnot(QWidget):
                 return False
 
         return super().eventFilter(iv, e)
-
-
-
-class ImageView(QWidget):
-    def __init__(self, camera_id):
-        QWidget.__init__(self)
-        self.cam_id = camera_id 
-    
-
-    def display_image(self, image_array):
-        im = image_array.astype(np.uint8)
-        height, width, _ = im.shape
-        bytesPerLine = 3 * width
-        qIm = QImage(im, width, height, bytesPerLine, QImage.Format_RGB888)
-        self.pixmap = QPixmap.fromImage(qIm)
-        self.update()
-
-
-    def paintEvent(self, paint_event):
-        painter = QPainter(self)
-        painter.drawPixmap(self.rect(), self.pixmap)
-        self.update()
 
 
 if __name__ == "__main__":
