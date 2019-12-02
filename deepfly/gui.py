@@ -38,7 +38,8 @@ class DeepflyGUI(QW.QWidget):
 
 
     def setup(self, input_folder=None, num_images_max=None):
-        self.core = Core(input_folder or self.prompt_for_directory(), num_images_max)
+        input_folder = input_folder or self.prompt_for_directory()
+        self.core = Core(input_folder, num_images_max)
         self.setup_layout()
         self.switch_to_image_mode()
     
@@ -60,19 +61,24 @@ class DeepflyGUI(QW.QWidget):
         self.checkbox_correction_skip.stateChanged.connect(self.update_frame)
         
         # --- Create buttons ---
-        self.button_first           = self.make_button("<<",          self.onclick_first_image)
-        self.button_prev            = self.make_button("<",           self.onclick_prev_image)
-        self.button_next            = self.make_button(">",           self.onclick_next_image)
-        self.button_last            = self.make_button(">>",          self.onclick_last_image)
-        self.button_pose_mode       = self.make_button("Pose",        self.switch_to_pose_mode)
-        self.button_image_mode      = self.make_button("Image",       self.switch_to_image_mode)
-        self.button_heatmap_mode    = self.make_button("Prob. Map",   self.switch_to_heatmap_mode)
-        self.button_correction_mode = self.make_button("Correction",  self.switch_to_correction_mode)
-        button_textbox_img_id_go    = self.make_button("Go",          self.onclick_goto_img)
-        self.button_pose_save       = self.make_button("Save",        self.onclick_save_pose)
-        self.button_calibrate_calc  = self.make_button("Calibration", self.onclick_calibrate)
-        self.button_camera_order    = self.make_button("Camera ordering", self.onclick_camera_order)
-        self.button_pose_estimate   = self.make_button("2D Pose Estimation", self.onclick_pose2d_estimation)
+        mb = self.make_button
+        self.button_first        = mb("<<", self.onclick_first_image)
+        self.button_prev         = mb("<", self.onclick_prev_image)
+        self.button_next         = mb(">", self.onclick_next_image)
+        self.button_last         = mb(">>", self.onclick_last_image)
+        button_textbox_img_id_go = mb("Go",  self.onclick_goto_img)
+        self.button_pose_save    = mb("Save", self.onclick_save_pose)
+        self.button_calibrate_calc = mb("Calibration", self.onclick_calibrate)
+        self.button_pose_mode    = mb("Pose", self.switch_to_pose_mode)
+        self.button_image_mode   = mb("Image", self.switch_to_image_mode)
+        self.button_heatmap_mode = mb("Prob. Map", self.switch_to_heatmap_mode)
+        
+        self.button_correction_mode = \
+            mb("Correction", self.switch_to_correction_mode)
+        self.button_camera_order = \
+            mb("Camera ordering", self.onclick_camera_order)
+        self.button_pose_estimate = \
+            mb("2D Pose Estimation", self.onclick_pose2d_estimation)
         
         self.button_image_mode.setCheckable(True) 
         self.button_correction_mode.setCheckable(True)
@@ -115,18 +121,20 @@ class DeepflyGUI(QW.QWidget):
             layout_h_images_bot.addWidget(image_pose)
             image_pose.resize(image_pose.sizeHint())
 
+        l, r = Qt.AlignLeft, Qt.AlignRight
+        
         layout_h_buttons_top = QW.QHBoxLayout()
         layout_h_buttons_top.setSpacing(3)
         layout_h_buttons_top.setAlignment(Qt.AlignRight)
-        layout_h_buttons_top.addWidget(self.button_pose_estimate,  alignment=Qt.AlignLeft)
-        layout_h_buttons_top.addWidget(self.button_calibrate_calc, alignment=Qt.AlignLeft)
-        layout_h_buttons_top.addWidget(self.button_camera_order,   alignment=Qt.AlignLeft)
-        layout_h_buttons_top.addWidget(self.button_pose_save,      alignment=Qt.AlignLeft)
+        layout_h_buttons_top.addWidget(self.button_pose_estimate,  alignment=l)
+        layout_h_buttons_top.addWidget(self.button_calibrate_calc, alignment=l)
+        layout_h_buttons_top.addWidget(self.button_camera_order,   alignment=l)
+        layout_h_buttons_top.addWidget(self.button_pose_save,      alignment=l)
         layout_h_buttons_top.addStretch()
-        layout_h_buttons_top.addWidget(self.button_image_mode,        alignment=Qt.AlignRight)
-        layout_h_buttons_top.addWidget(self.button_pose_mode,         alignment=Qt.AlignRight)
-        layout_h_buttons_top.addWidget(self.button_correction_mode,   alignment=Qt.AlignRight)
-        layout_h_buttons_top.addWidget(self.button_heatmap_mode,      alignment=Qt.AlignRight)
+        layout_h_buttons_top.addWidget(self.button_image_mode,     alignment=r)
+        layout_h_buttons_top.addWidget(self.button_pose_mode,      alignment=r)
+        layout_h_buttons_top.addWidget(self.button_correction_mode,alignment=r)
+        layout_h_buttons_top.addWidget(self.button_heatmap_mode,   alignment=r)
         
         layout_h_buttons = QW.QHBoxLayout()
         layout_h_buttons.setSpacing(1)
@@ -137,10 +145,10 @@ class DeepflyGUI(QW.QWidget):
         layout_h_buttons.addWidget(self.textbox_img_id)
         layout_h_buttons.addWidget(button_textbox_img_id_go)
         layout_h_buttons.addStretch()
-        layout_h_buttons.addWidget(self.checkbox_correction_skip, alignment=Qt.AlignRight)
-        layout_h_buttons.addWidget(self.checkbox_solve_bp,        alignment=Qt.AlignRight)
+        layout_h_buttons.addWidget(self.checkbox_correction_skip, alignment=r)
+        layout_h_buttons.addWidget(self.checkbox_solve_bp,        alignment=r)
         layout_h_buttons.addStretch()
-        layout_h_buttons.addWidget(self.combo_joint_id, alignment=Qt.AlignRight)
+        layout_h_buttons.addWidget(self.combo_joint_id, alignment=r)
         
         layout_v = QW.QVBoxLayout()
         layout_v.addLayout(layout_h_buttons_top)
@@ -223,7 +231,8 @@ class DeepflyGUI(QW.QWidget):
             self.display_img(img_id)
             self.setFocus()
         except BaseException:
-            self.display_error_message("Textbox content should be an integer image id")
+            msg = "Textbox content should be an integer image id"
+            self.display_error_message(msg)
             self.textbox_img_id.setText(str(self.img_id))
 
 
@@ -260,7 +269,9 @@ class DeepflyGUI(QW.QWidget):
 
 
     def prompt_for_camera_ordering(self):
-        text, ok_pressed = QW.QInputDialog.getText(self, "Rename Images", "Camera order:", QW.QLineEdit.Normal, "")
+        text, ok_pressed = QW.QInputDialog.getText(
+            self, "Rename Images", "Camera order:", QW.QLineEdit.Normal, ""
+        )
         if ok_pressed:
             cidread2cid = re.findall(r'[0-9]+', text) 
             cidread2cid = [int(x) for x in cidread2cid]
@@ -268,14 +279,18 @@ class DeepflyGUI(QW.QWidget):
 
 
     def prompt_for_calibration_range(self):
-        text, okPressed = QW.QInputDialog.getText(self, "Calibration", "Range of images:", QW.QLineEdit.Normal, f"0-{self.core.max_img_id}")
+        text, okPressed = QW.QInputDialog.getText(
+            self, "Calibration", "Range of images:", QW.QLineEdit.Normal, 
+            f"0-{self.core.max_img_id}"
+        )
         if okPressed:
             numbers = re.findall(r'[0-9]+', text)
             numbers = [int(x) for x in numbers]
             if len(numbers) == 2:
                 return numbers[0], numbers[1]
             else:
-                self.display_error_message('Please provide a range such as: 0-10')
+                msg = 'Please provide a range such as: 0-10'
+                self.display_error_message(msg)
 
 
     # ------------------------------------------------------------------
@@ -322,10 +337,17 @@ class DeepflyGUI(QW.QWidget):
         self.combo_joint_id.setEnabled(True)
         self.checkbox_solve_bp.setEnabled(True)
         self.checkbox_correction_skip.setEnabled(True)
-        self.belief_propagation_enabled = lambda: self.checkbox_solve_bp.isChecked()
-        self.correction_skip_enabled = \
-            lambda: self.core.has_calibration() and self.checkbox_correction_skip.isChecked()
-        self.display_method = lambda c,i,j: self.core.plot_2d(c, i, with_corrections=True, joints=j)
+
+        self.belief_propagation_enabled = lambda: \
+            self.checkbox_solve_bp.isChecked()
+        
+        self.correction_skip_enabled = lambda: \
+            (self.core.has_calibration() and 
+             self.checkbox_correction_skip.isChecked())
+        
+        self.display_method = lambda c,i,j: \
+            self.core.plot_2d(c, i, with_corrections=True, joints=j)
+        
         self.update_frame()
 
 
@@ -339,7 +361,10 @@ class DeepflyGUI(QW.QWidget):
         self.checkbox_correction_skip.setEnabled(False)
         self.belief_propagation_enabled = lambda: False
         self.correction_skip_enabled = lambda: False
-        self.display_method = lambda c,i,j: self.core.plot_heatmap(c, i, joints=j)
+        
+        self.display_method = lambda c,i,j: \
+            self.core.plot_heatmap(c, i, joints=j)
+        
         self.update_frame()
 
 
@@ -358,8 +383,8 @@ class DeepflyGUI(QW.QWidget):
             
 
     def update_image_view(self, iv):
-        joints_to_display = self.combo_joint_id.currentData()
-        image_array = self.display_method(iv.cam_id, self.img_id, joints_to_display)
+        joints = self.combo_joint_id.currentData()
+        image_array = self.display_method(iv.cam_id, self.img_id, joints)
         im = image_array.astype(np.uint8)
         height, width, _ = im.shape
         bytesPerLine = 3 * width
@@ -368,22 +393,28 @@ class DeepflyGUI(QW.QWidget):
 
 
     def eventFilter(self, iv, e):
-        """ Event filter listening to ImageView's mouse events to handle manual corrections """
-
-        left_press = e.type() == QEvent.MouseButtonPress and e.buttons() == Qt.LeftButton
-        left_move = e.type() == QEvent.MouseMove and e.buttons() == Qt.LeftButton
+        """ Event filter listening to the image views mouse events
+            to handle manual corrections
+        """
+        MousePress = QEvent.MouseButtonPress
+        MouseMove = QEvent.MouseMove
+        left_press = e.type() == MousePress and e.buttons() == Qt.LeftButton
+        left_move = e.type() == MouseMove and e.buttons() == Qt.LeftButton
         correction_mode = self.button_correction_mode.isChecked()
         
         if correction_mode and (left_press or left_move):
-            x = int(e.x() * self.core.image_shape[0] / iv.frameGeometry().width())
-            y = int(e.y() * self.core.image_shape[1] / iv.frameGeometry().height())
+            frame = iv.frameGeometry()
+            x = int(e.x() * self.core.image_shape[0] / frame.width())
+            y = int(e.y() * self.core.image_shape[1] / frame.height())
 
             if left_press:
-                self.joint_being_corrected = self.core.nearest_joint(iv.cam_id, self.img_id, x, y)
+                joint = self.core.nearest_joint(iv.cam_id, self.img_id, x, y)
+                self.joint_being_corrected = joint
                 return False
 
             elif left_move:
-                self.core.move_joint(iv.cam_id, self.img_id, self.joint_being_corrected, x, y)
+                joint = self.joint_being_corrected
+                self.core.move_joint(iv.cam_id, self.img_id, joint, x, y)
                 self.update_image_view(iv)
                 return False
 
