@@ -23,5 +23,7 @@ setup(
         "matplotlib",
         "torchvision",
         "opencv-python>=3.4.0.12",
+        "tqdm",
+        "colorama",
     ],
 )
