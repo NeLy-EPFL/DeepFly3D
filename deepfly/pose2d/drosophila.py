@@ -50,7 +50,7 @@ def on_cuda(torch_var, *cuda_args, **cuda_kwargs):
 
 def main(args):
     global best_acc
-
+    
     # create model
     getLogger('df3d').debug("Creating model '{}', stacks={}, blocks={}".format(
             args.arch, args.stacks, args.blocks
@@ -149,6 +149,21 @@ def main(args):
 
     if args.unlabeled:
         unlabeled_folder = args.unlabeled
+        unlabeled_folder_replace = unlabeled_folder.replace("/", "-")
+        
+        save_path = os.path.join(
+            args.data_folder,
+            "/{}".format(unlabeled_folder),
+            args.output_folder,
+            "./preds_{}.pkl".format(unlabeled_folder_replace),
+        )
+
+        if os.path.isfile(save_path) and not args.overwrite:
+            getLogger('df3d').info('Prediction file exists, skipping pose estimation')
+            return None, None
+        elif os.path.isfile(save_path) and args.overwrite:
+            getLogger('df3d').info('Overwriting existing predictions')
+        
         max_img_id = get_max_img_id(unlabeled_folder)
         try:
             max_img_id = min(max_img_id, args.num_images_max-1)
@@ -180,7 +195,6 @@ def main(args):
         valid_loss, valid_acc, val_pred, val_score_maps, mse, jump_acc = validate(
             unlabeled_loader, 0, model, criterion, args, save_path=unlabeled_folder
         )
-        unlabeled_folder_replace = unlabeled_folder.replace("/", "-")
         getLogger('df3d').debug(f"val_score_maps have shape: {val_score_maps.shape}")
 
         getLogger('df3d').debug("Saving Results, flipping heatmaps")
@@ -202,15 +216,7 @@ def main(args):
                         val_score_maps[cam_id, img_id, j_id, :, :], 1
                     )
 
-        save_dict(
-            val_pred,
-            os.path.join(
-                args.data_folder,
-                "/{}".format(unlabeled_folder),
-                args.output_folder,
-                "./preds_{}.pkl".format(unlabeled_folder_replace),
-            ),
-        )
+        save_dict(val_pred, save_path)
 
         getLogger('df3d').debug("Finished saving results")
     else:

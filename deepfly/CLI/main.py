@@ -78,6 +78,11 @@ def parse_cli_args():
         action='store_true',
     )
     parser.add_argument(
+        "-o", "--overwrite",
+        help="Rerun pose estimation and overwrite existing pose results",
+        action='store_true'
+    )
+    parser.add_argument(
         "-n", "--num-images-max",
         help="Maximal number of images to process.",
         default=math.inf,
@@ -191,7 +196,7 @@ def run(args):
         return 0
     
     getLogger('df3d').info(f'{Style.BRIGHT}\nWorking in {args.input_folder}{Style.RESET_ALL}')
-    setup_data = core_api.setup(args.input_folder, args.camera_ids, args.num_images_max)
+    setup_data = core_api.setup(args.input_folder, args.camera_ids, args.num_images_max, args.overwrite)
 
     if not args.skip_estimation:
         core_api.pose2d_estimation(setup_data)
