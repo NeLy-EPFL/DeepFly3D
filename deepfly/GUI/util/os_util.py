@@ -60,10 +60,7 @@ def write_camera_order(folder, cidread2cid):
     assert (folder.endswith('df3d/') or folder.endswith('df3d'))
     path = os.path.join(folder, "cam_order")
     # print("Saving camera order {}: {}".format(path, cidread2cid))
-    try:
-        np.save(path, cidread2cid)
-    except:
-        return
+    np.save(path, cidread2cid)
 
 
 def read_calib(folder):
