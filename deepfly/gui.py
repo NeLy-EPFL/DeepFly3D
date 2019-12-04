@@ -63,18 +63,18 @@ class DeepflyGUI(QW.QWidget):
             b.clicked.connect(onClick)
             return b
 
-        self.button_first        = mb("<<", self.onclick_first_image)
-        self.button_prev         = mb("<", self.onclick_prev_image)
-        self.button_next         = mb(">", self.onclick_next_image)
+        self.button_prev = mb("<", self.onclick_prev_image)
+        self.button_next = mb(">", self.onclick_next_image)
+        self.button_last = mb(">>", self.onclick_last_image)
+        self.button_first = mb("<<", self.onclick_first_image)
         self.button_prev_err = mb("< previous error", self.onclick_prev_error)
-        self.button_next_err     = mb("next error >", self.onclick_next_error)
-        self.button_last         = mb(">>", self.onclick_last_image)
-        button_textbox_img_id_go = mb("Go",  self.onclick_goto_img)
-        self.button_pose_save    = mb("Save", self.onclick_save_pose)
-        self.button_calibrate_calc = mb("Calibration", self.onclick_calibrate)
-        self.button_pose_mode    = mb("Pose", self.switch_to_pose_mode)
-        self.button_image_mode   = mb("Image", self.switch_to_image_mode)
+        self.button_next_err = mb("next error >", self.onclick_next_error)
+        self.button_pose_save = mb("Save", self.onclick_save_pose)
+        self.button_pose_mode = mb("Pose", self.switch_to_pose_mode)
+        self.button_image_mode = mb("Image", self.switch_to_image_mode)
         self.button_heatmap_mode = mb("Prob. Map", self.switch_to_heatmap_mode)
+        button_textbox_img_id_go = mb("Go",  self.onclick_goto_img)
+        self.button_calibrate_calc = mb("Calibration", self.onclick_calibrate)
         
         self.button_correction_mode = \
             mb("Correction", self.switch_to_correction_mode)
