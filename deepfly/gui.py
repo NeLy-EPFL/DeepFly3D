@@ -56,10 +56,6 @@ class DeepflyGUI(QW.QWidget):
         self.checkbox_solve_bp.setChecked(True)
         self.checkbox_solve_bp.stateChanged.connect(self.update_frame)
 
-        self.checkbox_correction_skip = QW.QCheckBox("Skip to next error", self)
-        self.checkbox_correction_skip.setChecked(True)
-        self.checkbox_correction_skip.stateChanged.connect(self.update_frame)
-        
         # --- Create buttons ---
         def mb(text, onClick):
             b = QW.QPushButton(text, self)
@@ -70,6 +66,8 @@ class DeepflyGUI(QW.QWidget):
         self.button_first        = mb("<<", self.onclick_first_image)
         self.button_prev         = mb("<", self.onclick_prev_image)
         self.button_next         = mb(">", self.onclick_next_image)
+        self.button_prev_err = mb("< previous error", self.onclick_prev_error)
+        self.button_next_err     = mb("next error >", self.onclick_next_error)
         self.button_last         = mb(">>", self.onclick_last_image)
         button_textbox_img_id_go = mb("Go",  self.onclick_goto_img)
         self.button_pose_save    = mb("Save", self.onclick_save_pose)
@@ -126,20 +124,18 @@ class DeepflyGUI(QW.QWidget):
             layout_h_images_bot.addWidget(image_pose)
             image_pose.resize(image_pose.sizeHint())
 
-        l, r = Qt.AlignLeft, Qt.AlignRight
-        
         layout_h_buttons_top = QW.QHBoxLayout()
         layout_h_buttons_top.setSpacing(3)
         layout_h_buttons_top.setAlignment(Qt.AlignRight)
-        layout_h_buttons_top.addWidget(self.button_pose_estimate,  alignment=l)
-        layout_h_buttons_top.addWidget(self.button_calibrate_calc, alignment=l)
-        layout_h_buttons_top.addWidget(self.button_camera_order,   alignment=l)
-        layout_h_buttons_top.addWidget(self.button_pose_save,      alignment=l)
+        layout_h_buttons_top.addWidget(self.button_pose_estimate)
+        layout_h_buttons_top.addWidget(self.button_calibrate_calc)
+        layout_h_buttons_top.addWidget(self.button_camera_order)
+        layout_h_buttons_top.addWidget(self.button_pose_save)
         layout_h_buttons_top.addStretch()
-        layout_h_buttons_top.addWidget(self.button_image_mode,     alignment=r)
-        layout_h_buttons_top.addWidget(self.button_pose_mode,      alignment=r)
-        layout_h_buttons_top.addWidget(self.button_correction_mode,alignment=r)
-        layout_h_buttons_top.addWidget(self.button_heatmap_mode,   alignment=r)
+        layout_h_buttons_top.addWidget(self.button_image_mode)
+        layout_h_buttons_top.addWidget(self.button_pose_mode)
+        layout_h_buttons_top.addWidget(self.button_correction_mode)
+        layout_h_buttons_top.addWidget(self.button_heatmap_mode)
         
         layout_h_buttons = QW.QHBoxLayout()
         layout_h_buttons.setSpacing(1)
@@ -150,10 +146,12 @@ class DeepflyGUI(QW.QWidget):
         layout_h_buttons.addWidget(self.textbox_img_id)
         layout_h_buttons.addWidget(button_textbox_img_id_go)
         layout_h_buttons.addStretch()
-        layout_h_buttons.addWidget(self.checkbox_correction_skip, alignment=r)
-        layout_h_buttons.addWidget(self.checkbox_solve_bp,        alignment=r)
+        layout_h_buttons.addWidget(self.button_prev_err)
+        layout_h_buttons.addWidget(self.button_next_err)
         layout_h_buttons.addStretch()
-        layout_h_buttons.addWidget(self.combo_joint_id, alignment=r)
+        layout_h_buttons.addWidget(self.checkbox_solve_bp)
+        layout_h_buttons.addStretch()
+        layout_h_buttons.addWidget(self.combo_joint_id)
         
         layout_v = QW.QVBoxLayout()
         layout_v.addLayout(layout_h_buttons_top)
@@ -194,9 +192,15 @@ class DeepflyGUI(QW.QWidget):
 
 
     def onclick_prev_image(self):
-        prev_img = self.core.prev_error(self.img_id) \
-            if self.correction_skip_enabled() \
-            else max(self.img_id - 1, 0)
+        self.display_img(max(self.img_id - 1, 0))
+        
+
+    def onclick_next_image(self):
+        self.display_img(min(self.core.max_img_id, self.img_id + 1))
+
+
+    def onclick_prev_error(self):
+        prev_img = self.core.prev_error(self.img_id)
         if prev_img is not None:
             self.display_img(prev_img)
         else:
@@ -204,10 +208,8 @@ class DeepflyGUI(QW.QWidget):
             self.display_error_message(msg)
         
 
-    def onclick_next_image(self):
-        next_img = self.core.next_error(self.img_id) \
-            if self.correction_skip_enabled() \
-            else min(self.core.max_img_id, self.img_id + 1)
+    def onclick_next_error(self):
+        next_img = self.core.next_error(self.img_id)
         if next_img is not None:
             self.display_img(next_img)
         else:
@@ -307,14 +309,18 @@ class DeepflyGUI(QW.QWidget):
         self.button_pose_mode.setChecked(False)
 
 
+    def correction_controls_enabled(self, enabled):
+        self.button_next_err.setEnabled(enabled)
+        self.button_prev_err.setEnabled(enabled)
+        self.checkbox_solve_bp.setEnabled(enabled)
+        
+
     def switch_to_image_mode(self):
         self.uncheck_mode_buttons()
         self.button_image_mode.setChecked(True)
         self.combo_joint_id.setEnabled(False)
-        self.checkbox_solve_bp.setEnabled(False)
-        self.checkbox_correction_skip.setEnabled(False)
+        self.correction_controls_enabled(False)
         self.belief_propagation_enabled = lambda: False
-        self.correction_skip_enabled = lambda: False
         self.display_method = lambda c,i,j: self.core.get_image(c, i)
         self.update_frame()
 
@@ -325,10 +331,8 @@ class DeepflyGUI(QW.QWidget):
         self.uncheck_mode_buttons()
         self.button_pose_mode.setChecked(True)
         self.combo_joint_id.setEnabled(True)
-        self.checkbox_solve_bp.setEnabled(False)
-        self.checkbox_correction_skip.setEnabled(False)
+        self.correction_controls_enabled(False)
         self.belief_propagation_enabled = lambda: False
-        self.correction_skip_enabled = lambda: False
         self.display_method = lambda c,i,j: self.core.plot_2d(c, i, joints=j)
         self.update_frame()
 
@@ -339,15 +343,10 @@ class DeepflyGUI(QW.QWidget):
         self.uncheck_mode_buttons()
         self.button_correction_mode.setChecked(True)
         self.combo_joint_id.setEnabled(True)
-        self.checkbox_solve_bp.setEnabled(True)
-        self.checkbox_correction_skip.setEnabled(True)
+        self.correction_controls_enabled(True)
 
         self.belief_propagation_enabled = lambda: \
             self.checkbox_solve_bp.isChecked()
-        
-        self.correction_skip_enabled = lambda: \
-            (self.core.has_calibration() and 
-             self.checkbox_correction_skip.isChecked())
         
         self.display_method = lambda c,i,j: \
             self.core.plot_2d(c, i, with_corrections=True, joints=j)
@@ -361,11 +360,9 @@ class DeepflyGUI(QW.QWidget):
         self.uncheck_mode_buttons()
         self.button_heatmap_mode.setChecked(True)
         self.combo_joint_id.setEnabled(True)
-        self.checkbox_solve_bp.setEnabled(False)
-        self.checkbox_correction_skip.setEnabled(False)
+        self.correction_controls_enabled(False)
         self.belief_propagation_enabled = lambda: False
-        self.correction_skip_enabled = lambda: False
-        
+    
         self.display_method = lambda c,i,j: \
             self.core.plot_heatmap(c, i, joints=j)
         

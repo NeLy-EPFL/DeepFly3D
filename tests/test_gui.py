@@ -236,23 +236,46 @@ def test_mode_correction(qtbot):
     qtbot.mouseClick(window.button_correction_mode, QtCore.Qt.LeftButton)
     assert window.button_correction_mode.isChecked()
     
-    window.checkbox_correction_skip.setChecked(True)
     qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
     assert window.img_id == 0
     qtbot.mouseClick(window.button_next, QtCore.Qt.LeftButton)
-    assert window.img_id == NB_IMGS_IN_INPUT_DIR -1  # skip activated
-
-    window.checkbox_correction_skip.setChecked(False)
-    qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
-    assert window.img_id == 0
-    qtbot.mouseClick(window.button_next, QtCore.Qt.LeftButton)
-    assert window.img_id == 1                        # skip not activated
-
+    assert window.img_id == 1
     qtbot.mouseClick(window.button_prev, QtCore.Qt.LeftButton)
     assert window.img_id == 0
     qtbot.mouseClick(window.button_last, QtCore.Qt.LeftButton)
     assert window.img_id == NB_IMGS_IN_INPUT_DIR -1 
     
+
+def test_prev_next_error_when_none(qtbot):
+    class Mock(DeepflyGUI):
+        def __init__(self, *args, **kwargs):
+            DeepflyGUI.__init__(self, *args, **kwargs)
+            self.called = False
+        def display_error_message(self, msg):
+            self.called = True
+            
+    window = Mock()
+    qtbot.addWidget(window)
+    window.setup(INPUT_DIRECTORY)
+    qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
+    
+    qtbot.mouseClick(window.button_correction_mode, QtCore.Qt.LeftButton)
+    assert window.button_correction_mode.isChecked()
+    assert window.button_next_err.isEnabled()
+    assert window.button_prev_err.isEnabled()
+
+    qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
+    assert window.img_id == 0
+    assert not window.called
+    qtbot.mouseClick(window.button_next_err, QtCore.Qt.LeftButton)
+    assert window.called 
+    qtbot.mouseClick(window.button_last, QtCore.Qt.LeftButton)
+    assert window.img_id == NB_IMGS_IN_INPUT_DIR -1 
+    window.called = False
+    assert not window.called
+    qtbot.mouseClick(window.button_prev_err, QtCore.Qt.LeftButton)
+    assert window.called
+
 
 def test_belief_propagation(qtbot):
     window = DeepflyGUI()
@@ -263,17 +286,16 @@ def test_belief_propagation(qtbot):
     qtbot.mouseClick(window.button_correction_mode, QtCore.Qt.LeftButton)
     assert window.button_correction_mode.isChecked()
     #
-    window.checkbox_correction_skip.setChecked(True)
     qtbot.mouseClick(window.button_first, QtCore.Qt.LeftButton)
     assert window.img_id == 0
     #
-    qtbot.mouseClick(window.button_next, QtCore.Qt.LeftButton)
+    qtbot.mouseClick(window.button_next_err, QtCore.Qt.LeftButton)
     assert window.img_id == DIR2_ERROR_IMG1
     #
     qtbot.mouseClick(window.button_last, QtCore.Qt.LeftButton)
     assert window.img_id == NB_IMGS_IN_INPUT_DIR2 -1 
     #
-    qtbot.mouseClick(window.button_prev, QtCore.Qt.LeftButton)
+    qtbot.mouseClick(window.button_prev_err, QtCore.Qt.LeftButton)
     assert window.img_id == DIR2_ERROR_IMG2
 
 
