@@ -194,17 +194,25 @@ class DeepflyGUI(QW.QWidget):
 
 
     def onclick_prev_image(self):
-        prev_img = self.core.next_error(self.img_id, backward=True) \
+        prev_img = self.core.prev_error(self.img_id) \
             if self.correction_skip_enabled() \
             else max(self.img_id - 1, 0)
-        self.display_img(prev_img)
+        if prev_img is not None:
+            self.display_img(prev_img)
+        else:
+            msg = 'No error remaining among previous images'
+            self.display_error_message(msg)
         
 
     def onclick_next_image(self):
         next_img = self.core.next_error(self.img_id) \
             if self.correction_skip_enabled() \
             else min(self.core.max_img_id, self.img_id + 1)
-        self.display_img(next_img)
+        if next_img is not None:
+            self.display_img(next_img)
+        else:
+            msg = 'No error remaining among next images'
+            self.display_error_message(msg)
 
 
     def onclick_calibrate(self):

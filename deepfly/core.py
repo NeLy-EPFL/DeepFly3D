@@ -169,15 +169,21 @@ class Core:
         return err > config["reproj_thr"][joint_id]
 
 
-    def next_error(self, img_id, backward=False):
-        step = -1 if backward else +1
+    def next_error(self, img_id):
+        return self.next_error_in_range(range(img_id+1, self.max_img_id+1))
+
+
+    def prev_error(self, img_id):
+        return self.next_error_in_range(range(img_id-1, -1, -1))
+        
+
+    def next_error_in_range(self, range_of_ids):
         joints = [j for j in range(config["skeleton"].num_joints) if j in config["skeleton"].pictorial_joint_list]
-        last_id = 0 if backward else self.max_img_id
-        for img_id in range(img_id+step, last_id+step, step):
+        for img_id in range_of_ids:
             for joint_id in joints:
                 if self.joint_has_error(img_id, joint_id):
                     return img_id
-        return last_id
+        return None
 
 
     def calibrate_calc(self, min_img_id, max_img_id):
