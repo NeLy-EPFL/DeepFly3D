@@ -200,7 +200,7 @@ def main(args):
 
         getLogger('df3d').debug("Saving Results, flipping heatmaps")
         cid_to_reverse = config["flip_cameras"]  # camera id to reverse predictions and heatmaps
-        path = os.path.join(unlabeled_folder, './df3d')
+        path = os.path.join(unlabeled_folder, args.output_folder)
         getLogger('df3d').debug("Reading camera ordering from {} for image flipping.".format(path))
 
         cidread2cid, cid2cidread = read_camera_order(path)

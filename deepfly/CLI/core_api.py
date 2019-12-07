@@ -43,8 +43,8 @@ video_width = 500  # total width of the 2d and 3d videos
 # Public interface
 
 
-def setup(input_folder, camera_ids, num_images_max, overwrite=False):
-    args = _get_pose2d_args(input_folder, camera_ids, num_images_max, overwrite)
+def setup(input_folder, output_folder, camera_ids, num_images_max, overwrite=False):
+    args = _get_pose2d_args(input_folder, output_folder, camera_ids, num_images_max, overwrite)
     _setup_default_camera_ordering(args)
     _create_output_folder(args)
     _save_camera_ordering(args)
@@ -71,7 +71,7 @@ def pose3d_video(setup_data):
 # Below is private implementation
 
 
-def _get_pose2d_args(input_folder, camera_ids, num_images_max, overwrite):
+def _get_pose2d_args(input_folder, output_folder, camera_ids, num_images_max, overwrite):
     # Validate arguments
     input_folder = os.path.abspath(input_folder).rstrip('/')
     # Create a pose2d.ArgParse to get access to its default values
@@ -80,6 +80,7 @@ def _get_pose2d_args(input_folder, camera_ids, num_images_max, overwrite):
     # and fill it with our real command-line arguments
     args.unlabeled = input_folder
     args.input_folder = input_folder
+    args.output_folder = output_folder
     args.camera_ids = camera_ids
     args.unlabeled_recursive = False
     args.num_images_max = num_images_max

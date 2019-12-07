@@ -112,7 +112,7 @@ def add_arguments(parser):
     parser.add_argument(
         "--output_folder",
         dest="output_folder",
-        default="df3d/",
+        default=None,
         type=str,
         metavar="PATH",
         help="path to place final results",

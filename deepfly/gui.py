@@ -22,9 +22,11 @@ def main():
 
 def parse_cli_args(argv):
     args = {}
+    args['output_subfolder'] = 'df3d'
     try:
         args['input_folder'] = argv[1]
         args['num_images_max'] = int(argv[2])
+        args['output_subfolder'] = argv[3]
     except (IndexError, ValueError):
         pass
     return args
@@ -38,9 +40,19 @@ class DeepflyGUI(QW.QWidget):
         self.core = None
 
 
-    def setup(self, input_folder=None, num_images_max=None):
-        input_folder = input_folder or self.prompt_for_directory()
-        self.core = Core(input_folder, num_images_max)
+    def setup(
+        self, 
+        input_folder=None, 
+        output_subfolder=None, 
+        num_images_max=None):
+
+        if not input_folder:
+            input_folder = self.prompt_for_directory()
+
+        if not output_subfolder:
+            output_subfolder = self.prompt_output_subdirectory_name()
+        
+        self.core = Core(input_folder, output_subfolder, num_images_max)
         self.setup_layout()
         self.onclick_image_mode()
     
@@ -321,6 +333,16 @@ class DeepflyGUI(QW.QWidget):
                 caption="Select Directory",
                 options=QW.QFileDialog.DontUseNativeDialog,
             ))
+
+
+    def prompt_output_subdirectory_name(self):
+        ok_pressed = False
+        while not ok_pressed:
+            text, ok_pressed = QW.QInputDialog.getText(
+                self, "Name of output sub-directory", "Name:", 
+                QW.QLineEdit.Normal, "df3d"
+            )
+        return str(text)
 
 
     def prompt_for_camera_ordering(self):

@@ -18,9 +18,10 @@ import pickle
 
 class Core:
 
-    def __init__(self, input_folder, num_images_max):
+    def __init__(self, input_folder, output_subfolder, num_images_max):
         self.input_folder = input_folder
-        self.output_folder = os.path.join(self.input_folder, 'df3d/')
+        self.output_subfolder = output_subfolder
+        self.output_folder = os.path.join(input_folder, output_subfolder)
         self.num_images_max = num_images_max or math.inf
         max_img_id = get_max_img_id(self.input_folder)
         self.num_images = min(self.num_images_max, max_img_id + 1)
@@ -110,6 +111,7 @@ class Core:
         args, _ = parser.parse_known_args()
         args.checkpoint = False
         args.unlabeled = self.input_folder
+        args.output_folder = self.output_subfolder
         args.resume = config["resume"]
         args.stacks = config["num_stacks"]
         args.test_batch = config["batch_size"]
@@ -117,7 +119,7 @@ class Core:
         args.hm_res = config["heatmap_shape"]
         args.num_classes = config["num_predict"]
         args.max_img_id = self.max_img_id
-
+        
         pose2d_main(args)    # will write output files in output directory
         self.set_cameras()   # makes sure cameras use the latest heatmaps and predictions
         

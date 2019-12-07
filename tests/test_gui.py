@@ -18,10 +18,10 @@ INPUT_DIRECTORY2 = Path(__file__).parent / '../data/test-with-error'
 DIR2_ERROR_IMG1 = 2
 DIR2_ERROR_IMG2 = 3
 NB_IMGS_IN_INPUT_DIR2 = 6
-
+output_subdir = 'df3d'
 
 def reset_input_directory():
-    output_dir = INPUT_DIRECTORY / 'df3d'
+    output_dir = INPUT_DIRECTORY / output_subdir
     reference_dir = INPUT_DIRECTORY / 'df3d.sav'
     assert reference_dir.exists(), 'folder /df3d.sav/ does not exist'
     shutil.rmtree(output_dir)
@@ -88,7 +88,7 @@ def test_parse_cli_args_when_num_is_bad(tmp_path):
 def test_setup_input_folder_from_args(qtbot):
     window = DeepflyGUI()
     qtbot.addWidget(window)
-    window.setup(INPUT_DIRECTORY)
+    window.setup(INPUT_DIRECTORY, output_subdir)
     assert window.core.input_folder == os.path.abspath(INPUT_DIRECTORY)
 
 
@@ -102,18 +102,41 @@ def test_setup_input_folder_prompted(qtbot):
             self.called = True
             return INPUT_DIRECTORY
 
+        def prompt_output_subdirectory_name(self):
+            return output_subdir
+
     window = A()
     qtbot.addWidget(window)
-    window.setup()
+    window.setup(output_subfolder=output_subdir)
     assert window.called, "prompt dialog not called"
     assert window.core.input_folder == os.path.abspath(INPUT_DIRECTORY)
+
+
+def test_setup_output_subfolder_prompted(qtbot):
+    class A(DeepflyGUI):
+        def __init__(self, *args, **kwargs):
+            DeepflyGUI.__init__(self, *args, **kwargs)
+            self.called = False
+
+        def prompt_for_directory(self):
+            return INPUT_DIRECTORY
+
+        def prompt_output_subdirectory_name(self):
+            self.called = True
+            return output_subdir
+
+    window = A()
+    qtbot.addWidget(window)
+    window.setup(input_folder=INPUT_DIRECTORY)
+    assert window.called, "prompt dialog not called"
+    assert window.core.output_subfolder == output_subdir
 
 
 def test_setup_num_images_max_from_args(qtbot):
     N = 1
     window = DeepflyGUI()
     qtbot.addWidget(window)
-    window.setup(input_folder=INPUT_DIRECTORY, num_images_max=N)
+    window.setup(input_folder=INPUT_DIRECTORY, num_images_max=N, output_subfolder=output_subdir)
     assert N < NB_IMGS_IN_INPUT_DIR, "Choose a smaller number of images"
     assert window.core.num_images_max == N
     assert window.core.num_images == N
@@ -122,7 +145,7 @@ def test_setup_num_images_max_from_args(qtbot):
 def test_num_images(qtbot):
     window = DeepflyGUI()
     qtbot.addWidget(window)
-    window.setup(input_folder=INPUT_DIRECTORY)
+    window.setup(input_folder=INPUT_DIRECTORY, output_subfolder=output_subdir)
     assert window.core.num_images == NB_IMGS_IN_INPUT_DIR
 
 
@@ -141,7 +164,7 @@ def test_camera_order(qtbot):
 
     window = A()
     qtbot.addWidget(window)
-    window.setup(input_folder=INPUT_DIRECTORY)
+    window.setup(input_folder=INPUT_DIRECTORY, output_subfolder=output_subdir)
     qtbot.mouseClick(window.button_camera_order, QtCore.Qt.LeftButton)
     assert window.called, "prompt dialog not called"
     assert np.all(window.core.cidread2cid == np.array(ordering)), window.core.cidread2cid
@@ -159,7 +182,7 @@ def test_calibration(qtbot):
 
     window = A()
     qtbot.addWidget(window)
-    window.setup(INPUT_DIRECTORY)
+    window.setup(INPUT_DIRECTORY, output_subfolder=output_subdir)
     qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
     qtbot.mouseClick(window.button_calibrate_calc, QtCore.Qt.LeftButton)
     assert window.called, "prompt dialog not called"
@@ -168,7 +191,7 @@ def test_calibration(qtbot):
 def test_pose_save(qtbot):
     window = DeepflyGUI()
     qtbot.addWidget(window)
-    window.setup(INPUT_DIRECTORY)
+    window.setup(INPUT_DIRECTORY, output_subfolder=output_subdir)
     qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
     qtbot.mouseClick(window.button_pose_save, QtCore.Qt.LeftButton)    
 
@@ -176,7 +199,7 @@ def test_pose_save(qtbot):
 def test_mode_image(qtbot):
     window = DeepflyGUI()
     qtbot.addWidget(window)
-    window.setup(INPUT_DIRECTORY)
+    window.setup(INPUT_DIRECTORY, output_subfolder=output_subdir)
     qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
     
     qtbot.mouseClick(window.button_image_mode, QtCore.Qt.LeftButton)
@@ -194,7 +217,7 @@ def test_mode_image(qtbot):
 def test_mode_pose(qtbot):
     window = DeepflyGUI()
     qtbot.addWidget(window)
-    window.setup(INPUT_DIRECTORY)
+    window.setup(INPUT_DIRECTORY, output_subfolder=output_subdir)
     qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
 
     qtbot.mouseClick(window.button_pose_mode, QtCore.Qt.LeftButton)
@@ -212,7 +235,7 @@ def test_mode_pose(qtbot):
 def test_mode_heatmap(qtbot):
     window = DeepflyGUI()
     qtbot.addWidget(window)
-    window.setup(INPUT_DIRECTORY)
+    window.setup(INPUT_DIRECTORY, output_subfolder=output_subdir)
     qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
 
     qtbot.mouseClick(window.button_heatmap_mode, QtCore.Qt.LeftButton)
@@ -230,7 +253,7 @@ def test_mode_heatmap(qtbot):
 def test_mode_correction(qtbot):
     window = DeepflyGUI()
     qtbot.addWidget(window)
-    window.setup(INPUT_DIRECTORY)
+    window.setup(INPUT_DIRECTORY, output_subfolder=output_subdir)
     qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
     
     qtbot.mouseClick(window.button_correction_mode, QtCore.Qt.LeftButton)
@@ -256,7 +279,7 @@ def test_prev_next_error_when_none(qtbot):
             
     window = Mock()
     qtbot.addWidget(window)
-    window.setup(INPUT_DIRECTORY)
+    window.setup(INPUT_DIRECTORY, output_subfolder=output_subdir)
     qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
     
     qtbot.mouseClick(window.button_correction_mode, QtCore.Qt.LeftButton)
@@ -280,7 +303,7 @@ def test_prev_next_error_when_none(qtbot):
 def test_belief_propagation(qtbot):
     window = DeepflyGUI()
     qtbot.addWidget(window)
-    window.setup(INPUT_DIRECTORY2)
+    window.setup(INPUT_DIRECTORY2, output_subfolder=output_subdir)
     qtbot.mouseClick(window.button_pose_estimate, QtCore.Qt.LeftButton)
     #
     qtbot.mouseClick(window.button_correction_mode, QtCore.Qt.LeftButton)
@@ -302,7 +325,7 @@ def test_belief_propagation(qtbot):
 def test_manual_corrections(qtbot):
     window = DeepflyGUI()
     qtbot.addWidget(window)
-    window.setup(INPUT_DIRECTORY)
+    window.setup(INPUT_DIRECTORY, output_subfolder=output_subdir)
     window.set_width(3840)
     window.show()
     canvas = window.image_views[0]
@@ -341,7 +364,7 @@ def test_manual_corrections(qtbot):
             
     qtbot.mouseClick(window.button_pose_save, QtCore.Qt.LeftButton)    
     #
-    output = (INPUT_DIRECTORY / 'df3d').absolute()
+    output = (INPUT_DIRECTORY / output_subdir).absolute()
     expected = (INPUT_DIRECTORY / 'df3d.mc.expected').absolute()
     assert output.is_dir(), "output directory not found"
     assert expected.is_dir(), "directory for comparison not found"

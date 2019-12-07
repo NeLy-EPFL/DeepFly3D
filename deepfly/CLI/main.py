@@ -68,6 +68,11 @@ def parse_cli_args():
         metavar="INPUT"
     )
     parser.add_argument(
+        "--output-folder",
+        help="The name of subfolder where to write results",
+        default='df3d',
+    )
+    parser.add_argument(
         "-r", "--recursive",
         help="INPUT is a folder. Successively use its subfolders named 'images/'",
         action='store_true'
@@ -196,7 +201,12 @@ def run(args):
         return 0
 
     getLogger('df3d').info(f'{Style.BRIGHT}\nWorking in {args.input_folder}{Style.RESET_ALL}')
-    setup_data = core_api.setup(args.input_folder, args.camera_ids, args.num_images_max, args.overwrite)
+    setup_data = core_api.setup(
+        args.input_folder, 
+        args.output_folder,
+        args.camera_ids, 
+        args.num_images_max, 
+        args.overwrite)
 
     if not args.skip_estimation:
         core_api.pose2d_estimation(setup_data)
