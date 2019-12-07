@@ -17,6 +17,7 @@ import pickle
 
 
 class Core:
+
     def __init__(self, input_folder, num_images_max):
         self.input_folder = input_folder
         self.output_folder = os.path.join(self.input_folder, 'df3d/')
@@ -28,6 +29,9 @@ class Core:
         self.setup_camera_ordering()
         self.set_cameras()
         
+    # -------------------------------------------------------------------------
+    # properties
+    
 
     @property
     def input_folder(self): 
@@ -65,14 +69,24 @@ class Core:
     def number_of_joints(self):
         return config["skeleton"].num_joints
 
-    # ----------------------------------------------------------------------------------------------------
+
+    @property
+    def has_pose(self):
+        return self.camNetLeft.has_pose() and self.camNetRight.has_pose()
 
 
-    def setup_camera_ordering(self):
-        default = find_default_camera_ordering(self.input_folder)
-        if default is not None:  # np.arrays don't evaluate to bool
-            write_camera_order(self.output_folder, default)
-        self.cidread2cid, self.cid2cidread = read_camera_order(self.output_folder)
+    @property
+    def has_heatmap(self):
+        return self.camNetLeft.has_heatmap() and self.camNetRight.has_heatmap()
+
+
+    @property
+    def has_calibration(self):
+        return self.camNetLeft.has_calibration() and self.camNetRight.has_calibration()
+
+
+    # -------------------------------------------------------------------------
+    # public methods
 
 
     def update_camera_ordering(self, cidread2cid):
@@ -88,47 +102,6 @@ class Core:
         self.cidread2cid, self.cid2cidread = read_camera_order(self.output_folder)
         self.camNetAll.set_cid2cidread(self.cid2cidread)
         return True
-
-
-    def set_cameras(self):
-        calib = read_calib(self.output_folder)
-        self.camNetAll = CameraNetwork(
-            image_folder=self.input_folder,
-            output_folder=self.output_folder,
-            cam_id_list=range(config["num_cameras"]),
-            cid2cidread=self.cid2cidread,
-            num_images=self.num_images,
-            calibration=calib,
-            num_joints=config["skeleton"].num_joints,
-            heatmap_shape=config["heatmap_shape"],
-        )
-        self.camNetLeft = CameraNetwork(
-            image_folder=self.input_folder,
-            output_folder=self.output_folder,
-            cam_id_list=config["left_cameras"],
-            num_images=self.num_images,
-            calibration=calib,
-            num_joints=config["skeleton"].num_joints,
-            cid2cidread=[self.cid2cidread[cid] for cid in config["left_cameras"]],
-            heatmap_shape=config["heatmap_shape"],
-            cam_list=[cam for cam in self.camNetAll if cam.cam_id in config["left_cameras"]],
-        )
-        self.camNetRight = CameraNetwork(
-            image_folder=self.input_folder,
-            output_folder=self.output_folder,
-            cam_id_list=config["right_cameras"],
-            num_images=self.num_images,
-            calibration=calib,
-            num_joints=config["skeleton"].num_joints,
-            cid2cidread=[self.cid2cidread[cid] for cid in config["right_cameras"]],
-            heatmap_shape=config["heatmap_shape"],
-            cam_list=[self.camNetAll[cam_id] for cam_id in config["right_cameras"]],
-        )
-
-        self.camNetLeft.bone_param = config["bone_param"]
-        self.camNetRight.bone_param = config["bone_param"]
-        calib = read_calib(config["calib_fine"])
-        self.camNetAll.load_network(calib)
 
 
     def pose2d_estimation(self):
@@ -148,27 +121,6 @@ class Core:
         self.set_cameras()   # makes sure cameras use the latest heatmaps and predictions
         
 
-    def get_joint_reprojection_error(self, img_id, joint_id, camNet):
-        visible_cameras = [
-            cam
-            for cam in camNet
-            if config["skeleton"].camera_see_joint(cam.cam_id, joint_id)
-        ]
-        if len(visible_cameras) < 2:
-            err_proj = 0
-        else:
-            pts = np.array([ cam.points2d[img_id, joint_id, :] for cam in visible_cameras ])
-            _, err_proj, _, _ = energy_drosoph(visible_cameras, img_id, joint_id, pts / [960, 480])
-        return err_proj
-
-
-    def joint_has_error(self, img_id, joint_id):
-        err_left  = self.get_joint_reprojection_error(img_id, joint_id, self.camNetLeft)
-        err_right = self.get_joint_reprojection_error(img_id, joint_id, self.camNetRight)
-        err = max(err_left, err_right)
-        return err > config["reproj_thr"][joint_id]
-
-
     def next_error(self, img_id):
         return self.next_error_in_range(range(img_id+1, self.max_img_id+1))
 
@@ -176,15 +128,6 @@ class Core:
     def prev_error(self, img_id):
         return self.next_error_in_range(range(img_id-1, -1, -1))
         
-
-    def next_error_in_range(self, range_of_ids):
-        joints = [j for j in range(config["skeleton"].num_joints) if j in config["skeleton"].pictorial_joint_list]
-        for img_id in range_of_ids:
-            for joint_id in joints:
-                if self.joint_has_error(img_id, joint_id):
-                    return img_id
-        return None
-
 
     def calibrate_calc(self, min_img_id, max_img_id):
         print(f"Calibration considering frames between {min_img_id}:{max_img_id}")
@@ -222,6 +165,91 @@ class Core:
 
         self.save_calibration()
         self.set_cameras()
+
+
+    def nearest_joint(self, cam_id, img_id, x, y):
+        joints = range(config["skeleton"].num_joints)
+        visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
+        unvisible_joints = [j_id for j_id in joints if not visible(j_id)]
+        
+        pts = self.camNetAll[cam_id].get_points2d(img_id).copy()
+        pts[unvisible_joints] = [9999, 9999]
+
+        nbrs = NearestNeighbors(n_neighbors=1, algorithm="ball_tree").fit(pts)
+        _, indices = nbrs.kneighbors(np.array([[x, y]]))
+        return indices[0][0]
+
+
+    def move_joint(self, cam_id, img_id, joint_id, x, y):
+        if self.db.has_key(cam_id, img_id):
+            points = self.db.read(cam_id, img_id) * self.image_shape
+        else:
+            points = self.camNetAll[cam_id].get_points2d(img_id).copy()
+        
+        modified_joints = self.db.read_modified_joints(cam_id, img_id)
+        modified_joints = list(sorted(set(modified_joints + [joint_id])))
+
+        points[joint_id] = np.array([x, y])
+        self.write_corrections(cam_id, img_id, modified_joints, points)
+
+
+    def solve_bp(self, img_id):
+        if not (self.has_calibration and self.has_pose):
+            return
+        self.solve_bp_for_camnet(img_id, self.camNetLeft)
+        self.solve_bp_for_camnet(img_id, self.camNetRight)
+        
+    
+    def plot_2d(self, cam_id, img_id, with_corrections=False, joints=[]):
+        cam = self.camNetAll[cam_id]
+        joints = joints if joints else range(config["skeleton"].num_joints)
+        visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
+        visible_joints = [j_id for j_id in joints if visible(j_id)]
+        zorder = config["skeleton"].get_zorder(cam_id)
+        corrected_this_camera = self.db.has_key(cam_id, img_id)
+        
+        if not with_corrections:
+            return cam.plot_2d(img_id, draw_joints=visible_joints, zorder=zorder)
+        
+        circle_color = (0, 255, 0) if corrected_this_camera else (0, 0, 255)
+
+        # calculate the joints with large reprojection error
+        r_list = [config["scatter_r"]] * config["num_joints"]
+        for joint_id in range(config["skeleton"].num_joints):
+            if joint_id not in config["skeleton"].pictorial_joint_list:
+                continue
+            if self.joint_has_error(img_id, joint_id):
+                r_list[joint_id] = config["scatter_r"] * 2
+
+        # compute manual corrections
+        manual_corrections = self.db.manual_corrections()
+        points2d = cam.get_points2d(img_id).copy()
+        if img_id in manual_corrections.get(cam_id, {}):
+            points2d[:] = manual_corrections[cam_id][img_id]
+
+        return cam.plot_2d(img_id, 
+            points2d,
+            circle_color=circle_color, 
+            draw_joints=visible_joints, 
+            zorder=zorder,
+            r_list=r_list,
+        )
+
+
+    def plot_heatmap(self, cam_id, img_id, joints=[]):
+        cam = self.camNetAll[cam_id]
+        joints = joints if joints else range(config["skeleton"].num_joints)
+        visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
+        visible_joints = [j_id for j_id in joints if visible(j_id)]
+        return cam.plot_heatmap(img_id, concat=False, scale=2, draw_joints=visible_joints)
+
+
+    def get_image(self, cam_id, img_id):
+        return self.camNetAll[cam_id].get_image(img_id)
+
+
+    def save_corrections(self):
+        self.db.dump()
 
 
     def save_calibration(self):
@@ -293,107 +321,90 @@ class Core:
         print(f"Saved the pose at: {save_path}")
 
 
-    # ----------------------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # private helper methods
 
 
-    def has_pose(self):
-        return self.camNetLeft.has_pose() and self.camNetRight.has_pose()
+    def setup_camera_ordering(self):
+        default = find_default_camera_ordering(self.input_folder)
+        if default is not None:  # np.arrays don't evaluate to bool
+            write_camera_order(self.output_folder, default)
+        self.cidread2cid, self.cid2cidread = read_camera_order(self.output_folder)
 
 
-    def has_heatmap(self):
-        return self.camNetLeft.has_heatmap() and self.camNetRight.has_heatmap()
-
-
-    def has_calibration(self):
-        return self.camNetLeft.has_calibration() and self.camNetRight.has_calibration()
-
-
-    # ----------------------------------------------------------------------------------------------------
-
-
-    def plot_2d(self, cam_id, img_id, with_corrections=False, joints=[]):
-        cam = self.camNetAll[cam_id]
-        joints = joints if joints else range(config["skeleton"].num_joints)
-        visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
-        visible_joints = [j_id for j_id in joints if visible(j_id)]
-        zorder = config["skeleton"].get_zorder(cam_id)
-        corrected_this_camera = self.db.has_key(cam_id, img_id)
-        
-        if not with_corrections:
-            return cam.plot_2d(img_id, draw_joints=visible_joints, zorder=zorder)
-        
-        circle_color = (0, 255, 0) if corrected_this_camera else (0, 0, 255)
-
-        # calculate the joints with large reprojection error
-        r_list = [config["scatter_r"]] * config["num_joints"]
-        for joint_id in range(config["skeleton"].num_joints):
-            if joint_id not in config["skeleton"].pictorial_joint_list:
-                continue
-            if self.joint_has_error(img_id, joint_id):
-                r_list[joint_id] = config["scatter_r"] * 2
-
-        # compute manual corrections
-        manual_corrections = self.db.manual_corrections()
-        points2d = cam.get_points2d(img_id).copy()
-        if img_id in manual_corrections.get(cam_id, {}):
-            points2d[:] = manual_corrections[cam_id][img_id]
-
-        return cam.plot_2d(img_id, 
-            points2d,
-            circle_color=circle_color, 
-            draw_joints=visible_joints, 
-            zorder=zorder,
-            r_list=r_list,
+    def set_cameras(self):
+        calib = read_calib(self.output_folder)
+        self.camNetAll = CameraNetwork(
+            image_folder=self.input_folder,
+            output_folder=self.output_folder,
+            cam_id_list=range(config["num_cameras"]),
+            cid2cidread=self.cid2cidread,
+            num_images=self.num_images,
+            calibration=calib,
+            num_joints=config["skeleton"].num_joints,
+            heatmap_shape=config["heatmap_shape"],
+        )
+        self.camNetLeft = CameraNetwork(
+            image_folder=self.input_folder,
+            output_folder=self.output_folder,
+            cam_id_list=config["left_cameras"],
+            num_images=self.num_images,
+            calibration=calib,
+            num_joints=config["skeleton"].num_joints,
+            cid2cidread=[self.cid2cidread[cid] for cid in config["left_cameras"]],
+            heatmap_shape=config["heatmap_shape"],
+            cam_list=[cam for cam in self.camNetAll if cam.cam_id in config["left_cameras"]],
+        )
+        self.camNetRight = CameraNetwork(
+            image_folder=self.input_folder,
+            output_folder=self.output_folder,
+            cam_id_list=config["right_cameras"],
+            num_images=self.num_images,
+            calibration=calib,
+            num_joints=config["skeleton"].num_joints,
+            cid2cidread=[self.cid2cidread[cid] for cid in config["right_cameras"]],
+            heatmap_shape=config["heatmap_shape"],
+            cam_list=[self.camNetAll[cam_id] for cam_id in config["right_cameras"]],
         )
 
-
-    def plot_heatmap(self, cam_id, img_id, joints=[]):
-        cam = self.camNetAll[cam_id]
-        joints = joints if joints else range(config["skeleton"].num_joints)
-        visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
-        visible_joints = [j_id for j_id in joints if visible(j_id)]
-        return cam.plot_heatmap(img_id, concat=False, scale=2, draw_joints=visible_joints)
+        self.camNetLeft.bone_param = config["bone_param"]
+        self.camNetRight.bone_param = config["bone_param"]
+        calib = read_calib(config["calib_fine"])
+        self.camNetAll.load_network(calib)
 
 
-    def get_image(self, cam_id, img_id):
-        return self.camNetAll[cam_id].get_image(img_id)
+    def next_error_in_range(self, range_of_ids):
+        all_joints = range(config["skeleton"].num_joints)
+        pictorial = config["skeleton"].pictorial_joint_list
+        joints = [j for j in all_joints if j in pictorial]
+        for img_id in range_of_ids:
+            for joint_id in joints:
+                if self.joint_has_error(img_id, joint_id):
+                    return img_id
+        return None
 
 
-    # ----------------------------------------------------------------------------------------------------
-
-
-    def nearest_joint(self, cam_id, img_id, x, y):
-        joints = range(config["skeleton"].num_joints)
-        visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
-        unvisible_joints = [j_id for j_id in joints if not visible(j_id)]
-        
-        pts = self.camNetAll[cam_id].get_points2d(img_id).copy()
-        pts[unvisible_joints] = [9999, 9999]
-
-        nbrs = NearestNeighbors(n_neighbors=1, algorithm="ball_tree").fit(pts)
-        _, indices = nbrs.kneighbors(np.array([[x, y]]))
-        return indices[0][0]
-
-
-    def move_joint(self, cam_id, img_id, joint_id, x, y):
-        if self.db.has_key(cam_id, img_id):
-            points = self.db.read(cam_id, img_id) * self.image_shape
+    def get_joint_reprojection_error(self, img_id, joint_id, camNet):
+        visible_cameras = [
+            cam
+            for cam in camNet
+            if config["skeleton"].camera_see_joint(cam.cam_id, joint_id)
+        ]
+        if len(visible_cameras) < 2:
+            err_proj = 0
         else:
-            points = self.camNetAll[cam_id].get_points2d(img_id).copy()
-        
-        modified_joints = self.db.read_modified_joints(cam_id, img_id)
-        modified_joints = list(sorted(set(modified_joints + [joint_id])))
-
-        points[joint_id] = np.array([x, y])
-        self.write_corrections(cam_id, img_id, modified_joints, points)
+            pts = np.array([ cam.points2d[img_id, joint_id, :] for cam in visible_cameras ])
+            _, err_proj, _, _ = energy_drosoph(visible_cameras, img_id, joint_id, pts / [960, 480])
+        return err_proj
 
 
-    def solve_bp(self, img_id):
-        if not (self.has_calibration() and self.has_pose()):
-            return
-        self.solve_bp_for_camnet(img_id, self.camNetLeft)
-        self.solve_bp_for_camnet(img_id, self.camNetRight)
-        
+    def joint_has_error(self, img_id, joint_id):
+        get_error = self.get_joint_reprojection_error
+        err_left  = get_error(img_id, joint_id, self.camNetLeft)
+        err_right = get_error(img_id, joint_id, self.camNetRight)
+        err = max(err_left, err_right)
+        return err > config["reproj_thr"][joint_id]
+
 
     def solve_bp_for_camnet(self, img_id, camNet):
         # Compute prior
@@ -427,10 +438,10 @@ class Core:
         print("Finished Belief Propagation")
 
 
-    def write_corrections(self, cam_id, img_id, modified_joints, corrected_points2d):
+    def write_corrections(self, cam_id, img_id, modified_joints, points2d):
         l1_threshold = 30
         original_points2d = self.camNetAll[cam_id].get_points2d(img_id)
-        l1_error = np.abs(original_points2d - corrected_points2d)
+        l1_error = np.abs(original_points2d - points2d)
         joints_to_check = [j
             for j in range(config["num_joints"])
             if (j not in config["skeleton"].ignore_joint_id)
@@ -441,13 +452,11 @@ class Core:
             if not config["skeleton"].camera_see_joint(cam_id, j)
         ]
         if np.any(l1_error[joints_to_check] > l1_threshold):
-            points2d = corrected_points2d.copy()
+            points2d = points2d.copy()
             points2d[unseen_joints, :] = 0.0
-            self.db.write(points2d / self.image_shape, cam_id, img_id, True, modified_joints)
+            points2d = points2d / self.image_shape
+            self.db.write(points2d, cam_id, img_id, True, modified_joints)
         else:
-            # the corrections are too similar to original predicted points, erase previous corrections
+            # the corrections are too similar to original predicted points,
+            # erase previous corrections
             self.db.remove_corrections(cam_id, img_id)
-
-
-    def save_corrections(self):
-        self.db.dump()

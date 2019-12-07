@@ -326,7 +326,7 @@ class DeepflyGUI(QW.QWidget):
 
 
     def switch_to_pose_mode(self):
-        if not self.core.has_pose():
+        if not self.core.has_pose:
             return False
         self.uncheck_mode_buttons()
         self.button_pose_mode.setChecked(True)
@@ -338,7 +338,7 @@ class DeepflyGUI(QW.QWidget):
 
 
     def switch_to_correction_mode(self):
-        if not self.core.has_pose():
+        if not self.core.has_pose:
             return False
         self.uncheck_mode_buttons()
         self.button_correction_mode.setChecked(True)
@@ -355,7 +355,7 @@ class DeepflyGUI(QW.QWidget):
 
 
     def switch_to_heatmap_mode(self):
-        if not self.core.has_heatmap():
+        if not self.core.has_heatmap:
             return False
         self.uncheck_mode_buttons()
         self.button_heatmap_mode.setChecked(True)
