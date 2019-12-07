@@ -30,8 +30,7 @@ from deepfly.GUI.Camera import Camera
 from deepfly.GUI.Config import config
 from pathlib import Path
 
-from logging import getLogger
-import logging
+import deepfly.logger as logger
 import cv2
 
 best_acc = 0
@@ -50,9 +49,9 @@ def on_cuda(torch_var, *cuda_args, **cuda_kwargs):
 
 def main(args):
     global best_acc
-    
+
     # create model
-    getLogger('df3d').debug("Creating model '{}', stacks={}, blocks={}".format(
+    logger.debug("Creating model '{}', stacks={}, blocks={}".format(
             args.arch, args.stacks, args.blocks
         )
     )
@@ -81,11 +80,11 @@ def main(args):
     title = "Drosophila-" + args.arch
     if args.resume:
         if isfile(args.resume):
-            getLogger('df3d').debug("Loading checkpoint '{}'".format(args.resume))
+            logger.debug("Loading checkpoint '{}'".format(args.resume))
             checkpoint = torch.load(args.resume) if torch.cuda.is_available() else torch.load(args.resume, map_location=torch.device('cpu'))
 
             if "mpii" in args.resume and not args.unlabeled:  # weights for sh trained on mpii dataset
-                getLogger('df3d').debug("Removing input/output layers")
+                logger.debug("Removing input/output layers")
                 ignore_weight_list_template = [
                     "module.score.{}.bias",
                     "module.score.{}.weight",
@@ -101,8 +100,8 @@ def main(args):
 
                 state = model.state_dict()
                 state.update(checkpoint["state_dict"])
-                getLogger('df3d').debug(model.state_dict())
-                getLogger('df3d').debug(checkpoint["state_dict"])
+                logger.debug(model.state_dict())
+                logger.debug(checkpoint["state_dict"])
                 model.load_state_dict(state, strict=False)
             elif "mpii" in args.resume and args.unlabeled:
                 model.load_state_dict(checkpoint['state_dict'], strict=False)
@@ -113,13 +112,13 @@ def main(args):
                 args.start_epoch = checkpoint["epoch"]
                 args.img_res = checkpoint["image_shape"]
                 args.hm_res = checkpoint["heatmap_shape"]
-                getLogger('df3d').debug("Loading the optimizer")
-                getLogger('df3d').debug(
+                logger.debug("Loading the optimizer")
+                logger.debug(
                     "Setting image resolution and heatmap resolution: {} {}".format(
                         args.img_res, args.hm_res
                     )
                 )
-            getLogger('df3d').debug(
+            logger.debug(
                 "Loaded checkpoint '{}' (epoch {})".format(
                     args.resume, checkpoint["epoch"]
                 )
@@ -130,8 +129,8 @@ def main(args):
 
     # prepare loggers
     if not args.unlabeled:
-        logger = Logger(join(args.checkpoint, "log.txt"), title=title)
-        logger.set_names(
+        logger2 = Logger(join(args.checkpoint, "log.txt"), title=title)
+        logger2.set_names(
             [
                 "Epoch",
                 "LR",
@@ -145,7 +144,7 @@ def main(args):
         )
 
     # cudnn.benchmark = True
-    getLogger('df3d').debug("Total params: %.2fM" % (sum(p.numel() for p in model.parameters()) / 1000000.0))
+    logger.debug("Total params: %.2fM" % (sum(p.numel() for p in model.parameters()) / 1000000.0))
 
     if args.unlabeled:
         unlabeled_folder = args.unlabeled
@@ -159,17 +158,17 @@ def main(args):
         )
 
         if os.path.isfile(save_path) and not args.overwrite:
-            getLogger('df3d').info('Prediction file exists, skipping pose estimation')
+            logger.info('Prediction file exists, skipping pose estimation')
             return None, None
         elif os.path.isfile(save_path) and args.overwrite:
-            getLogger('df3d').info('Overwriting existing predictions')
+            logger.info('Overwriting existing predictions')
 
         max_img_id = get_max_img_id(unlabeled_folder)
         try:
             max_img_id = min(max_img_id, args.num_images_max-1)
         except:
             pass
-        getLogger('df3d').debug('Going to process {} images'.format(max_img_id+1))
+        logger.debug('Going to process {} images'.format(max_img_id+1))
         unlabeled_loader = DataLoader(
             deepfly.pose2d.datasets.Drosophila(
                 data_folder=args.data_folder,
@@ -196,17 +195,17 @@ def main(args):
         valid_loss, valid_acc, val_pred, _, mse, jump_acc = validate(
             unlabeled_loader, 0, model, criterion, args, save_path=unlabeled_folder
         )
-        #getLogger('df3d').debug(f"val_score_maps have shape: {val_score_maps.shape}")
+        #logger.debug(f"val_score_maps have shape: {val_score_maps.shape}")
 
-        getLogger('df3d').debug("Saving Results, flipping heatmaps")
+        logger.debug("Saving Results, flipping heatmaps")
         cid_to_reverse = config["flip_cameras"]  # camera id to reverse predictions and heatmaps
         path = os.path.join(unlabeled_folder, args.output_folder)
-        getLogger('df3d').debug("Reading camera ordering from {} for image flipping.".format(path))
+        logger.debug("Reading camera ordering from {} for image flipping.".format(path))
 
         cidread2cid, cid2cidread = read_camera_order(path)
         cid_read_to_reverse = [cid2cidread[cid] for cid in cid_to_reverse]
 
-        getLogger('df3d').debug(
+        logger.debug(
             "Flipping heatmaps for images with cam_id: {}".format(
                 cid_read_to_reverse
             )
@@ -224,13 +223,13 @@ def main(args):
         '''
         save_dict(val_pred, save_path)
 
-        getLogger('df3d').debug("Finished saving results")
+        logger.debug("Finished saving results")
     else:
         train_loader, val_loader = create_dataloader()
         lr = args.lr
         for epoch in range(args.start_epoch, args.epochs):
             # lr = adjust_learning_rate(optimizer, epoch, lr, args.schedule, args.gamma)
-            getLogger('df3d').debug("\nEpoch: %d | LR: %.8f" % (epoch + 1, lr))
+            logger.debug("\nEpoch: %d | LR: %.8f" % (epoch + 1, lr))
 
             # train for one epoch
             train_loss, train_acc, train_predictions, train_mse, train_mse_jump = train(
@@ -242,7 +241,7 @@ def main(args):
             )
             scheduler.step(valid_loss)
             # append logger file
-            logger.append(
+            logger2.append(
                 [
                     epoch + 1,
                     lr,
@@ -278,11 +277,11 @@ def main(args):
             )
 
             fig = plt.figure()
-            logger.plot(["Train Acc", "Val Acc"])
+            logger2.plot(["Train Acc", "Val Acc"])
             savefig(os.path.join(args.checkpoint, "log.eps"))
             plt.close(fig)
     return None, val_pred
-    logger.close()
+    logger2.close()
 
 
 def train(train_loader, epoch, model, optimizer, criterion, args):
@@ -308,7 +307,7 @@ def train(train_loader, epoch, model, optimizer, criterion, args):
 
     end = time.time()
 
-    bar = Bar("Processing", max=len(train_loader)) if logging.getLogger('df3d').isEnabledFor(logging.DEBUG) else NoOutputBar()
+    bar = Bar("Processing", max=len(train_loader)) if logger.debug_enabled() else NoOutputBar()
     bar.start()
     for i, (inputs, target, meta) in enumerate(train_loader):
         # reset seed for truly random transformations on input
@@ -345,7 +344,7 @@ def train(train_loader, epoch, model, optimizer, criterion, args):
         # measure accuracy and record loss
         mse_err = mse_acc(target_var.data.cpu(), score_map)
 
-        getLogger('df3d').debug(f'{mse_err.size()}, {mse_err[:, 0] > 50}, {meta["image_name"][0]}')
+        logger.debug(f'{mse_err.size()}, {mse_err[:, 0] > 50}, {meta["image_name"][0]}')
         mse.update(torch.mean(mse_err[args.acc_joints, :]), inputs.size(0))  # per joint
         mse_hip.update(torch.mean(mse_err[np.arange(0, 15, 5), :]), inputs.size(0))
         mse_coxa.update(torch.mean(mse_err[np.arange(1, 15, 5), :]), inputs.size(0))
@@ -467,7 +466,7 @@ def validate(val_loader, epoch, model, criterion, args, save_path=False):
         ),
         dtype=np.float32,
     )  # num_cameras+1 for the mirrored camera 3
-    getLogger('df3d').debug("Predictions shape {}".format(predictions.shape))
+    logger.debug("Predictions shape {}".format(predictions.shape))
 
     if save_path is not None:
         unlabeled_folder_replace = save_path.replace("/", "-")
@@ -499,7 +498,7 @@ def validate(val_loader, epoch, model, criterion, args, save_path=False):
     model.eval()
 
     end = time.time()
-    bar = Bar("Processing", max=len(val_loader)) if logging.getLogger('df3d').isEnabledFor(logging.INFO) else NoOutputBar()
+    bar = Bar("Processing", max=len(val_loader)) if logger.info_enabled() else NoOutputBar()
     bar.start()
     for i, (inputs, target, meta) in enumerate(val_loader):
         # measure data loading time
@@ -712,8 +711,8 @@ if __name__ == "__main__":
         p = [(i * 5) + k for k in args.acc_joints]
         acc_joints_tmp.extend(p)
     args.acc_joints = acc_joints_tmp
-    getLogger('df3d').debug(f"Training joints: {args.train_joints}")
-    getLogger('df3d').debug(f"Acc joints: {args.acc_joints}")
+    logger.debug(f"Training joints: {args.train_joints}")
+    logger.debug(f"Acc joints: {args.acc_joints}")
 
     args.checkpoint = os.path.join(
         args.checkpoint,
@@ -733,7 +732,7 @@ if __name__ == "__main__":
         args.checkpoint.replace(" ", "_").replace("(", "_").replace(")", "_")
     )
     args.checkpoint = args.checkpoint.replace("__", "_").replace("--", "-")
-    getLogger('df3d').debug("Checkpoint dir: {}".format(args.checkpoint))
+    logger.debug("Checkpoint dir: {}".format(args.checkpoint))
     args.checkpoint_image_dir = os.path.join(args.checkpoint, "./images/")
 
     # create checkpoint dir and image dir

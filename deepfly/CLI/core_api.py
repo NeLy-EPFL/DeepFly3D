@@ -9,7 +9,7 @@ It exposes functions that will be called by the CLI.
 
 import math
 import argparse, os.path
-import logging
+import deepfly.logger as logger
 import re
 from pathlib import Path
 from deepfly.pose2d.drosophila import main as pose2d_main
@@ -29,7 +29,6 @@ from deepfly.GUI.util.plot_util import plot_drosophila_3d
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d, Axes3D
 from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
-from logging import getLogger
 from deepfly.utils_ramdya_lab import find_default_camera_ordering
 import pickle
 
@@ -110,7 +109,7 @@ def _create_output_folder(args):
     path = os.path.join(args.input_folder, args.output_folder)
     if not os.path.exists(path):
         os.makedirs(path)
-    getLogger('df3d').debug("Creating output folder {}".format(path))
+    logger.debug("Creating output folder {}".format(path))
 
 
 def _save_camera_ordering(args):
@@ -118,7 +117,7 @@ def _save_camera_ordering(args):
     if args.camera_ids is not None:
         path = os.path.join(args.input_folder, args.output_folder)
         write_camera_order(path, args.camera_ids)
-        getLogger('df3d').debug('Camera ordering wrote to file in "{}"'.format(path))
+        logger.debug('Camera ordering wrote to file in "{}"'.format(path))
 
 
 def _pose3d_estimation(args):
@@ -144,7 +143,7 @@ def _pose3d_estimation(args):
     path = os.path.join(args.input_folder, args.output_folder)
     save_path = os.path.join(path, "pose_result_{}.pkl".format(args.input_folder.replace("/", "_")))
     pickle.dump(dict_merge, open(save_path, "wb"))
-    getLogger('df3d').info(f"Pose estimation results saved at: {save_path}")
+    logger.info(f"Pose estimation results saved at: {save_path}")
 
 
 def _make_pose2d_video(args):
@@ -171,7 +170,7 @@ def _get_camNet(args, cam_id_list=range(7), cam_list=None):
     """ Create and setup a CameraNetwork """
 
     folder = os.path.join(args.input_folder, args.output_folder)
-    getLogger('df3d').debug('Looking for data in {}'.format(folder))
+    logger.debug('Looking for data in {}'.format(folder))
     calib = read_calib(config['calib_fine'])
     cid2cidread, _ = read_camera_order(folder)
 
@@ -189,7 +188,7 @@ def _get_camNet(args, cam_id_list=range(7), cam_list=None):
 
 def _getCamNets(args):
     folder = os.path.join(args.input_folder, args.output_folder)
-    getLogger('df3d').debug('Looking for data in {}'.format(folder))
+    logger.debug('Looking for data in {}'.format(folder))
     calib = read_calib(config['calib_fine'])
     cid2cidread, _ = read_camera_order(folder)
 
@@ -279,21 +278,21 @@ def _make_video(args, video_name, imgs):
 
     shape = int(first_frame.shape[1]), int(first_frame.shape[0])
     video_path = os.path.join(args.input_folder, args.output_folder, video_name)
-    getLogger('df3d').debug('Saving video to: ' + video_path)
+    logger.debug('Saving video to: ' + video_path)
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     fps = 30
     output_shape = _resize(current_shape=shape, new_width=video_width)
-    getLogger('df3d').debug('Video size is: {}'.format(output_shape))
+    logger.debug('Video size is: {}'.format(output_shape))
     video_writer = cv2.VideoWriter(video_path, fourcc, fps, output_shape)
 
-    progress_bar = tqdm if getLogger('df3d').isEnabledFor(logging.INFO) else lambda x: x
+    progress_bar = tqdm if logger.info_enabled() else lambda x: x
     for img in progress_bar(imgs):
         resized = cv2.resize(img, output_shape)
         rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
         video_writer.write(rgb)
 
     video_writer.release()
-    getLogger('df3d').info('Video created at {}\n'.format(video_path))
+    logger.info('Video created at {}\n'.format(video_path))
 
 
 def _resize(current_shape, new_width):

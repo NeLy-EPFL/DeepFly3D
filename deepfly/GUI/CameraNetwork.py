@@ -4,8 +4,7 @@ import pickle
 
 import matplotlib.pyplot as plt
 from scipy.optimize import least_squares
-from logging import getLogger
-import logging
+import deepfly.logger as logger
 from deepfly.GUI.Config import config
 from .BP import LegBP
 from .Camera import Camera
@@ -51,13 +50,13 @@ class CameraNetwork:
 
         if not cam_list:
             if pred_path is None:
-                getLogger('df3d').debug(f'{self.folder}, {glob.glob(os.path.join(self.folder_output, "pred*.pkl"))}')
+                logger.debug(f'{self.folder}, {glob.glob(os.path.join(self.folder_output, "pred*.pkl"))}')
                 pred_path_list = glob.glob(os.path.join(self.folder_output, "pred*.pkl"))
                 pred_path_list.sort(key=os.path.getmtime)
                 pred_path_list = pred_path_list[::-1]
             else:
                 pred_path_list = [pred_path]
-            getLogger('df3d').debug("Loading predictions {}".format(pred_path_list))
+            logger.debug("Loading predictions {}".format(pred_path_list))
             if pred is None and len(pred_path_list) != 0:
                 pred = np.load(file=pred_path_list[0], mmap_mode="r", allow_pickle=True)
                 if pred.shape[1] > num_images:
@@ -75,7 +74,7 @@ class CameraNetwork:
                 heatmap_path_list = heatmap_path_list[::-1]
             else:
                 heatmap_path_list = [hm_path]
-            getLogger('df3d').debug("Loading heatmaps {}".format(heatmap_path_list))
+            logger.debug("Loading heatmaps {}".format(heatmap_path_list))
 
             ## UGLY HACK, DO NOT PUSH THIS
             # heatmap_path_list = []
@@ -90,7 +89,7 @@ class CameraNetwork:
                         self.heatmap_shape[0],
                         self.heatmap_shape[1],
                     )
-                    getLogger('df3d').debug("Heatmap shape: {}".format(shape))
+                    logger.debug("Heatmap shape: {}".format(shape))
                     heatmap = np.memmap(
                         filename=heatmap_path_list[0],
                         mode="r",
@@ -98,7 +97,7 @@ class CameraNetwork:
                         dtype="float32",
                     )
                 except BaseException as e:
-                    getLogger('df3d').debug(
+                    logger.debug(
                         "Cannot read heatmap as memory mapped: {}, {}".format(
                             heatmap_path_list, str(e)
                         )
@@ -137,7 +136,7 @@ class CameraNetwork:
                         pred_cam[:num_images_in_pred, :, :] = pred[cam_id_read, :
                                                               ] * self.image_shape
                 else:
-                    getLogger('df3d').debug("Skipping reading heatmaps and predictions")
+                    logger.debug("Skipping reading heatmaps and predictions")
                     heatmap = None
                     pred_cam = np.zeros(shape=(num_images, num_joints, 2), dtype=float)
                 self.cam_list.append(
@@ -152,7 +151,7 @@ class CameraNetwork:
                 )
 
         if calibration is None:
-            getLogger('df3d').debug("Reading calibration from {}".format(self.folder_output))
+            logger.debug("Reading calibration from {}".format(self.folder_output))
             calibration = read_calib(self.folder_output)
         if calibration is not None:
             _ = self.load_network(calibration)
@@ -190,7 +189,7 @@ class CameraNetwork:
             is_aligned = len(l) and ((np.max(l) - np.min(l)) < thr)
             self.mask_prior[img_id, joint_id, :] = is_aligned
 
-        getLogger('df3d').debug(
+        logger.debug(
             "Number of points close to prior epipolar line: {}".format(
                 np.sum(self.mask_prior) / 2
             )
@@ -257,7 +256,7 @@ class CameraNetwork:
         objectPoints = np.array(points3d_pnp)
         imagePoints = np.array(points2d_pnp)
 
-        getLogger('df3d').debug("objectPoints shape: {}".format(objectPoints.shape))
+        logger.debug("objectPoints shape: {}".format(objectPoints.shape))
         if objectPoints.shape[0] > 4:
             found, rvec, tvec = cv2.solvePnP(
                 objectPoints,
@@ -272,7 +271,7 @@ class CameraNetwork:
             self.cam_list[cam_id].set_R(R)
             self.cam_list[cam_id].set_tvec(tvec)
         else:
-            getLogger('df3d').debug("Skipping PnP, not enough points")
+            logger.debug("Skipping PnP, not enough points")
 
     def reprojection_error(self, cam_indices=None, ignore_joint_list=None):
         if ignore_joint_list is None:
@@ -291,7 +290,7 @@ class CameraNetwork:
                 err_list.append((cam.project(p3d) - cam[img_id, j_id]).ravel())
 
         err_mean = np.mean(np.abs(err_list))
-        getLogger('df3d').debug("Ignore_list {}:  {:.4f}".format(ignore_joint_list, err_mean))
+        logger.debug("Ignore_list {}:  {:.4f}".format(ignore_joint_list, err_mean))
         return err_list
 
     def prepare_bundle_adjust_param(
@@ -321,7 +320,7 @@ class CameraNetwork:
         data_shape = self.points3d_m.shape
 
         if data_shape[0] > max_num_images:
-            getLogger('df3d').debug("There are too many ({}) images for calibration. Selecting {} randomly.".format(data_shape[0], max_num_images))
+            logger.debug("There are too many ({}) images for calibration. Selecting {} randomly.".format(data_shape[0], max_num_images))
             img_id_list = np.random.randint(0, high=data_shape[0]-1, size=(max_num_images))
         else:
             img_id_list = np.arange(data_shape[0]-1)
@@ -376,7 +375,7 @@ class CameraNetwork:
                         ]
                         c += 1
 
-        getLogger('df3d').debug("Replaced {} points".format(c))
+        logger.debug("Replaced {} points".format(c))
         points3d_ba = np.squeeze(np.array(points3d_ba))
         points2d_ba = np.squeeze(np.array(points2d_ba))
         cid2cidx = {v:k for (k,v) in enumerate(np.sort(np.unique(camera_indices)))}
@@ -424,7 +423,6 @@ class CameraNetwork:
             unique=unique,
             prior=prior,
         )
-        logger = getLogger('df3d')
         logger.debug(f"Number of points: {n_points}")
         A = bundle_adjustment_sparsity(
             n_cameras, n_points, camera_indices, point_indices
@@ -433,7 +431,7 @@ class CameraNetwork:
             fun,
             x0,
             jac_sparsity=A,
-            verbose=2 if logger.isEnabledFor(logging.DEBUG) else 0,
+            verbose=2 if logger.debug_enabled() else 0,
             x_scale="jac",
             ftol=1e-4,
             method="trf",
@@ -448,7 +446,7 @@ class CameraNetwork:
             max_nfev=1000,
         )
 
-        getLogger('df3d').debug(
+        logger.debug(
             "Bundle adjustment, Average reprojection error: {}".format(
                 np.mean(np.abs(res.fun))
             )
@@ -485,9 +483,9 @@ class CameraNetwork:
                 )
             else:
                 pass
-                # getLogger('df3d').debug("Joints {} is not visible from at least two cameras".format(j_id_l))
+                # logger.debug("Joints {} is not visible from at least two cameras".format(j_id_l))
 
-        getLogger('df3d').debug([
+        logger.debug([
                 [len(leg[i].candid_list) for i in range(len(leg.jointbp))]
                 for leg in chain_list
             ])
@@ -539,7 +537,7 @@ class CameraNetwork:
                 cam.set_intrinsic(d[cam.cam_id]["intr"])
                 cam.set_distort(d[cam.cam_id]["distort"])
             else:
-                getLogger('df3d').debug("Camera {} is not on the calibration file".format(cam.cam_id))
+                logger.debug("Camera {} is not on the calibration file".format(cam.cam_id))
 
         return d["meta"]
 
@@ -557,7 +555,7 @@ class CameraNetwork:
             prob=0.9999,
             threshold=5,
         )
-        getLogger('df3d').debug("Essential matrix inlier ratio: {}".format(np.sum(mask) / mask.shape[0]))
+        logger.debug("Essential matrix inlier ratio: {}".format(np.sum(mask) / mask.shape[0]))
         return E, mask
 
     @staticmethod

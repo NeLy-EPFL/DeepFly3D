@@ -1,8 +1,8 @@
 import argparse, math
 from pathlib import Path
 from colorama import Style, init as colorama_init
+import deepfly.logger as logger
 import logging
-from logging import getLogger
 from . import core_api
 from . import utils
 
@@ -17,7 +17,7 @@ def main():
         return print_debug(args)
 
     if args.from_file and args.recursive:
-        getLogger('df3d').error('Error: choose an input method between "from file" and "recursive" but not both.')
+        logger.error('Error: choose an input method between "from file" and "recursive" but not both.')
         return 1
 
     if args.recursive:
@@ -32,15 +32,15 @@ def main():
 def setup_logger(args):
     handler = logging.StreamHandler()
     handler.setLevel(logging.DEBUG)
-    logger = getLogger('df3d')
-    logger.addHandler(handler)
-    logger.setLevel(logging.WARNING)
+    l = logger.getLogger()
+    l.addHandler(handler)
+    l.setLevel(logging.WARNING)
     #
     if args.verbose:
-        logger.setLevel(logging.INFO)
+        l.setLevel(logging.INFO)
     #
     if args.verbose2:
-        logger.setLevel(logging.DEBUG)
+        l.setLevel(logging.DEBUG)
 
 
 def parse_cli_args():
@@ -124,7 +124,7 @@ def parse_cli_args():
 
 
 def print_debug(args):
-    print(f"Enabled logging level: {logging.getLevelName(getLogger('df3d').getEffectiveLevel())}")
+    print(f"Enabled logging level: {logging.getLevelName(logger.getLogger().getEffectiveLevel())}")
     #
     print('Arguments are:')
     for key,val in vars(args).items():
@@ -134,15 +134,15 @@ def print_debug(args):
 
 
 def run_from_file(args):
-    getLogger('df3d').info(f'{Style.BRIGHT}Looking for folders listed in {args.input_folder}{Style.RESET_ALL}')
+    logger.info(f'{Style.BRIGHT}Looking for folders listed in {args.input_folder}{Style.RESET_ALL}')
     try:
         with open(args.input_folder, 'r') as f:
             folders = list(line.strip() for line in f)
     except FileNotFoundError:
-        getLogger('df3d').error(f'Unable to find the file {args.input_folder}')
+        logger.error(f'Unable to find the file {args.input_folder}')
         return 1
     except IsADirectoryError:
-        getLogger('df3d').error(f'{args.input_folder} is a directory, please provide a file instead.')
+        logger.error(f'{args.input_folder} is a directory, please provide a file instead.')
         return 1
 
     folders = list(dict.fromkeys(folders))       # removes duplicate entries
@@ -151,24 +151,24 @@ def run_from_file(args):
 
     bad = [f for f in folders if not f.is_dir()]
     for f in bad:
-        getLogger('df3d').error(f'[Error] Not a directory or does not exist: {str(f)}')
+        logger.error(f'[Error] Not a directory or does not exist: {str(f)}')
     if bad:
         return 1
 
     s = 's' if len(folders) > 1 else ''
     folders_str = "\n-".join(folders)
-    getLogger('df3d').info(f'Folder{s} found:\n-{folders_str}')
+    logger.info(f'Folder{s} found:\n-{folders_str}')
     args.from_file = False
     run_in_folders(args, folders)
 
 
 def run_recursive(args):
     subfolder_name = 'images'
-    getLogger('df3d').info(f'{Style.BRIGHT}Recursively looking for subfolders named `{subfolder_name}` inside `{args.input_folder}`{Style.RESET_ALL}')
+    logger.info(f'{Style.BRIGHT}Recursively looking for subfolders named `{subfolder_name}` inside `{args.input_folder}`{Style.RESET_ALL}')
     subfolders = utils.find_subfolders(args.input_folder, 'images')
     s = 's' if len(subfolders) > 1 else ''
     folders_str = "\n-".join(subfolders)
-    getLogger('df3d').info(f'Found {len(subfolders)} subfolder{s}:\n-{folders_str}')
+    logger.info(f'Found {len(subfolders)} subfolder{s}:\n-{folders_str}')
     args.recursive = False
     run_in_folders(args, subfolders)
 
@@ -180,16 +180,16 @@ def run_in_folders(args, folders):
             args.input_folder = folder
             run(args)
         except KeyboardInterrupt:
-            getLogger('df3d').warning(f'{Style.BRIGHT}Keyboard Interrupt received. Terminating...{Style.RESET_ALL}')
+            logger.warning(f'{Style.BRIGHT}Keyboard Interrupt received. Terminating...{Style.RESET_ALL}')
             break
         except Exception as e:
             errors.append((folder, e))
-            getLogger('df3d').error(f'{Style.BRIGHT}An error occured while processing {folder}. Continuing...{Style.RESET_ALL}')
+            logger.error(f'{Style.BRIGHT}An error occured while processing {folder}. Continuing...{Style.RESET_ALL}')
     #
     if errors:
-        getLogger('df3d').error(f'\n{Style.BRIGHT}{len(errors)} out of {len(folders)} folders terminated with errors.{Style.RESET_ALL}')
+        logger.error(f'\n{Style.BRIGHT}{len(errors)} out of {len(folders)} folders terminated with errors.{Style.RESET_ALL}')
         for (folder, exc) in errors:
-            getLogger('df3d').error(f'\n{Style.BRIGHT}In {folder}{Style.RESET_ALL}', exc_info=exc)
+            logger.error(f'\n{Style.BRIGHT}In {folder}{Style.RESET_ALL}', exc_info=exc)
 
 
 
@@ -197,10 +197,10 @@ def run(args):
     nothing_to_do = args.skip_estimation and (not args.video_2d) and (not args.video_3d)
 
     if nothing_to_do:
-        getLogger('df3d').info(f'{Style.BRIGHT}Nothing to do. Check your command-line arguments.{Style.RESET_ALL}')
+        logger.info(f'{Style.BRIGHT}Nothing to do. Check your command-line arguments.{Style.RESET_ALL}')
         return 0
 
-    getLogger('df3d').info(f'{Style.BRIGHT}\nWorking in {args.input_folder}{Style.RESET_ALL}')
+    logger.info(f'{Style.BRIGHT}\nWorking in {args.input_folder}{Style.RESET_ALL}')
     setup_data = core_api.setup(
         args.input_folder, 
         args.output_folder,

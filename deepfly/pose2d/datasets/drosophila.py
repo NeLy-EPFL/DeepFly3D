@@ -6,8 +6,7 @@ from deepfly.GUI.util.os_util import *
 from deepfly.pose2d.utils.osutils import isfile
 from deepfly.pose2d.utils.transforms import *
 from deepfly.GUI.Config import config
-from logging import getLogger
-import logging
+import deepfly.logger as logger
 import glob
 
 FOLDER_NAME = 0
@@ -84,12 +83,12 @@ class Drosophila(data.Dataset):
                         self.annotation_dict[key] = np.array(pts)
 
         # read the manual correction for training data
-        getLogger('df3d').debug("Searching for manual corrections")
+        logger.debug("Searching for manual corrections")
         n_joints = set()
         if not self.unlabeled and self.train:
             pose_corr_path_list = []
             for root in manual_path_list:
-                getLogger('df3d').debug(
+                logger.debug(
                     "Searching recursively: {}".format(
                         root
                     )
@@ -101,7 +100,7 @@ class Drosophila(data.Dataset):
                         )
                     )
                 )
-                getLogger('df3d').debug(
+                logger.debug(
                     "Number of manual correction files: {}".format(
                         len(pose_corr_path_list)
                     )
@@ -222,13 +221,13 @@ class Drosophila(data.Dataset):
 
         self.mean, self.std = self._compute_mean()
 
-        getLogger('df3d').debug(
+        logger.debug(
             "Folders inside {} data: {}".format(
                 "train" if self.train else "validation",
                 set([k[0] for k in self.annotation_key]),
             )
         )
-        getLogger('df3d').debug("Successfully imported {} Images in Drosophila Dataset".format(len(self)))
+        logger.debug("Successfully imported {} Images in Drosophila Dataset".format(len(self)))
 
     def _compute_mean(self):
         file_path = os.path.abspath(os.path.dirname(__file__))
@@ -251,11 +250,11 @@ class Drosophila(data.Dataset):
             meanstd = {"mean": mean, "std": std}
             torch.save(meanstd, meanstd_file)
         if self.is_train:
-            getLogger('df3d').debug(
+            logger.debug(
                 "    Mean: %.4f, %.4f, %.4f"
                 % (meanstd["mean"][0], meanstd["mean"][1], meanstd["mean"][2])
             )
-            getLogger('df3d').debug(
+            logger.debug(
                 "    Std:  %.4f, %.4f, %.4f"
                 % (meanstd["std"][0], meanstd["std"][1], meanstd["std"][2])
             )

@@ -5,7 +5,8 @@ import numpy as np
 from pathlib import Path
 from ..Config import config
 import re
-from logging import getLogger
+
+import deepfly.logger as logger
 import os
 
 
@@ -48,7 +49,7 @@ def read_camera_order(folder):
     else:
         order = np.arange(config["num_cameras"])
         write_camera_order(folder, order)
-        getLogger('df3d').debug('Could not find camera order under {}. Writing the default ordering {}.'.format(folder, order))
+        logger.debug('Could not find camera order under {}. Writing the default ordering {}.'.format(folder, order))
 
     cidread2cid = order.copy()
     cid2cidread = np.zeros(cidread2cid.size, dtype=int)
@@ -62,7 +63,7 @@ def write_camera_order(folder, cidread2cid):
     assert os.path.isdir(folder), "Trying to write_camera_order into {}, which is not a folder".format(folder)
 
     path = os.path.join(folder, "cam_order")
-    getLogger('df3d').debug('Writing the camera ordering {} into folder {}'.format(cidread2cid, folder))
+    logger.debug('Writing the camera ordering {} into folder {}'.format(cidread2cid, folder))
     # print("Saving camera order {}: {}".format(path, cidread2cid))
 
     np.save(path, cidread2cid)
