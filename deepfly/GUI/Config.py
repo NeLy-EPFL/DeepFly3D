@@ -35,7 +35,7 @@ config_fly = {
 
     # pose estimation
     "resume": os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../weights/sh8_deepfly.tar"),
-    "num_stacks": 8,
+    "num_stacks": 2,
     "batch_size": 64,
     "flip_cameras": [4, 5, 6],
     "num_predict": skeleton_fly.num_joints // 2,

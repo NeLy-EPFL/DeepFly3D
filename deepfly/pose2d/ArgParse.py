@@ -45,7 +45,7 @@ def add_arguments(parser):
     )
     parser.add_argument(
         "--test-batch",
-        default=64,
+        default=96,
         type=int,
         metavar="N",
         dest="test_batch",
@@ -112,7 +112,7 @@ def add_arguments(parser):
     parser.add_argument(
         "--output_folder",
         dest="output_folder",
-        default="df3d/",
+        default="df3d_2/",
         type=str,
         metavar="PATH",
         help="path to place final results",

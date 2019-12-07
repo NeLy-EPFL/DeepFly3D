@@ -12,7 +12,7 @@ def main():
     colorama_init()
 
     setup_logger(args)
-    
+
     if args.debug:
         return print_debug(args)
 
@@ -63,7 +63,7 @@ def parse_cli_args():
         action='store_true'
     )
     parser.add_argument(
-        "input_folder", 
+        "input_folder",
         help="Without additional arguments, a folder containing unlabeled images.",
         metavar="INPUT"
     )
@@ -190,11 +190,11 @@ def run_in_folders(args, folders):
 
 def run(args):
     nothing_to_do = args.skip_estimation and (not args.video_2d) and (not args.video_3d)
-    
+
     if nothing_to_do:
         getLogger('df3d').info(f'{Style.BRIGHT}Nothing to do. Check your command-line arguments.{Style.RESET_ALL}')
         return 0
-    
+
     getLogger('df3d').info(f'{Style.BRIGHT}\nWorking in {args.input_folder}{Style.RESET_ALL}')
     setup_data = core_api.setup(args.input_folder, args.camera_ids, args.num_images_max, args.overwrite)
 

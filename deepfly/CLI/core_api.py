@@ -46,6 +46,7 @@ video_width = 500  # total width of the 2d and 3d videos
 def setup(input_folder, camera_ids, num_images_max, overwrite=False):
     args = _get_pose2d_args(input_folder, camera_ids, num_images_max, overwrite)
     _setup_default_camera_ordering(args)
+    _create_output_folder(args)
     _save_camera_ordering(args)
     return args
 
@@ -53,7 +54,7 @@ def setup(input_folder, camera_ids, num_images_max, overwrite=False):
 def pose2d_estimation(setup_data):
     pose2d_main(setup_data)
 
-
+    
 def pose3d_estimation(setup_data):
     _pose3d_estimation(setup_data)
 
@@ -64,7 +65,7 @@ def pose2d_video(setup_data):
 
 def pose3d_video(setup_data):
     return _make_pose3d_video(setup_data)
-    
+
 
 #=========================================================================
 # Below is private implementation
@@ -80,12 +81,12 @@ def _get_pose2d_args(input_folder, camera_ids, num_images_max, overwrite):
     args.unlabeled = input_folder
     args.input_folder = input_folder
     args.camera_ids = camera_ids
-    args.unlabeled_recursive = False   
+    args.unlabeled_recursive = False
     args.num_images_max = num_images_max
     args.overwrite = overwrite
     max_img_id = get_max_img_id(args.input_folder)
     args.num_images = min(max_img_id+1, args.num_images_max)
-    return _clean_args(args) 
+    return _clean_args(args)
 
 
 def _clean_args(args):
@@ -98,10 +99,17 @@ def _clean_args(args):
 
 
 def _setup_default_camera_ordering(args):
-    """ This is a convenience function which automatically creates a default camera ordering for 
+    """ This is a convenience function which automatically creates a default camera ordering for
         frequent users in the neuro-engineering lab.
     """
     args.camera_ids = np.array(args.camera_ids) if args.camera_ids else find_default_camera_ordering(args.input_folder)
+
+
+def _create_output_folder(args):
+    path = os.path.join(args.input_folder, args.output_folder)
+    if not os.path.exists(path):
+        os.makedirs(path)
+    getLogger('df3d').debug("Creating output folder {}".format(path))
 
 
 def _save_camera_ordering(args):
@@ -131,7 +139,7 @@ def _pose3d_estimation(args):
     dict_merge = camNetAll.save_network(path=None)
     dict_merge["points2d"] = pts2d
     dict_merge["points3d"] = camNetAll.points3d_m
-        
+
     path = os.path.join(args.input_folder, args.output_folder)
     save_path = os.path.join(path, "pose_result_{}.pkl".format(args.input_folder.replace("/", "_")))
     pickle.dump(dict_merge, open(save_path, "wb"))
@@ -143,15 +151,15 @@ def _make_pose2d_video(args):
     # Here we create a generator (keyword "yield")
     def imgs_generator():
         camNet = _get_camNet(args)
-        
+
         def stack(img_id):
                 row1 = np.hstack([camNet[cam_id].plot_2d(img_id) for cam_id in [0, 1, 2]])
                 row2 = np.hstack([camNet[cam_id].plot_2d(img_id) for cam_id in [4, 5, 6]])
                 return np.vstack([row1, row2])
-        
+
         for img_id in range(args.num_images):
             yield stack(img_id)
-    
+
     # We can call next(generator) on this instance to get the images, just like for an iterator
     generator = imgs_generator()
 
@@ -167,11 +175,11 @@ def _get_camNet(args, cam_id_list=range(7), cam_list=None):
     cid2cidread, _ = read_camera_order(folder)
 
     camNet = CameraNetwork(
-        image_folder=args.input_folder, 
-        cam_id_list=cam_id_list, 
-        calibration=calib, 
+        image_folder=args.input_folder,
+        cam_id_list=cam_id_list,
+        calibration=calib,
         cid2cidread=cid2cidread,
-        num_images=args.num_images, output_folder=folder, 
+        num_images=args.num_images, output_folder=folder,
         cam_list=cam_list
     )
 
@@ -186,7 +194,7 @@ def _getCamNets(args):
 
     camNetAll = CameraNetwork(
         image_folder=args.input_folder,
-        output_folder=folder, 
+        output_folder=folder,
         cam_id_list=range(config["num_cameras"]),
         cid2cidread=cid2cidread,
         num_images=args.num_images,
@@ -196,7 +204,7 @@ def _getCamNets(args):
     )
     camNetLeft = CameraNetwork(
         image_folder=args.input_folder,
-        output_folder=folder, 
+        output_folder=folder,
         cam_id_list=config["left_cameras"],
         num_images=args.num_images,
         calibration=calib,
@@ -207,7 +215,7 @@ def _getCamNets(args):
     )
     camNetRight = CameraNetwork(
         image_folder=args.input_folder,
-        output_folder=folder, 
+        output_folder=folder,
         cam_id_list=config["right_cameras"],
         num_images=args.num_images,
         calibration=calib,
@@ -223,7 +231,7 @@ def _getCamNets(args):
 
     camNetLeft.triangulate()
     camNetLeft.bundle_adjust(cam_id_list=(0,1,2), unique=False, prior=True)
-    
+
     camNetRight.triangulate()
     camNetRight.bundle_adjust(cam_id_list=(0,1,2), unique=False, prior=True)
 
@@ -248,13 +256,14 @@ def _make_pose3d_video(args):
             row3 = np.hstack([_compute_3d_img(camNetAll, img_id, cam_id) for cam_id in (2, 3, 4)])
             img = np.vstack([row1, row2, row3])
             return img
-        
+
         for img_id in range(args.num_images):
             yield stack(img_id)
 
     # We can call next(generator) on this instance to get the images, just like for an iterator
     generator = imgs_generator()
-    _make_video(args, 'pose3d.mp4', generator)
+    video_name = 'video_pose3d_' + args.input_folder.replace('/', '_') + '.mp4'
+    _make_video(args, video_name, generator)
 
 
 def _make_video(args, video_name, imgs):
@@ -323,7 +332,7 @@ def _compute_3d_img(camNet1, img_id, cam_id):
     data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
     plt.close()
     return data
-    
+
 
 if __name__ == '__main__':
     main()

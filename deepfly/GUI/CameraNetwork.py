@@ -76,6 +76,11 @@ class CameraNetwork:
             else:
                 heatmap_path_list = [hm_path]
             getLogger('df3d').debug("Loading heatmaps {}".format(heatmap_path_list))
+
+            ## UGLY HACK, DO NOT PUSH THIS
+            # heatmap_path_list = []
+            ## UGLY HACK, DO NOT PUSH THIS
+
             if heatmap is None and len(heatmap_path_list) and pred is not None:
                 try:
                     shape = (
@@ -105,7 +110,7 @@ class CameraNetwork:
             for cam_id in cam_id_list:
                 cam_id_read = cid2cidread[cam_id]
 
-                if heatmap is not None:# and type(heatmap) is np.core.memmap:
+                if pred is not None:# and type(heatmap) is np.core.memmap:
                     pred_cam = np.zeros(
                         shape=(num_images_in_pred, num_joints, 2), dtype=float
                     )
@@ -290,7 +295,7 @@ class CameraNetwork:
         return err_list
 
     def prepare_bundle_adjust_param(
-            self, camera_id_list=None, ignore_joint_list=None, unique=False, prior=True
+            self, camera_id_list=None, ignore_joint_list=None, unique=False, prior=True, max_num_images=1000
     ):
         if ignore_joint_list is None:
             ignore_joint_list = config["skeleton"].ignore_joint_id
@@ -314,7 +319,14 @@ class CameraNetwork:
         points3d_ba_source_inv = dict()
         point_index_counter = 0
         data_shape = self.points3d_m.shape
-        for img_id in range(data_shape[0]):
+
+        if data_shape[0] > max_num_images:
+            getLogger('df3d').debug("There are too many ({}) images for calibration. Selecting {} randomly.".format(data_shape[0], max_num_images))
+            img_id_list = np.random.randint(0, high=data_shape[0]-1, size=(max_num_images))
+        else:
+            img_id_list = np.arange(data_shape[0]-1)
+
+        for img_id in img_id_list:
             for j_id in range(data_shape[1]):
                 cam_list_iter = list()
                 points2d_iter = list()

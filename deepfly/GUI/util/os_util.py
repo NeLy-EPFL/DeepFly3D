@@ -5,6 +5,8 @@ import numpy as np
 from pathlib import Path
 from ..Config import config
 import re
+from logging import getLogger
+import os
 
 
 def get_max_img_id(path):
@@ -25,7 +27,6 @@ def get_max_img_id(path):
     return curr
 
 
-
 def image_exists_img_id(path, img_id):
     return os.path.isfile(os.path.join(path, constr_img_name(0, img_id, False)) + '.jpg') or os.path.isfile(
         os.path.join(path, constr_img_name(0, img_id, True)) + '.jpg')
@@ -39,14 +40,16 @@ def constr_img_name(cid, pid, pad=True):
 
 
 def read_camera_order(folder):
-    assert(folder.endswith('df3d/') or folder.endswith('df3d'))
+    assert(folder.endswith('df3d_2/') or folder.endswith('df3d_2'))
+    assert os.path.isdir(folder), "Trying to call read_camera_order on {}, which is not a folder".format(folder)
 
-    path = os.path.join(folder, "cam_order.npy")
+    path = os.path.join(folder, "./cam_order.npy")
     if os.path.isfile(path):
         order = np.load(file=path, allow_pickle=True)
     else:
         order = np.arange(config["num_cameras"])
         write_camera_order(folder, order)
+        getLogger('df3d').debug('Could not find camera order under {}. Writing the default ordering {}.'.format(folder, order))
 
     cidread2cid = order.copy()
     cid2cidread = np.zeros(cidread2cid.size, dtype=int)
@@ -57,13 +60,14 @@ def read_camera_order(folder):
 
 
 def write_camera_order(folder, cidread2cid):
-    assert (folder.endswith('df3d/') or folder.endswith('df3d'))
+    assert (folder.endswith('df3d_2/') or folder.endswith('df3d_2'))
+    assert os.path.isdir(folder), "Trying to write_camera_order into {}, which is not a folder".format(folder)
+
     path = os.path.join(folder, "cam_order")
+    getLogger('df3d').debug('Writing the camera ordering {} into folder {}'.format(cidread2cid, folder))
     # print("Saving camera order {}: {}".format(path, cidread2cid))
-    try:
-        np.save(path, cidread2cid)
-    except:
-        return
+
+    np.save(path, cidread2cid)
 
 
 def read_calib(folder):

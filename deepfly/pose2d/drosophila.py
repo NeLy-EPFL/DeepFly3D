@@ -50,7 +50,7 @@ def on_cuda(torch_var, *cuda_args, **cuda_kwargs):
 
 def main(args):
     global best_acc
-    
+
     # create model
     getLogger('df3d').debug("Creating model '{}', stacks={}, blocks={}".format(
             args.arch, args.stacks, args.blocks
@@ -83,7 +83,7 @@ def main(args):
         if isfile(args.resume):
             getLogger('df3d').debug("Loading checkpoint '{}'".format(args.resume))
             checkpoint = torch.load(args.resume) if torch.cuda.is_available() else torch.load(args.resume, map_location=torch.device('cpu'))
-    
+
             if "mpii" in args.resume and not args.unlabeled:  # weights for sh trained on mpii dataset
                 getLogger('df3d').debug("Removing input/output layers")
                 ignore_weight_list_template = [
@@ -108,7 +108,7 @@ def main(args):
                 model.load_state_dict(checkpoint['state_dict'], strict=False)
             else:
                 pretrained_dict = checkpoint["state_dict"]
-                model.load_state_dict(pretrained_dict, strict=True)
+                model.load_state_dict(pretrained_dict, strict=False)
 
                 args.start_epoch = checkpoint["epoch"]
                 args.img_res = checkpoint["image_shape"]
@@ -150,7 +150,7 @@ def main(args):
     if args.unlabeled:
         unlabeled_folder = args.unlabeled
         unlabeled_folder_replace = unlabeled_folder.replace("/", "-")
-        
+
         save_path = os.path.join(
             args.data_folder,
             "/{}".format(unlabeled_folder),
@@ -163,7 +163,7 @@ def main(args):
             return None, None
         elif os.path.isfile(save_path) and args.overwrite:
             getLogger('df3d').info('Overwriting existing predictions')
-        
+
         max_img_id = get_max_img_id(unlabeled_folder)
         try:
             max_img_id = min(max_img_id, args.num_images_max-1)
@@ -192,15 +192,19 @@ def main(args):
             drop_last=False,
         )
 
-        valid_loss, valid_acc, val_pred, val_score_maps, mse, jump_acc = validate(
+        valid_loss, valid_acc, val_pred, _, mse, jump_acc = validate(
             unlabeled_loader, 0, model, criterion, args, save_path=unlabeled_folder
         )
-        getLogger('df3d').debug(f"val_score_maps have shape: {val_score_maps.shape}")
+        #getLogger('df3d').debug(f"val_score_maps have shape: {val_score_maps.shape}")
 
         getLogger('df3d').debug("Saving Results, flipping heatmaps")
         cid_to_reverse = config["flip_cameras"]  # camera id to reverse predictions and heatmaps
-        cidread2cid, cid2cidread = read_camera_order(os.path.join(unlabeled_folder, 'df3d'))
+        path = os.path.join(unlabeled_folder, './df3d_2')
+        getLogger('df3d').debug("Reading camera ordering from {} for image flipping.".format(path))
+
+        cidread2cid, cid2cidread = read_camera_order(path)
         cid_read_to_reverse = [cid2cidread[cid] for cid in cid_to_reverse]
+
         getLogger('df3d').debug(
             "Flipping heatmaps for images with cam_id: {}".format(
                 cid_read_to_reverse
@@ -209,13 +213,14 @@ def main(args):
         val_pred[cid_read_to_reverse, :, :, 0] = (
             1 - val_pred[cid_read_to_reverse, :, :, 0]
         )
+        '''
         for cam_id in cid_read_to_reverse:
             for img_id in range(val_score_maps.shape[1]):
                 for j_id in range(val_score_maps.shape[2]):
                     val_score_maps[cam_id, img_id, j_id, :, :] = cv2.flip(
                         val_score_maps[cam_id, img_id, j_id, :, :], 1
                     )
-
+        '''
         save_dict(val_pred, save_path)
 
         getLogger('df3d').debug("Finished saving results")
@@ -275,7 +280,7 @@ def main(args):
             logger.plot(["Train Acc", "Val Acc"])
             savefig(os.path.join(args.checkpoint, "log.eps"))
             plt.close(fig)
-    return val_score_maps, val_pred
+    return None, val_pred
     logger.close()
 
 
@@ -472,12 +477,13 @@ def validate(val_loader, epoch, model, criterion, args, save_path=False):
             args.output_folder,
             "heatmap_{}.pkl".format(unlabeled_folder_replace),
         )
+
         score_map_path = Path(score_map_filename)
         score_map_path.parent.mkdir(exist_ok=True, parents=True)
-        score_map_arr = np.memmap(
-            score_map_filename,
+        print(score_map_path)
+        '''
+        score_map_arr = np.zeros(
             dtype="float32",
-            mode="w+",
             shape=(
                 num_cameras + 1,
                 val_loader.dataset.greatest_image_id() + 1,
@@ -486,6 +492,7 @@ def validate(val_loader, epoch, model, criterion, args, save_path=False):
                 args.hm_res[1],
             ),
         )  # num_cameras+1 for the mirrored camera 3
+        '''
 
     # switch to evaluate mode
     model.eval()
@@ -515,9 +522,9 @@ def validate(val_loader, epoch, model, criterion, args, save_path=False):
                 range(score_map.size(0)), meta["cid"], meta["cam_read_id"], meta["pid"]
             ):
                 smap = to_numpy(score_map[n, :, :, :])
-                score_map_arr[cam_read_id, img_id, :] = smap
+                #score_map_arr[cam_read_id, img_id, :] = smap
                 pr = Camera.hm_to_pred(
-                    score_map_arr[cam_read_id, img_id, :], threshold_abs=0.0
+                    smap, threshold_abs=0.0
                 )
                 predictions[cam_read_id, img_id, :] = pr
 
@@ -621,11 +628,13 @@ def validate(val_loader, epoch, model, criterion, args, save_path=False):
         bar.next()
 
     bar.finish()
+    '''
     if save_path is not None:
         score_map_arr.flush()
     else:
         score_map_arr = None
-    return losses.avg, acces.avg, predictions, score_map_arr, mse.avg, mse_jump.avg
+    '''
+    return losses.avg, acces.avg, predictions, None, mse.avg, mse_jump.avg
 
 
 def worker_init_fn(worker_id):
