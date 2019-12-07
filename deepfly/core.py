@@ -29,6 +29,7 @@ class Core:
         self.setup_camera_ordering()
         self.set_cameras()
         
+
     # -------------------------------------------------------------------------
     # properties
     
@@ -145,10 +146,10 @@ class Core:
         for cam_id in range(config["num_cameras"]):
             for img_id in range(self.num_images):
                 if self.db.has_key(cam_id, img_id):
-                    pt = self.db.read(cam_id, img_id) * config["image_shape"]
+                    pt = self.corrected_points2d(cam_id, img_id)
                     self.camNetAll[cam_id].points2d[img_id, :] = pt
                     c += 1
-        print("Calibration: replaced {} points from manuall correction".format(c))
+        print("Calibration: replaced {c} points from manuall correction")
 
         # keep the pts only in the range
         for cam in self.camNetAll:
@@ -172,7 +173,7 @@ class Core:
         visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
         unvisible_joints = [j_id for j_id in joints if not visible(j_id)]
         
-        pts = self.camNetAll[cam_id].get_points2d(img_id).copy()
+        pts = self.corrected_points2d(cam_id, img_id)
         pts[unvisible_joints] = [9999, 9999]
 
         nbrs = NearestNeighbors(n_neighbors=1, algorithm="ball_tree").fit(pts)
@@ -181,23 +182,17 @@ class Core:
 
 
     def move_joint(self, cam_id, img_id, joint_id, x, y):
-        if self.db.has_key(cam_id, img_id):
-            points = self.db.read(cam_id, img_id) * self.image_shape
-        else:
-            points = self.camNetAll[cam_id].get_points2d(img_id).copy()
-        
         modified_joints = self.db.read_modified_joints(cam_id, img_id)
         modified_joints = list(sorted(set(modified_joints + [joint_id])))
-
+        points = self.corrected_points2d(cam_id, img_id)
         points[joint_id] = np.array([x, y])
         self.write_corrections(cam_id, img_id, modified_joints, points)
 
 
     def solve_bp(self, img_id):
-        if not (self.has_calibration and self.has_pose):
-            return
-        self.solve_bp_for_camnet(img_id, self.camNetLeft)
-        self.solve_bp_for_camnet(img_id, self.camNetRight)
+        if self.has_calibration and self.has_pose:
+            self.solve_bp_for_camnet(img_id, self.camNetLeft)
+            self.solve_bp_for_camnet(img_id, self.camNetRight)
         
     
     def plot_2d(self, cam_id, img_id, with_corrections=False, joints=[]):
@@ -206,11 +201,11 @@ class Core:
         visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
         visible_joints = [j_id for j_id in joints if visible(j_id)]
         zorder = config["skeleton"].get_zorder(cam_id)
-        corrected_this_camera = self.db.has_key(cam_id, img_id)
         
         if not with_corrections:
             return cam.plot_2d(img_id, draw_joints=visible_joints, zorder=zorder)
         
+        corrected_this_camera = self.db.has_key(cam_id, img_id)
         circle_color = (0, 255, 0) if corrected_this_camera else (0, 0, 255)
 
         # calculate the joints with large reprojection error
@@ -221,12 +216,8 @@ class Core:
             if self.joint_has_error(img_id, joint_id):
                 r_list[joint_id] = config["scatter_r"] * 2
 
-        # compute manual corrections
-        manual_corrections = self.db.manual_corrections()
-        points2d = cam.get_points2d(img_id).copy()
-        if img_id in manual_corrections.get(cam_id, {}):
-            points2d[:] = manual_corrections[cam_id][img_id]
-
+        points2d = self.corrected_points2d(cam_id, img_id)
+        
         return cam.plot_2d(img_id, 
             points2d,
             circle_color=circle_color, 
@@ -325,6 +316,14 @@ class Core:
     # private helper methods
 
 
+    def corrected_points2d(self, cam_id, img_id):
+        points2d = self.camNetAll[cam_id].get_points2d(img_id).copy()
+        manual_corrections = self.db.manual_corrections()
+        if img_id in manual_corrections.get(cam_id, {}):
+            points2d[:] = manual_corrections[cam_id][img_id]
+        return points2d
+
+
     def setup_camera_ordering(self):
         default = find_default_camera_ordering(self.input_folder)
         if default is not None:  # np.arrays don't evaluate to bool
@@ -411,7 +410,7 @@ class Core:
         prior = []
         manual_corrections = self.db.manual_corrections()
         for cam in camNet:
-            if cam.cam_id in manual_corrections and img_id in manual_corrections[cam.cam_id]:
+            if img_id in manual_corrections.get(cam.cam_id, {}):
                 for joint_id in range(manual_corrections[cam.cam_id][img_id].shape[0]):
                     pt2d = manual_corrections[cam.cam_id][img_id][joint_id]
                     prior.append((cam.cam_id, joint_id, pt2d / config["image_shape"]))

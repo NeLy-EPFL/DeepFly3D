@@ -45,14 +45,12 @@ class PoseDB:
         assert pts.shape[0] == config["skeleton"].num_joints and pts.shape[1] == 2
         assert modified_joints is not None
 
-        print(f"Writing cam:{cam_id} img:{img_id}")
         self.db[cam_id][img_id] = pts
 
         self.db["train"][cam_id][img_id] = train
         self.db["modified"][cam_id][img_id] = modified_joints
 
         self.last_write_image_id = img_id
-
 
     def remove_corrections(self, cam_id, img_id):
         if img_id in self.db.get(cam_id, {}):
@@ -63,7 +61,6 @@ class PoseDB:
         #
         if img_id in self.db['modified'].get(cam_id, {}):
             del self.db["modified"][cam_id][img_id]
-
 
     def dump(self):
         with open(self.db_path, "wb") as outfile:
