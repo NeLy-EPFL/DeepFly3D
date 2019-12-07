@@ -7,12 +7,13 @@ from deepfly.GUI.CameraNetwork import CameraNetwork
 from deepfly.GUI.Config import config
 from deepfly.GUI.util.os_util import write_camera_order, read_camera_order, read_calib, get_max_img_id
 from deepfly.GUI.util.optim_util import energy_drosoph
+from deepfly.GUI.util.plot_util import normalize_pose_3d
+from deepfly.GUI.util.signal_util import smooth_pose2d, filter_batch
 from deepfly.pose2d import ArgParse
 from deepfly.pose2d.drosophila import main as pose2d_main
 from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
 from deepfly.GUI.DB import PoseDB
 from deepfly import logger
-from deepfly.GUI.util.signal_util import smooth_pose2d
 
 from sklearn.neighbors import NearestNeighbors
 import pickle
@@ -218,17 +219,19 @@ class Core:
                 if self.joint_has_error(img_id, joint_id):
                     r_list[joint_id] = config["scatter_r"] * 2
             return r_list
-            
+
         if with_corrections:
             pts2d = self.corrected_points2d(cam_id, img_id)
             r_list = compute_r_list(img_id)
             circle_color = (0, 255, 0) if corrected else (0, 0, 255)
         else:
+            pts2d = smooth_pose2d(cam.points2d) if smooth else cam.points2d
+            pts2d = pts2d[img_id]
             pts2d = cam.get_points2d(img_id)
             r_list = None
             circle_color = None
             
-        pts2d = smooth_pose2d(pts2d) if smooth else pts2d
+        
 
         return cam.plot_2d(img_id, 
             pts2d,
@@ -249,6 +252,24 @@ class Core:
 
     def get_image(self, cam_id, img_id):
         return self.camNetAll[cam_id].get_image(img_id)
+
+
+    def get_points3d(self):
+        camNetL = self.camNetLeft
+        camNetR = self.camNetRight
+        
+        camNetL.triangulate()
+        camNetL.bundle_adjust(cam_id_list=(0,1,2), unique=False, prior=True)
+        
+        camNetR.triangulate()
+        camNetR.bundle_adjust(cam_id_list=(0,1,2), unique=False, prior=True)
+        
+        self.camNetAll.triangulate()
+        points3d_m = self.camNetAll.points3d_m.copy()
+        points3d_m = procrustes_seperate(points3d_m)
+        points3d_m = normalize_pose_3d(points3d_m, rotate=True)
+        points3d_m = filter_batch(points3d_m)
+        return points3d_m
 
 
     def save_corrections(self):
