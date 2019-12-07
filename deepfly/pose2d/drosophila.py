@@ -50,7 +50,7 @@ def on_cuda(torch_var, *cuda_args, **cuda_kwargs):
 
 def main(args):
     global best_acc
-
+    
     # create model
     getLogger('df3d').debug("Creating model '{}', stacks={}, blocks={}".format(
             args.arch, args.stacks, args.blocks
@@ -199,7 +199,7 @@ def main(args):
 
         getLogger('df3d').debug("Saving Results, flipping heatmaps")
         cid_to_reverse = config["flip_cameras"]  # camera id to reverse predictions and heatmaps
-        path = os.path.join(unlabeled_folder, './df3d_2')
+        path = os.path.join(unlabeled_folder, './df3d')
         getLogger('df3d').debug("Reading camera ordering from {} for image flipping.".format(path))
 
         cidread2cid, cid2cidread = read_camera_order(path)

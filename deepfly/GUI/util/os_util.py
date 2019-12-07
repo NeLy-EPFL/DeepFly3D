@@ -40,7 +40,7 @@ def constr_img_name(cid, pid, pad=True):
 
 
 def read_camera_order(folder):
-    assert(folder.endswith('df3d_2/') or folder.endswith('df3d_2'))
+    assert(folder.endswith('df3d/') or folder.endswith('df3d'))
     assert os.path.isdir(folder), "Trying to call read_camera_order on {}, which is not a folder".format(folder)
 
     path = os.path.join(folder, "./cam_order.npy")
@@ -60,7 +60,7 @@ def read_camera_order(folder):
 
 
 def write_camera_order(folder, cidread2cid):
-    assert (folder.endswith('df3d_2/') or folder.endswith('df3d_2'))
+    assert (folder.endswith('df3d/') or folder.endswith('df3d'))
     assert os.path.isdir(folder), "Trying to write_camera_order into {}, which is not a folder".format(folder)
 
     path = os.path.join(folder, "cam_order")
