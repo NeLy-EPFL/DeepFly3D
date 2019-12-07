@@ -11,6 +11,8 @@ from deepfly.pose2d import ArgParse
 from deepfly.pose2d.drosophila import main as pose2d_main
 from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
 from deepfly.GUI.DB import PoseDB
+from deepfly import logger
+from deepfly.GUI.util.signal_util import smooth_pose2d
 
 from sklearn.neighbors import NearestNeighbors
 import pickle
@@ -22,10 +24,12 @@ class Core:
         self.input_folder = input_folder
         self.output_subfolder = output_subfolder
         self.output_folder = os.path.join(input_folder, output_subfolder)
+        
         self.num_images_max = num_images_max or math.inf
         max_img_id = get_max_img_id(self.input_folder)
         self.num_images = min(self.num_images_max, max_img_id + 1)
         self.max_img_id = self.num_images - 1
+        
         self.db = PoseDB(self.output_folder)
         self.setup_camera_ordering()
         self.set_cameras()
@@ -106,7 +110,7 @@ class Core:
         return True
 
 
-    def pose2d_estimation(self):
+    def pose2d_estimation(self, overwrite=True):
         parser = ArgParse.create_parser()
         args, _ = parser.parse_known_args()
         args.checkpoint = False
@@ -119,7 +123,8 @@ class Core:
         args.hm_res = config["heatmap_shape"]
         args.num_classes = config["num_predict"]
         args.max_img_id = self.max_img_id
-        
+        args.overwrite = overwrite
+
         pose2d_main(args)    # will write output files in output directory
         self.set_cameras()   # makes sure cameras use the latest heatmaps and predictions
         
@@ -197,31 +202,36 @@ class Core:
             self.solve_bp_for_camnet(img_id, self.camNetRight)
         
     
-    def plot_2d(self, cam_id, img_id, with_corrections=False, joints=[]):
+    def plot_2d(self, cam_id, img_id, with_corrections=False, smooth=False, joints=[]):
         cam = self.camNetAll[cam_id]
         joints = joints if joints else range(config["skeleton"].num_joints)
         visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
         visible_joints = [j_id for j_id in joints if visible(j_id)]
         zorder = config["skeleton"].get_zorder(cam_id)
+        corrected = self.db.has_key(cam_id, img_id)
         
-        if not with_corrections:
-            return cam.plot_2d(img_id, draw_joints=visible_joints, zorder=zorder)
-        
-        corrected_this_camera = self.db.has_key(cam_id, img_id)
-        circle_color = (0, 255, 0) if corrected_this_camera else (0, 0, 255)
+        def compute_r_list(img_id):
+            r_list = [config["scatter_r"]] * config["num_joints"]
+            for joint_id in range(config["skeleton"].num_joints):
+                if joint_id not in config["skeleton"].pictorial_joint_list:
+                    continue
+                if self.joint_has_error(img_id, joint_id):
+                    r_list[joint_id] = config["scatter_r"] * 2
+            return r_list
+            
+        if with_corrections:
+            pts2d = self.corrected_points2d(cam_id, img_id)
+            r_list = compute_r_list(img_id)
+            circle_color = (0, 255, 0) if corrected else (0, 0, 255)
+        else:
+            pts2d = cam.get_points2d(img_id)
+            r_list = None
+            circle_color = None
+            
+        pts2d = smooth_pose2d(pts2d) if smooth else pts2d
 
-        # calculate the joints with large reprojection error
-        r_list = [config["scatter_r"]] * config["num_joints"]
-        for joint_id in range(config["skeleton"].num_joints):
-            if joint_id not in config["skeleton"].pictorial_joint_list:
-                continue
-            if self.joint_has_error(img_id, joint_id):
-                r_list[joint_id] = config["scatter_r"] * 2
-
-        points2d = self.corrected_points2d(cam_id, img_id)
-        
         return cam.plot_2d(img_id, 
-            points2d,
+            pts2d,
             circle_color=circle_color, 
             draw_joints=visible_joints, 
             zorder=zorder,
@@ -243,12 +253,6 @@ class Core:
 
     def save_corrections(self):
         self.db.dump()
-
-
-    def save_calibration(self):
-        calib_path = f"{self.output_folder}/calib_{self.input_folder.replace('/', '_')}.pkl"
-        print("Saving calibration {}".format(calib_path))
-        self.camNetAll.save_network(calib_path)
 
 
     def save_pose(self):
@@ -297,8 +301,9 @@ class Core:
         if self.camNetLeft.has_calibration() and self.camNetLeft.has_pose():
             self.camNetAll.triangulate()
             pts3d = self.camNetAll.points3d_m
-
             dict_merge["points3d"] = pts3d
+        else:
+            logger.debug('Triangulation skipped.')
             
         # apply procrustes
         if config["procrustes_apply"]:
@@ -316,6 +321,12 @@ class Core:
 
     # -------------------------------------------------------------------------
     # private helper methods
+
+
+    def save_calibration(self):
+        calib_path = f"{self.output_folder}/calib_{self.input_folder.replace('/', '_')}.pkl"
+        print("Saving calibration {}".format(calib_path))
+        self.camNetAll.save_network(calib_path)
 
 
     def corrected_points2d(self, cam_id, img_id):
