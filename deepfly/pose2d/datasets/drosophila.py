@@ -30,6 +30,7 @@ class Drosophila(data.Dataset):
         unlabeled=None,
         num_classes=config["num_predict"],
         max_img_id=None,
+        output_folder = None,
     ):
         self.train = train
         self.data_folder = data_folder  # root image folders
@@ -45,6 +46,9 @@ class Drosophila(data.Dataset):
         self.num_classes = num_classes
         self.max_img_id = max_img_id
         self.cidread2cid = dict()
+        self.output_folder = output_folder
+        if self.output_folder is None:
+            raise ValueError("Please provide an output_folder relative to images folder")
 
         self.session_id_train_list = session_id_train_list
         self.folder_train_list = folder_train_list
@@ -107,7 +111,8 @@ class Drosophila(data.Dataset):
                 folder_name = d["folder"]
                 key_folder_name = folder_name
                 if folder_name not in self.cidread2cid:
-                    cidread2cid, cid2cidread = read_camera_order(os.path.join(folder_name, './df3d/'))
+                    cam_folder = os.path.join(folder_name, self.output_folder)
+                    cidread2cid, cid2cidread = read_camera_order(cam_folder)
                     self.cidread2cid[key_folder_name] = cidread2cid
                 for cid in range(config["num_cameras"]):
                     for img_id, points2d in d[cid].items():
@@ -134,7 +139,8 @@ class Drosophila(data.Dataset):
 
         if self.unlabeled:
             image_folder_path = os.path.join(self.unlabeled)
-            cidread2cid, cid2cidread = read_camera_order(os.path.join(image_folder_path, './df3d/'))
+            cam_folder = os.path.join(image_folder_path, self.output_folder)
+            cidread2cid, cid2cidread = read_camera_order(cam_folder)
             self.cidread2cid[self.unlabeled] = cidread2cid
 
             for image_name_jpg in os.listdir(image_folder_path):

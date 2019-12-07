@@ -184,6 +184,7 @@ def main(args):
                 unlabeled=unlabeled_folder,
                 num_classes=args.num_classes,
                 max_img_id=max_img_id,
+                output_folder=args.output_folder,
             ),
             batch_size=args.test_batch,
             shuffle=False,
@@ -667,7 +668,8 @@ def create_dataloader():
             hm_res=args.hm_res,
             augmentation=args.augmentation,
             num_classes=args.num_classes,
-            jsonfile=args.json_file
+            jsonfile=args.json_file,
+            output_folder=args.output_folder,
         ),
         batch_size=args.train_batch,
         shuffle=True,
@@ -687,7 +689,8 @@ def create_dataloader():
             augmentation=False,
             evaluation=True,
             num_classes=args.num_classes,
-            jsonfile=args.json_file
+            jsonfile=args.json_file,
+            output_folder=args.output_folder,
         ),
         batch_size=args.test_batch,
         shuffle=False,
