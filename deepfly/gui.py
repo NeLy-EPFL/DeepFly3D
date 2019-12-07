@@ -31,6 +31,7 @@ def parse_cli_args(argv):
 
 
 class DeepflyGUI(QW.QWidget):
+    
     def __init__(self):
         QW.QWidget.__init__(self)
         self.img_id = 0
@@ -41,7 +42,7 @@ class DeepflyGUI(QW.QWidget):
         input_folder = input_folder or self.prompt_for_directory()
         self.core = Core(input_folder, num_images_max)
         self.setup_layout()
-        self.switch_to_image_mode()
+        self.onclick_image_mode()
     
     
     def set_width(self, width):
@@ -70,14 +71,14 @@ class DeepflyGUI(QW.QWidget):
         self.button_prev_err = mb("< previous error", self.onclick_prev_error)
         self.button_next_err = mb("next error >", self.onclick_next_error)
         self.button_pose_save = mb("Save", self.onclick_save_pose)
-        self.button_pose_mode = mb("Pose", self.switch_to_pose_mode)
-        self.button_image_mode = mb("Image", self.switch_to_image_mode)
-        self.button_heatmap_mode = mb("Prob. Map", self.switch_to_heatmap_mode)
+        self.button_pose_mode = mb("Pose", self.onclick_pose_mode)
+        self.button_image_mode = mb("Image", self.onclick_image_mode)
+        self.button_heatmap_mode = mb("Prob. Map", self.onclick_heatmap_mode)
         button_textbox_img_id_go = mb("Go",  self.onclick_goto_img)
         self.button_calibrate_calc = mb("Calibration", self.onclick_calibrate)
         
         self.button_correction_mode = \
-            mb("Correction", self.switch_to_correction_mode)
+            mb("Correction", self.onclick_correction_mode)
         self.button_camera_order = \
             mb("Camera ordering", self.onclick_camera_order)
         self.button_pose_estimate = \
@@ -165,7 +166,7 @@ class DeepflyGUI(QW.QWidget):
 
 
     # ------------------------------------------------------------------
-    # onclick callbacks
+    # user input
 
 
     def onclick_camera_order(self):
@@ -180,7 +181,7 @@ class DeepflyGUI(QW.QWidget):
 
     def onclick_pose2d_estimation(self):
         self.core.pose2d_estimation()
-        self.switch_to_correction_mode()
+        self.onclick_correction_mode()
 
 
     def onclick_first_image(self):
@@ -239,15 +240,69 @@ class DeepflyGUI(QW.QWidget):
             self.textbox_img_id.setText(str(self.img_id))
 
 
+    def onclick_image_mode(self):
+        self.uncheck_mode_buttons()
+        self.button_image_mode.setChecked(True)
+        self.combo_joint_id.setEnabled(False)
+        self.correction_controls_enabled(False)
+        self.belief_propagation_enabled = lambda: False
+        self.display_method = lambda c,i,j: self.core.get_image(c, i)
+        self.update_frame()
+
+
+    def onclick_pose_mode(self):
+        if not self.core.has_pose:
+            return False
+        self.uncheck_mode_buttons()
+        self.button_pose_mode.setChecked(True)
+        self.combo_joint_id.setEnabled(True)
+        self.correction_controls_enabled(False)
+        self.belief_propagation_enabled = lambda: False
+        self.display_method = lambda c,i,j: self.core.plot_2d(c, i, joints=j)
+        self.update_frame()
+
+
+    def onclick_correction_mode(self):
+        if not self.core.has_pose:
+            return False
+        self.uncheck_mode_buttons()
+        self.button_correction_mode.setChecked(True)
+        self.combo_joint_id.setEnabled(True)
+        self.correction_controls_enabled(True)
+
+        self.belief_propagation_enabled = lambda: \
+            self.checkbox_solve_bp.isChecked()
+        
+        self.display_method = lambda c,i,j: \
+            self.core.plot_2d(c, i, with_corrections=True, joints=j)
+        
+        self.update_frame()
+
+
+    def onclick_heatmap_mode(self):
+        if not self.core.has_heatmap:
+            return False
+        self.uncheck_mode_buttons()
+        self.button_heatmap_mode.setChecked(True)
+        self.combo_joint_id.setEnabled(True)
+        self.correction_controls_enabled(False)
+        self.belief_propagation_enabled = lambda: False
+    
+        self.display_method = lambda c,i,j: \
+            self.core.plot_heatmap(c, i, joints=j)
+        
+        self.update_frame()
+
+
     def keyPressEvent(self, event):
         switch = {
             Qt.Key_Return: self.onclick_goto_img,
             Qt.Key_A: self.onclick_prev_image,
             Qt.Key_D: self.onclick_next_image,
-            Qt.Key_H: self.switch_to_heatmap_mode,
-            Qt.Key_I: self.switch_to_image_mode,
-            Qt.Key_X: self.switch_to_pose_mode,
-            Qt.Key_C: self.switch_to_correction_mode,
+            Qt.Key_H: self.onclick_heatmap_mode,
+            Qt.Key_I: self.onclick_image_mode,
+            Qt.Key_X: self.onclick_pose_mode,
+            Qt.Key_C: self.onclick_correction_mode,
             Qt.Key_T: self.onclick_save_pose,
         }
         default_action = lambda: None
@@ -256,7 +311,7 @@ class DeepflyGUI(QW.QWidget):
 
         
     # ------------------------------------------------------------------
-    # prompt callbacks
+    # user feedback and prompt
 
     
     def prompt_for_directory(self):
@@ -314,60 +369,6 @@ class DeepflyGUI(QW.QWidget):
         self.button_prev_err.setEnabled(enabled)
         self.checkbox_solve_bp.setEnabled(enabled)
         
-
-    def switch_to_image_mode(self):
-        self.uncheck_mode_buttons()
-        self.button_image_mode.setChecked(True)
-        self.combo_joint_id.setEnabled(False)
-        self.correction_controls_enabled(False)
-        self.belief_propagation_enabled = lambda: False
-        self.display_method = lambda c,i,j: self.core.get_image(c, i)
-        self.update_frame()
-
-
-    def switch_to_pose_mode(self):
-        if not self.core.has_pose:
-            return False
-        self.uncheck_mode_buttons()
-        self.button_pose_mode.setChecked(True)
-        self.combo_joint_id.setEnabled(True)
-        self.correction_controls_enabled(False)
-        self.belief_propagation_enabled = lambda: False
-        self.display_method = lambda c,i,j: self.core.plot_2d(c, i, joints=j)
-        self.update_frame()
-
-
-    def switch_to_correction_mode(self):
-        if not self.core.has_pose:
-            return False
-        self.uncheck_mode_buttons()
-        self.button_correction_mode.setChecked(True)
-        self.combo_joint_id.setEnabled(True)
-        self.correction_controls_enabled(True)
-
-        self.belief_propagation_enabled = lambda: \
-            self.checkbox_solve_bp.isChecked()
-        
-        self.display_method = lambda c,i,j: \
-            self.core.plot_2d(c, i, with_corrections=True, joints=j)
-        
-        self.update_frame()
-
-
-    def switch_to_heatmap_mode(self):
-        if not self.core.has_heatmap:
-            return False
-        self.uncheck_mode_buttons()
-        self.button_heatmap_mode.setChecked(True)
-        self.combo_joint_id.setEnabled(True)
-        self.correction_controls_enabled(False)
-        self.belief_propagation_enabled = lambda: False
-    
-        self.display_method = lambda c,i,j: \
-            self.core.plot_heatmap(c, i, joints=j)
-        
-        self.update_frame()
-
 
     def display_img(self, img_id):
         self.img_id = img_id
