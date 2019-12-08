@@ -13,7 +13,7 @@ import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.optim
 
-from deepfly.pose2d.progress.progress.bar import Bar, NoOutputBar
+from progress.bar import Bar
 from deepfly.pose2d.utils.logger import Logger, savefig
 from deepfly.pose2d.utils.evaluation import accuracy, AverageMeter, mse_acc
 from deepfly.pose2d.utils.misc import save_checkpoint, save_dict
@@ -35,6 +35,24 @@ import cv2
 
 best_acc = 0
 
+
+class NoOutputBar(Bar):
+    def __init__(self, *args, **kwargs):
+        Bar.__init__(self, *args, **kwargs)
+
+    def update(self):
+        pass
+
+    def next(self):
+        pass
+
+    def finish(self):
+        pass
+
+    def start(self):
+        pass
+
+    
 def weighted_mse_loss(inp, target, weights):
     out = (inp - target) ** 2
     out = out * weights.expand_as(out)
