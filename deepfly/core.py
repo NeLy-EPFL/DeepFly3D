@@ -11,7 +11,7 @@ from deepfly.plot_util import normalize_pose_3d
 from deepfly.signal_util import smooth_pose2d, filter_batch
 from deepfly.pose2d import ArgParse
 from deepfly.pose2d.drosophila import main as pose2d_main
-from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
+from deepfly.procrustes import procrustes_seperate
 from deepfly.DB import PoseDB
 from deepfly import logger
 
