@@ -203,7 +203,13 @@ class Core:
             self.solve_bp_for_camnet(img_id, self.camNetRight)
         
     
-    def plot_2d(self, cam_id, img_id, with_corrections=False, smooth=False, joints=[]):
+    def plot_2d(self, 
+        cam_id,
+        img_id,
+        with_corrections=False,
+        smooth=False,
+        joints=[],
+        ):
         cam = self.camNetAll[cam_id]
         joints = joints if joints else range(config["skeleton"].num_joints)
         visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
@@ -227,12 +233,9 @@ class Core:
         else:
             pts2d = smooth_pose2d(cam.points2d) if smooth else cam.points2d
             pts2d = pts2d[img_id]
-            pts2d = cam.get_points2d(img_id)
             r_list = None
             circle_color = None
             
-        
-
         return cam.plot_2d(img_id, 
             pts2d,
             circle_color=circle_color, 

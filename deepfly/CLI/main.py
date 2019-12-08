@@ -115,11 +115,6 @@ def parse_cli_args():
         help="Skip 2D and 3D pose estimation",
         action='store_true'
     )
-    #parser.add_argument(
-    #    "-skip3d", "--skip-3d-estimation",
-    #    help="Skip 3d pose estimation (but not 2d pose estimation)",
-    #    action='store_true'
-    #)
     return parser.parse_args()
 
 
@@ -210,9 +205,6 @@ def run(args):
 
     if not args.skip_estimation:
         core_api.pose2d_estimation(setup_data)
-
-    #if not args.skip_estimation and not args.skip_3d_estimation:
-    #    core_api.pose3d_estimation(setup_data)
 
     if args.video_2d:
         core_api.pose2d_video(setup_data)
