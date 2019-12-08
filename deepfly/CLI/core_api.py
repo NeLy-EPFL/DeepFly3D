@@ -99,7 +99,7 @@ def _make_pose3d_video(core):
         def stack(img_id):
             row1 = np.hstack([_compute_2d_img(core, img_id, cam_id) for cam_id in (0, 1, 2)])
             row2 = np.hstack([_compute_2d_img(core, img_id, cam_id) for cam_id in (4, 5, 6)])
-            row3 = np.hstack([_compute_3d_img(points3d, img_id, cam_id) for cam_id in (2, 3, 4)])
+            row3 = np.hstack([_compute_3d_img(points3d, img_id, cam_id) for cam_id in (4, 5, 6)])
             img = np.vstack([row1, row2, row3])
             return img
 
