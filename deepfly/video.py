@@ -1,73 +1,20 @@
-"""core_api.py
-
-This file is the API exposed from to core to the CLI. For decoupling purposes. 
-
-To be clear, this file acts as an interface for the functionalities of DeepFly 
-that should have been implemented in the core, rather than in the CLI.
-It exposes functions that will be called by the CLI.
-"""
-
-import math
-import argparse, os.path
-import deepfly.logger as logger
-import re
-from pathlib import Path
-from deepfly.pose2d.drosophila import main as pose2d_main
-from deepfly import pose2d
-from ..GUI.Config import config
-from ..GUI.util.os_util import get_max_img_id, write_camera_order, read_calib, read_camera_order
-from ..GUI.util.plot_util import normalize_pose_3d
-from ..GUI.util.signal_util import *
-from ..GUI.CameraNetwork import CameraNetwork
-from deepfly.pose2d.utils.osutils import find_leaf_recursive
-from ..GUI.util.os_util import *
-import cv2
-from tqdm import tqdm
-import time
+import os.path
 import itertools
-from deepfly.GUI.util.plot_util import plot_drosophila_3d
+
+import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d, Axes3D
-from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
-from deepfly.utils_ramdya_lab import find_default_camera_ordering
-import pickle
-from deepfly.core import Core
+import cv2
+from tqdm import tqdm
+
+from deepfly.GUI.util.plot_util import plot_drosophila_3d
+import deepfly.logger as logger
+
 
 img3d_dpi = 100  # this is the dpi for one image on the 3d video's grid
 img3d_aspect = (2, 2)  # this is the aspect ration for one image on the 3d video's grid
 img2d_aspect = (2, 1)  # this is the aspect ration for one image on the 3d video's grid
 video_width = 500  # total width of the 2d and 3d videos
-
-
-#=========================================================================
-# Public interface
-
-
-def setup(input_folder, output_folder, camera_ids, num_images_max, overwrite=False):
-    core = Core(input_folder, output_folder, num_images_max)
-    core.overwrite = overwrite  # save this for later
-    fdo = find_default_camera_ordering
-    camera_ids = np.array(camera_ids) if camera_ids else fdo(core.input_folder)
-    core.update_camera_ordering(camera_ids)
-    return core
-
-
-def pose2d_estimation(setup_data):
-    setup_data.pose2d_estimation(setup_data.overwrite)
-    setup_data.calibrate_calc(0, setup_data.max_img_id)
-    setup_data.save_pose()
-    
-
-def pose2d_video(setup_data):
-    return _make_pose2d_video(setup_data)
-
-
-def pose3d_video(setup_data):
-    return _make_pose3d_video(setup_data)
-
-
-#=========================================================================
-# Below is private implementation
 
 
 def _make_pose2d_video(args):
@@ -180,8 +127,3 @@ def _compute_3d_img(points3d, img_id, cam_id):
     data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
     plt.close()
     return data
-
-
-if __name__ == '__main__':
-    main()
-

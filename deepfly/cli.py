@@ -1,10 +1,16 @@
-import argparse, math
-from pathlib import Path
-from colorama import Style, init as colorama_init
-import deepfly.logger as logger
+import argparse
+from collections import deque  # for find_subfolder
 import logging
-from . import core_api
-from . import utils
+import math
+import os  # for find_subfolder
+from pathlib import Path
+
+from colorama import Style, init as colorama_init
+
+from deepfly import logger
+from deepfly import video
+from deepfly.core import Core
+from deepfly.utils_ramdya_lab import find_default_camera_ordering
 
 
 def main():
@@ -17,7 +23,8 @@ def main():
         return print_debug(args)
 
     if args.from_file and args.recursive:
-        logger.error('Error: choose an input method between "from file" and "recursive" but not both.')
+        msg = 'Error: choose an input method between "from file" and "recursive" but not both.'
+        logger.error(msg)
         return 1
 
     if args.recursive:
@@ -159,8 +166,9 @@ def run_from_file(args):
 
 def run_recursive(args):
     subfolder_name = 'images'
-    logger.info(f'{Style.BRIGHT}Recursively looking for subfolders named `{subfolder_name}` inside `{args.input_folder}`{Style.RESET_ALL}')
-    subfolders = utils.find_subfolders(args.input_folder, 'images')
+    msg = f'{Style.BRIGHT}Recursively looking for subfolders named `{subfolder_name}` inside `{args.input_folder}`{Style.RESET_ALL}'
+    logger.info(msg)
+    subfolders = find_subfolders(args.input_folder, 'images')
     s = 's' if len(subfolders) > 1 else ''
     folders_str = "\n-".join(subfolders)
     logger.info(f'Found {len(subfolders)} subfolder{s}:\n-{folders_str}')
@@ -187,7 +195,6 @@ def run_in_folders(args, folders):
             logger.error(f'\n{Style.BRIGHT}In {folder}{Style.RESET_ALL}', exc_info=exc)
 
 
-
 def run(args):
     nothing_to_do = args.skip_estimation and (not args.video_2d) and (not args.video_3d)
 
@@ -196,23 +203,49 @@ def run(args):
         return 0
 
     logger.info(f'{Style.BRIGHT}\nWorking in {args.input_folder}{Style.RESET_ALL}')
-    setup_data = core_api.setup(
-        args.input_folder, 
-        args.output_folder,
-        args.camera_ids, 
-        args.num_images_max, 
-        args.overwrite)
+    
+    core = Core(args.input_folder, args.output_folder, args.num_images_max)
+    core.overwrite = args.overwrite  # monkey-patch: save it for later
+    fdo = find_default_camera_ordering
+    camera_ids = args.camera_ids
+    camera_ids = np.array(camera_ids) if camera_ids else fdo(core.input_folder)
+    core.update_camera_ordering(camera_ids)
 
     if not args.skip_estimation:
-        core_api.pose2d_estimation(setup_data)
+        core.pose2d_estimation(core.overwrite)
+        core.calibrate_calc(0, core.max_img_id)
+        core.save_pose()
 
     if args.video_2d:
-        core_api.pose2d_video(setup_data)
+        video._make_pose2d_video(core)
 
     if args.video_3d:
-        core_api.pose3d_video(setup_data)
+        video._make_pose3d_video(core)
 
     return 0
+
+
+def find_subfolders(path, name):
+    """
+    Implements a Breadth First Search algorithm to find all subfolders named `name`.
+    Using a BFS allows to stop as soon as we find the target subfolder, without listing its content.
+    Which is a performance improvement when target subfolders contain hundreds on thousands of images.
+    """
+    found = []
+    to_visit = deque()
+    visited = set()
+    
+    to_visit.append(Path(path))
+    while to_visit:
+        current = to_visit.popleft()
+        if current.is_dir() and current not in visited:
+            visited.add(current)
+            if current.name == name:
+                found.append(str(current))
+            else:
+                for child in current.iterdir():
+                    to_visit.append(child)
+    return found
 
 
 if __name__ == '__main__':

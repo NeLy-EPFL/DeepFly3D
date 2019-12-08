@@ -7,7 +7,7 @@ setup(
     name="deepfly",
     version='0.2',
     packages=["deepfly"],
-    entry_points={"console_scripts": ["df3d = deepfly.gui:main", "df3d-cli = deepfly.CLI.main:main"]},
+    entry_points={"console_scripts": ["df3d = deepfly.gui:main", "df3d-cli = deepfly.cli:main"]},
     author="Semih Gunel",
     author_email="semih.gunel@epfl.ch",
     description="GUI and 3D pose estimation pipeline for tethered Drosophila.",
