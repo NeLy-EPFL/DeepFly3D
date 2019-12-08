@@ -5,9 +5,9 @@ import warnings
 
 import numpy as np
 
-import deepfly.GUI.skeleton.skeleton_fly as skeleton
-from deepfly.GUI.util.os_util import *
-from deepfly.GUI.util.plot_util import normalize_pose_3d
+from deepfly import skeleton_fly as skeleton
+from deepfly.os_util import *
+from deepfly.plot_util import normalize_pose_3d
 
 
 def apply_transformation(pts, R=None, t=None, s=None, tform=None):

@@ -72,7 +72,7 @@ In general, displaying pose estimation results should be as easy as:
 
 ```python
 import matplotlib.pyplot as plt
-from deepfly.GUI.CameraNetwork import CameraNetwork
+from deepfly.CameraNetwork import CameraNetwork
 camNet = CameraNetwork(image_folder=image_folder)
 image_folder = './data/test'
 

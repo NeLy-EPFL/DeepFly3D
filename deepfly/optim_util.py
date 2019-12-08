@@ -1,7 +1,7 @@
 import numpy as np
 
-from .cv_util import triangulate_linear
-from ..Config import  config
+from deepfly.cv_util import triangulate_linear
+from deepfly.Config import  config
 
 
 def energy_drosoph(

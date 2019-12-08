@@ -7,8 +7,8 @@ import skimage
 import skimage.feature
 from scipy.spatial import KDTree
 
-from .Config import config
-from .util.plot_util import plot_drosophila_heatmap, plot_drosophila_2d
+from deepfly.Config import config
+from deepfly.plot_util import plot_drosophila_heatmap, plot_drosophila_2d
 import math
 
 class Camera:

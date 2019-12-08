@@ -1,7 +1,7 @@
 import argparse
 import os
 import deepfly.pose2d.models as models
-from deepfly.GUI.Config import config
+from deepfly.Config import config
 
 model_names = sorted(
     name

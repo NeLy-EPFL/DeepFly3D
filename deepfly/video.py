@@ -7,7 +7,7 @@ from mpl_toolkits.mplot3d import axes3d, Axes3D
 import cv2
 from tqdm import tqdm
 
-from deepfly.GUI.util.plot_util import plot_drosophila_3d
+from deepfly.plot_util import plot_drosophila_3d
 import deepfly.logger as logger
 
 

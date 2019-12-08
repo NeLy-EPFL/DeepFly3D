@@ -2,10 +2,10 @@ import itertools
 
 import numpy as np
 
-from .Config import config
-from .Camera import Camera
-from .util.optim_util import project_on_last, energy_drosoph
-from .Config import config
+from deepfly.Config import config
+from deepfly.Camera import Camera
+from deepfly.optim_util import project_on_last, energy_drosoph
+from deepfly.Config import config
 
 class LegBP:
     def __init__(

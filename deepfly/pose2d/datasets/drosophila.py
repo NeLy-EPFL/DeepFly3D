@@ -2,10 +2,10 @@ from __future__ import print_function, absolute_import
 
 import torch.utils.data as data
 
-from deepfly.GUI.util.os_util import *
+from deepfly.os_util import *
 from deepfly.pose2d.utils.osutils import isfile
 from deepfly.pose2d.utils.transforms import *
-from deepfly.GUI.Config import config
+from deepfly.Config import config
 import deepfly.logger as logger
 import glob
 

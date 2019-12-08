@@ -1,6 +1,6 @@
 import os
 
-from .skeleton import skeleton_h36m, skeleton_fly
+from deepfly import skeleton_h36m, skeleton_fly
 
 default = {
     "flip_cameras": [],
@@ -34,12 +34,12 @@ config_fly = {
     "scatter_r": 6,
 
     # pose estimation
-    "resume": os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../weights/sh8_deepfly.tar"),
+    "resume": os.path.join(os.path.abspath(os.path.dirname(__file__)), "../weights/sh8_deepfly.tar"),
     "num_stacks": 2,
     "batch_size": 64,
     "flip_cameras": [4, 5, 6],
     "num_predict": skeleton_fly.num_joints // 2,
-    "mean": os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../weights/mean.pth.tar"),
+    "mean": os.path.join(os.path.abspath(os.path.dirname(__file__)), "../weights/mean.pth.tar"),
 
     # 3d pose
     "reproj_thr": {v: 40 for v in range(skeleton_fly.num_joints)},
@@ -56,7 +56,7 @@ config_fly = {
             4: +179 / 57.2
         },
     "calib_fine": os.path.join(os.path.abspath(os.path.dirname(__file__)),
-                               "../../data/template/"),
+                               "../data/template/"),
 
     # belief propagation
     "num_peak": 10,
@@ -69,7 +69,7 @@ config_fly = {
     # procrustes
     "procrustes_apply": True,
     "procrustes_template": os.path.join(os.path.abspath(os.path.dirname(__file__)),
-                                        "../../data/template/")
+                                        "../data/template/")
 }
 
 config_h36m = {
@@ -89,11 +89,11 @@ config_h36m = {
     "num_joints": skeleton_h36m.num_joints,
 
     # pose 2d
-    "resume": os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../weights/sh8_mpii.tar"),
+    "resume": os.path.join(os.path.abspath(os.path.dirname(__file__)), "../weights/sh8_mpii.tar"),
     "num_stacks": 8,
     "batch_size": 64,
     "num_predict": skeleton_h36m.num_joints,
-    "mean": os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../weights/mean_mpii.pth.tar"),
+    "mean": os.path.join(os.path.abspath(os.path.dirname(__file__)), "../weights/mean_mpii.pth.tar"),
 
     # plotting
     "line_thickness": 2,

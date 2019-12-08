@@ -9,7 +9,7 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.ticker import FuncFormatter, MultipleLocator
-from ..Config import config
+from deepfly.Config import config
 
 
 class LowPassFilter(object):
@@ -77,7 +77,7 @@ class OneEuroFilter(object):
 
 
 def filter_batch(pts, filter_indices=None, config_oneuro=None, freq=None):
-    from ..Config import config
+    from deepfly.Config import config
     assert pts.shape[-1] == 2 or pts.shape[-1] == 3
     if filter_indices is None:
         filter_indices = np.arange(config["skeleton"].num_joints)

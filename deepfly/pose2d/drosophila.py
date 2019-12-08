@@ -20,14 +20,14 @@ from deepfly.pose2d.utils.misc import save_checkpoint, save_dict
 from deepfly.pose2d.utils.osutils import isfile, join, find_leaf_recursive
 from deepfly.pose2d.utils.imutils import save_image, drosophila_image_overlay
 from deepfly.pose2d.ArgParse import create_parser
-from deepfly.GUI.util.os_util import *
+from deepfly.os_util import *
 import deepfly.pose2d.datasets
 import deepfly.pose2d.models as models
 from deepfly.pose2d.utils.osutils import mkdir_p, isdir
 import os
 from deepfly.pose2d.utils.misc import get_time, to_numpy
-from deepfly.GUI.Camera import Camera
-from deepfly.GUI.Config import config
+from deepfly.Camera import Camera
+from deepfly.Config import config
 from pathlib import Path
 
 import deepfly.logger as logger

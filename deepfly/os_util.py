@@ -3,7 +3,7 @@ import os
 
 import numpy as np
 from pathlib import Path
-from ..Config import config
+from deepfly.Config import config
 import re
 
 import deepfly.logger as logger

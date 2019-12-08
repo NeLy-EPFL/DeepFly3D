@@ -5,13 +5,12 @@ import pickle
 import matplotlib.pyplot as plt
 from scipy.optimize import least_squares
 import deepfly.logger as logger
-from deepfly.GUI.Config import config
-from .BP import LegBP
-from .Camera import Camera
-from .util.ba_util import *
-from .util.cv_util import *
-
-from .util.os_util import read_calib
+from deepfly.Config import config
+from deepfly.BP import LegBP
+from deepfly.Camera import Camera
+from deepfly.ba_util import *
+from deepfly.cv_util import *
+from deepfly.os_util import read_calib
 
 class CameraNetwork:
     def __init__(

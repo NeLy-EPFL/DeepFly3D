@@ -3,16 +3,16 @@ import math  # inf
 import numpy as np
 
 from deepfly.utils_ramdya_lab import find_default_camera_ordering
-from deepfly.GUI.CameraNetwork import CameraNetwork
-from deepfly.GUI.Config import config
-from deepfly.GUI.util.os_util import write_camera_order, read_camera_order, read_calib, get_max_img_id
-from deepfly.GUI.util.optim_util import energy_drosoph
-from deepfly.GUI.util.plot_util import normalize_pose_3d
-from deepfly.GUI.util.signal_util import smooth_pose2d, filter_batch
+from deepfly.CameraNetwork import CameraNetwork
+from deepfly.Config import config
+from deepfly.os_util import write_camera_order, read_camera_order, read_calib, get_max_img_id
+from deepfly.optim_util import energy_drosoph
+from deepfly.plot_util import normalize_pose_3d
+from deepfly.signal_util import smooth_pose2d, filter_batch
 from deepfly.pose2d import ArgParse
 from deepfly.pose2d.drosophila import main as pose2d_main
 from deepfly.pose3d.procrustes.procrustes import procrustes_seperate
-from deepfly.GUI.DB import PoseDB
+from deepfly.DB import PoseDB
 from deepfly import logger
 
 from sklearn.neighbors import NearestNeighbors
