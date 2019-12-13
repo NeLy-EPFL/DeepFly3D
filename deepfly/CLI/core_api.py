@@ -45,6 +45,7 @@ known_users = [
 
 def setup(input_folder, camera_ids, num_images_max):
     args = _get_pose2d_args(input_folder, camera_ids, num_images_max)
+    _create_df3d_folder(args)
     _setup_default_camera_ordering(args)
     _save_camera_ordering(args)
     return args
@@ -88,6 +89,11 @@ def _clean_args(args):
         if len(ids) != config['num_cameras']:
             raise ValueError('CAMERA-IDS argument must contain {} distinct ids, one per camera'.format(config['num_cameras']))
     return args
+
+
+def _create_df3d_folder(args):
+    os.makedirs(os.path.join(args.input_folder, "df3d"), exist_ok=True)
+
 
 def _setup_default_camera_ordering(args):
     """ This is a convenience function which automatically creates a default camera ordering for 
