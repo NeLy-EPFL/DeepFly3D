@@ -18,6 +18,8 @@ Code for data preparation and augmentation are taken from the [Stacked hourglass
 * Adapting DeepFly3D on different datasets: [Adapting (Will be updated soon)](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/adapt.md)
 
 ## Changes
+We are now working on major changes on the codebase to alter the overall quality and reduce the number of lines.
+
 ### Changes in 0.3
 - Results are saved in df3d folder instead of the image folder.
 - Much faster startup time. 
