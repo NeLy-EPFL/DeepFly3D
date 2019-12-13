@@ -167,7 +167,7 @@ def run_in_folders(args, folders):
 
 
 def run(args):
-    nothing_to_do = args.skip_estimation and (not args.vid2d) and (not args.vid3d)
+    nothing_to_do = args.skip_estimation and (not args.video_2d) and (not args.video_3d)
     
     if nothing_to_do:
         getLogger('df3d').info(f'{Style.BRIGHT}Nothing to do. Check your command-line arguments.{Style.RESET_ALL}')
