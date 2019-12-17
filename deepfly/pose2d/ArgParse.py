@@ -88,7 +88,7 @@ def add_arguments(parser):
     parser.add_argument(
         "-c",
         "--checkpoint",
-        default=False,
+        default="checkpoint",
         type=str,
         metavar="PATH",
         help="path to save checkpoint (default: checkpoint)",
@@ -217,6 +217,18 @@ def add_arguments(parser):
         nargs="+",
         metavar="N",
         dest="hm_res",
+    )
+    parser.add_argument(
+        "--multiview",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--name",
+        default="",
+    )
+    parser.add_argument(
+        "--carry",
+        action="store_true",
     )
     parser.add_argument("--inplanes", default=64, type=int, metavar="N")
     parser.add_argument("--stride", default=2, type=int, metavar="N")
