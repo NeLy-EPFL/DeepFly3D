@@ -300,24 +300,8 @@ class Core:
         self.db.dump()
 
 
-    def save_pose(self):
-        manual_corrections = self.db.manual_corrections()
-        pts2d = np.zeros((7, self.num_images, config["num_joints"], 2), dtype=float)
-
-        for cam in self.camNetAll.cam_list:
-            pts2d[cam.cam_id, :] = cam.points2d.copy()
-
-        # take a copy of unmodified points2d
-        pts2d_orig = pts2d.copy()
-
-        # overwrite by manual correction
-        count = 0
-        for cam_id in range(config["num_cameras"]):
-            for img_id in range(self.num_images):
-                if img_id in manual_corrections.get(cam_id, {}):
-                    pts2d[cam_id, img_id, :] = manual_corrections[cam_id][img_id]
-                    count += 1
-
+    def post_process(self, points2d_matrix):
+        pts2d = points2d_matrix
         if "fly" in config["name"]:
             # some post-processing for body-coxa
             for cam_id in range(len(self.camNetAll.cam_list)):
@@ -328,36 +312,30 @@ class Core:
                         pts2d[cam_id, :, j, 0] = np.median(pts2d[cam_id, :, j, 0])
                         pts2d[cam_id, :, j, 1] = np.median(pts2d[cam_id, :, j, 1])
 
+
+    def save_pose(self):
+        pts2d = self.corrected_points2d_matrix()
         dict_merge = self.camNetAll.save_network(path=None)
+        pts2d_orig = self.camNetAll.get_points2d_matrix()
+        
+        # temporality incorporate corrected values
+        self.camNetAll.set_points2d_matrix(pts2d)
+        self.post_process(pts2d)
         dict_merge["points2d"] = pts2d
 
-        # temporarly incorporate manual corrections
-        c = 0
-        for cam_id in range(config["num_cameras"]):
-            for img_id in range(self.num_images):
-                if img_id in manual_corrections.get(cam_id, {}):
-                    pt = manual_corrections[cam_id][img_id]
-                    self.camNetAll.cam_list[cam_id].points2d[img_id, :] = pt
-                    c += 1
-        print("Replaced points2d with {} manual correction".format(count))
-
-        # do the triangulation if we have the calibration
         if self.camNetLeft.has_calibration() and self.camNetLeft.has_pose():
             self.camNetAll.triangulate()
             pts3d = self.camNetAll.points3d_m
+            if config["procrustes_apply"]:
+                print("Applying Procrustes on 3D Points")
+                pts3d = procrustes_seperate(pts3d)
             dict_merge["points3d"] = pts3d
         else:
             logger.debug('Triangulation skipped.')
             
-        # apply procrustes
-        if config["procrustes_apply"]:
-            print("Applying Procrustes on 3D Points")
-            dict_merge["points3d"] = procrustes_seperate(dict_merge["points3d"])
-
-        # put old values back
-        for cam_id in range(config["num_cameras"]):
-            self.camNetAll.cam_list[cam_id].points2d = pts2d_orig[cam_id, :].copy()
-
+        # put uncorrected values back
+        self.camNetAll.set_points2d_matrix(pts2d_orig)
+        
         save_path = os.path.join(self.output_folder,"pose_result_{}.pkl".format(self.input_folder.replace("/", "_")))
         pickle.dump(dict_merge, open(save_path,"wb"))
         print(f"Saved the pose at: {save_path}")
@@ -379,6 +357,16 @@ class Core:
         if img_id in manual_corrections.get(cam_id, {}):
             points2d[:] = manual_corrections[cam_id][img_id]
         return points2d
+
+
+    def corrected_points2d_matrix(self):
+        manual_corrections = self.db.manual_corrections()
+        pts2d = self.camNetAll.get_points2d_matrix()
+        for cam_id in range(config["num_cameras"]):
+            for img_id in range(self.num_images):
+                if img_id in manual_corrections.get(cam_id, {}):
+                    pts2d[cam_id, img_id, :] = manual_corrections[cam_id][img_id]
+        return pts2d
 
 
     def setup_camera_ordering(self):

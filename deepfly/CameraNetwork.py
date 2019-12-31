@@ -436,6 +436,20 @@ class CameraNetwork:
 
         return d["meta"]
 
+
+    def get_points2d_matrix(self):
+        pts2d = np.zeros((7, self.num_images, config["num_joints"], 2), dtype=float)
+
+        for cam in self.cam_list:
+            pts2d[cam.cam_id, :] = cam.points2d.copy()
+        
+        return pts2d
+
+
+    def set_points2d_matrix(self, pts2d):
+        for cam in self.cam_list:
+            cam.points2d[:] = pts2d[cam.cam_id]
+
     """
     STATIC
     """
