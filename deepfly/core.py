@@ -169,7 +169,7 @@ class Core:
         # take a copy of the current points2d
         pts2d = np.zeros((config["num_cameras"], self.num_images, config["skeleton"].num_joints, 2), dtype=float)
         for cam_id in range(config["num_cameras"]):
-            pts2d[cam_id, :] = self.camNetAll[cam_id].points2d.copy()
+            pts2d[cam_id, :] = self.camNetAll.cam_list[cam_id].points2d.copy()
 
         # ugly hack to temporarly incorporate manual corrections to calibration
         c = 0
@@ -177,12 +177,12 @@ class Core:
             for img_id in range(self.num_images):
                 if self.db.has_key(cam_id, img_id):
                     pt = self.corrected_points2d(cam_id, img_id)
-                    self.camNetAll[cam_id].points2d[img_id, :] = pt
+                    self.camNetAll.cam_list[cam_id].points2d[img_id, :] = pt
                     c += 1
         print("Calibration: replaced {c} points from manuall correction")
 
         # keep the pts only in the range
-        for cam in self.camNetAll:
+        for cam in self.camNetAll.cam_list:
             cam.points2d = cam.points2d[min_img_id:max_img_id, :]
 
         self.camNetLeft.triangulate()
@@ -192,7 +192,7 @@ class Core:
         
         # put old values back
         for cam_id in range(config["num_cameras"]):
-            self.camNetAll[cam_id].points2d = pts2d[cam_id, :].copy()
+            self.camNetAll.cam_list[cam_id].points2d = pts2d[cam_id, :].copy()
 
         self.save_calibration()
         self.set_cameras()
@@ -232,7 +232,7 @@ class Core:
         smooth=False,
         joints=[],
         ):
-        cam = self.camNetAll[cam_id]
+        cam = self.camNetAll.cam_list[cam_id]
         joints = joints if joints else range(config["skeleton"].num_joints)
         visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
         visible_joints = [j_id for j_id in joints if visible(j_id)]
@@ -268,7 +268,7 @@ class Core:
 
 
     def plot_heatmap(self, cam_id, img_id, joints=[]):
-        cam = self.camNetAll[cam_id]
+        cam = self.camNetAll.cam_list[cam_id]
         joints = joints if joints else range(config["skeleton"].num_joints)
         visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
         visible_joints = [j_id for j_id in joints if visible(j_id)]
@@ -276,7 +276,7 @@ class Core:
 
 
     def get_image(self, cam_id, img_id):
-        return self.camNetAll[cam_id].get_image(img_id)
+        return self.camNetAll.cam_list[cam_id].get_image(img_id)
 
 
     def get_points3d(self):
@@ -305,7 +305,7 @@ class Core:
         manual_corrections = self.db.manual_corrections()
         pts2d = np.zeros((7, self.num_images, config["num_joints"], 2), dtype=float)
 
-        for cam in self.camNetAll:
+        for cam in self.camNetAll.cam_list:
             pts2d[cam.cam_id, :] = cam.points2d.copy()
 
         # take a copy of unmodified points2d
@@ -339,7 +339,7 @@ class Core:
             for img_id in range(self.num_images):
                 if img_id in manual_corrections.get(cam_id, {}):
                     pt = manual_corrections[cam_id][img_id]
-                    self.camNetAll[cam_id].points2d[img_id, :] = pt
+                    self.camNetAll.cam_list[cam_id].points2d[img_id, :] = pt
                     c += 1
         print("Replaced points2d with {} manual correction".format(count))
 
@@ -358,7 +358,7 @@ class Core:
 
         # put old values back
         for cam_id in range(config["num_cameras"]):
-            self.camNetAll[cam_id].points2d = pts2d_orig[cam_id, :].copy()
+            self.camNetAll.cam_list[cam_id].points2d = pts2d_orig[cam_id, :].copy()
 
         save_path = os.path.join(self.output_folder,"pose_result_{}.pkl".format(self.input_folder.replace("/", "_")))
         pickle.dump(dict_merge, open(save_path,"wb"))
@@ -376,7 +376,7 @@ class Core:
 
 
     def corrected_points2d(self, cam_id, img_id):
-        points2d = self.camNetAll[cam_id].get_points2d(img_id).copy()
+        points2d = self.camNetAll.cam_list[cam_id].get_points2d(img_id).copy()
         manual_corrections = self.db.manual_corrections()
         if img_id in manual_corrections.get(cam_id, {}):
             points2d[:] = manual_corrections[cam_id][img_id]
@@ -411,7 +411,7 @@ class Core:
             num_joints=config["skeleton"].num_joints,
             cid2cidread=[self.cid2cidread[cid] for cid in config["left_cameras"]],
             heatmap_shape=config["heatmap_shape"],
-            cam_list=[cam for cam in self.camNetAll if cam.cam_id in config["left_cameras"]],
+            cam_list=[cam for cam in self.camNetAll.cam_list if cam.cam_id in config["left_cameras"]],
         )
         self.camNetRight = CameraNetwork(
             image_folder=self.input_folder,
@@ -422,7 +422,7 @@ class Core:
             num_joints=config["skeleton"].num_joints,
             cid2cidread=[self.cid2cidread[cid] for cid in config["right_cameras"]],
             heatmap_shape=config["heatmap_shape"],
-            cam_list=[self.camNetAll[cam_id] for cam_id in config["right_cameras"]],
+            cam_list=[self.camNetAll.cam_list[cam_id] for cam_id in config["right_cameras"]],
         )
 
         self.camNetLeft.bone_param = config["bone_param"]
@@ -445,7 +445,7 @@ class Core:
     def get_joint_reprojection_error(self, img_id, joint_id, camNet):
         visible_cameras = [
             cam
-            for cam in camNet
+            for cam in camNet.cam_list
             if config["skeleton"].camera_see_joint(cam.cam_id, joint_id)
         ]
         if len(visible_cameras) < 2:
@@ -468,7 +468,7 @@ class Core:
         # Compute prior
         prior = []
         manual_corrections = self.db.manual_corrections()
-        for cam in camNet:
+        for cam in camNet.cam_list:
             if img_id in manual_corrections.get(cam.cam_id, {}):
                 for joint_id in range(manual_corrections[cam.cam_id][img_id].shape[0]):
                     pt2d = manual_corrections[cam.cam_id][img_id][joint_id]
@@ -477,7 +477,7 @@ class Core:
         pts_bp = solve_belief_propagation(camNet.cam_list, img_id, config["bone_param"], prior=prior)
         pts_bp = np.array(pts_bp)
 
-        for idx, cam in enumerate(camNet):
+        for idx, cam in enumerate(camNet.cam_list):
             # set points which are not estimated by bp
             pts_bp_rep = self.db.read(cam.cam_id, img_id)
             if pts_bp_rep is not None:
@@ -497,7 +497,7 @@ class Core:
 
     def write_corrections(self, cam_id, img_id, modified_joints, points2d):
         l1_threshold = 30
-        original_points2d = self.camNetAll[cam_id].get_points2d(img_id)
+        original_points2d = self.camNetAll.cam_list[cam_id].get_points2d(img_id)
         l1_error = np.abs(original_points2d - points2d)
         joints_to_check = [j
             for j in range(config["num_joints"])

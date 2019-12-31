@@ -159,23 +159,17 @@ class CameraNetwork:
         for cam, cidread in zip(self.cam_list, cid2cidread):
             cam.cam_id_read = cidread
 
-    def __getitem__(self, key):
-        return self.cam_list[key]
-
-    def __iter__(self):
-        return iter(self.cam_list)
-
     def has_calibration(self):
-        return np.all([c.P is not None for c in self])
+        return np.all([c.P is not None for c in self.cam_list])
 
     def has_pose(self):
-        return self[0].points2d is not None
+        return self.cam_list[0].points2d is not None
 
     def has_heatmap(self):
-        return self[0].hm is not None
+        return self.cam_list[0].hm is not None
 
     def calc_mask_prior(self, thr=50):
-        self.mask_prior = np.zeros(self[0].points2d.shape, dtype=bool)
+        self.mask_prior = np.zeros(self.cam_list[0].points2d.shape, dtype=bool)
         for (img_id, joint_id, _), _ in np.ndenumerate(self.mask_prior):
             l = [
                 np.abs(cam[img_id, joint_id][0][1])
@@ -197,7 +191,7 @@ class CameraNetwork:
 
         if cam_id_list is None:
             cam_id_list = list(range(self.num_cameras))
-        points2d_shape = self[0].points2d.shape
+        points2d_shape = self.cam_list[0].points2d.shape
         self.points3d_m = np.zeros(
             shape=(points2d_shape[0], points2d_shape[1], 3), dtype=np.float
         )
@@ -418,7 +412,7 @@ class CameraNetwork:
             d = {cam_id: dict() for cam_id in np.arange(0, 7)}
             d["meta"] = meta
 
-        for cam in self:
+        for cam in self.cam_list:
             d[cam.cam_id]["R"] = cam.R
             d[cam.cam_id]["tvec"] = cam.tvec
             d[cam.cam_id]["intr"] = cam.intr
@@ -433,7 +427,7 @@ class CameraNetwork:
         d = calib
         if calib is None:
             return None
-        for cam in self:
+        for cam in self.cam_list:
             if cam.cam_id in d and d[cam.cam_id]:
                 cam.set_R(d[cam.cam_id]["R"])
                 cam.set_tvec(d[cam.cam_id]["tvec"])
