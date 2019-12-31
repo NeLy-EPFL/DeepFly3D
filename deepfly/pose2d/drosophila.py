@@ -1,6 +1,9 @@
 from __future__ import print_function, absolute_import
 
 import time
+import os
+from os.path import isdir, isfile, join
+from pathlib import Path
 
 import matplotlib as mpl
 
@@ -17,18 +20,14 @@ from progress.bar import Bar
 from deepfly.pose2d.utils.logger import Logger, savefig
 from deepfly.pose2d.utils.evaluation import accuracy, AverageMeter, mse_acc
 from deepfly.pose2d.utils.misc import save_checkpoint, save_dict
-from deepfly.pose2d.utils.osutils import isfile, join, find_leaf_recursive
 from deepfly.pose2d.utils.imutils import save_image, drosophila_image_overlay
 from deepfly.pose2d.ArgParse import create_parser
 from deepfly.os_util import *
 import deepfly.pose2d.datasets
 import deepfly.pose2d.models as models
-from deepfly.pose2d.utils.osutils import mkdir_p, isdir
-import os
 from deepfly.pose2d.utils.misc import get_time, to_numpy
 from deepfly.Camera import Camera
 from deepfly.Config import config
-from pathlib import Path
 
 import deepfly.logger as logger
 import cv2
@@ -298,6 +297,7 @@ def main(args):
             logger2.plot(["Train Acc", "Val Acc"])
             savefig(os.path.join(args.checkpoint, "log.eps"))
             plt.close(fig)
+    
     return None, val_pred
     logger2.close()
 
@@ -755,17 +755,14 @@ if __name__ == "__main__":
 
     # create checkpoint dir and image dir
     if args.unlabeled is None:
-        if not isdir(args.checkpoint):
-            mkdir_p(args.checkpoint)
-        if not isdir(args.checkpoint_image_dir):
-            mkdir_p(args.checkpoint_image_dir)
-        if args.carry and not isdir(
-            os.path.join(args.annotation_path, args.unlabeled + "_network")
-        ):
-            mkdir_p(os.path.join(args.annotation_path, args.unlabeled + "_network"))
-        if args.carry and not isdir(
-            os.path.join(args.data_folder, args.unlabeled + "_network")
-        ):
-            mkdir_p(os.path.join(args.data_folder, args.unlabeled + "_network"))
+        os.makedirs(args.checkpoint, exist_ok=True)
+        os.makedirs(args.checkpoint_image_dir, exist_ok=True)
+
+        if args.carry:
+            p1 = os.path.join(args.annotation_path, args.unlabeled + "_network")
+            os.makedirs(p1, exist_ok=True)
+
+            p2 = os.path.join(args.data_folder, args.unlabeled + "_network")
+            os.makedirs(p2, exist_ok=True)
 
     main(args)

@@ -3,7 +3,7 @@ from __future__ import print_function, absolute_import
 import torch.utils.data as data
 
 from deepfly.os_util import *
-from deepfly.pose2d.utils.osutils import isfile
+from os.path import isfile
 from deepfly.pose2d.utils.transforms import *
 from deepfly.Config import config
 import deepfly.logger as logger
