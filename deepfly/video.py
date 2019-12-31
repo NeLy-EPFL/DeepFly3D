@@ -17,60 +17,57 @@ img2d_aspect = (2, 1)  # this is the aspect ration for one image on the 3d video
 video_width = 500  # total width of the 2d and 3d videos
 
 
-def _make_pose2d_video(core):
+def make_pose2d_video(plot_2d, num_images, input_folder, output_folder):
     """ Creates pose2d estimation videos """
     # Here we create a generator (keyword "yield")
     def imgs_generator():
         def stack(img_id):
-            plot = lambda c, i: core.plot_2d(c, i, smooth=True)
+            plot = lambda c, i: plot_2d(c, i, smooth=True)
             row1 = np.hstack([plot(cam_id, img_id) for cam_id in [0, 1, 2]])
             row2 = np.hstack([plot(cam_id, img_id) for cam_id in [4, 5, 6]])
             return np.vstack([row1, row2])
 
-        for img_id in range(core.num_images):
+        for img_id in range(num_images):
             yield stack(img_id)
 
     # We can call next(generator) on this instance to get the images,
     # just like for an iterator
     generator = imgs_generator()
 
-    video_name = 'video_pose2d_' + core.input_folder.replace('/', '_') + '.mp4'
-    _make_video(core, video_name, generator)
+    video_name = 'video_pose2d_' + input_folder.replace('/', '_') + '.mp4'
+    video_path = os.path.join(input_folder, output_folder, video_name)
+    _make_video(video_path, generator)
 
 
-def _make_pose3d_video(core):
-    # Here we create a generator (keyword "yield")
-    points3d = core.get_points3d()
-    
+def make_pose3d_video(points3d, plot_2d, num_images, input_folder, output_folder):
     def imgs_generator():
         def stack(img_id):
-            row1 = np.hstack([_compute_2d_img(core, img_id, cam_id) for cam_id in (0, 1, 2)])
-            row2 = np.hstack([_compute_2d_img(core, img_id, cam_id) for cam_id in (4, 5, 6)])
+            row1 = np.hstack([_compute_2d_img(plot_2d, img_id, cam_id) for cam_id in (0, 1, 2)])
+            row2 = np.hstack([_compute_2d_img(plot_2d, img_id, cam_id) for cam_id in (4, 5, 6)])
             row3 = np.hstack([_compute_3d_img(points3d, img_id, cam_id) for cam_id in (4, 5, 6)])
             img = np.vstack([row1, row2, row3])
             return img
 
-        for img_id in range(core.num_images):
+        for img_id in range(num_images):
             yield stack(img_id)
 
     # We can call next(generator) on this instance to get the images, just like for an iterator
     generator = imgs_generator()
-    video_name = 'video_pose3d_' + core.input_folder.replace('/', '_') + '.mp4'
-    _make_video(core, video_name, generator)
+    video_name = 'video_pose3d_' + input_folder.replace('/', '_') + '.mp4'
+    video_path = os.path.join(input_folder, output_folder, video_name)
+    _make_video(video_path, generator)
 
 
-def _make_video(args, video_name, imgs):
+def _make_video(video_path, imgs):
     """ Code used to generate a video using cv2.
-    - args:  the command-line arguments
-    - video_name: a string ending with .mp4, for instance: "pose2d.mp4"
-    - imgs: an iterable with the images to write
+    - video_path: a path ending with .mp4, for instance: "/results/pose2d.mp4"
+    - imgs: an iterable or generator with the images to turn into a video
     """
 
     first_frame = next(imgs)
     imgs = itertools.chain([first_frame], imgs)
 
     shape = int(first_frame.shape[1]), int(first_frame.shape[0])
-    video_path = os.path.join(args.input_folder, args.output_folder, video_name)
     logger.debug('Saving video to: ' + video_path)
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     fps = 30
@@ -94,8 +91,8 @@ def _resize(current_shape, new_width):
     return (int(width * ratio), int(height * ratio))
 
 
-def _compute_2d_img(core, img_id, cam_id):
-    img = core.plot_2d(cam_id, img_id, smooth=True)
+def _compute_2d_img(plot_2d, img_id, cam_id):
+    img = plot_2d(cam_id, img_id, smooth=True)
     img = cv2.resize(img, (img2d_aspect[0]*img3d_dpi, img2d_aspect[1]*img3d_dpi))
     return img
 

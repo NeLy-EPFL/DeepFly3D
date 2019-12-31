@@ -2,23 +2,24 @@ import os.path
 import math  # inf
 import numpy as np
 import re
-import deepfly.logger as logger
 
-from deepfly.CameraNetwork import CameraNetwork
-from deepfly.Config import config
+from deepfly import logger
 from deepfly.os_util import (
     write_camera_order, 
     read_camera_order, 
     read_calib, 
     get_max_img_id)
+from deepfly.belief_propagation import solve_belief_propagation
+from deepfly.CameraNetwork import CameraNetwork
+from deepfly.Config import config
+from deepfly.DB import PoseDB
 from deepfly.optim_util import energy_drosoph
 from deepfly.plot_util import normalize_pose_3d
-from deepfly.signal_util import smooth_pose2d, filter_batch
-from deepfly.pose2d import ArgParse
 from deepfly.pose2d.drosophila import main as pose2d_main
+from deepfly.pose2d import ArgParse
 from deepfly.procrustes import procrustes_seperate
-from deepfly.DB import PoseDB
-from deepfly import logger
+from deepfly.signal_util import smooth_pose2d, filter_batch
+
 
 from sklearn.neighbors import NearestNeighbors
 import pickle
@@ -473,8 +474,7 @@ class Core:
                     pt2d = manual_corrections[cam.cam_id][img_id][joint_id]
                     prior.append((cam.cam_id, joint_id, pt2d / config["image_shape"]))
         
-        # solve BP
-        pts_bp = camNet.solveBP(img_id, config["bone_param"], prior=prior)
+        pts_bp = solve_belief_propagation(camNet.cam_list, img_id, config["bone_param"], prior=prior)
         pts_bp = np.array(pts_bp)
 
         for idx, cam in enumerate(camNet):

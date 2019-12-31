@@ -5,12 +5,66 @@ import numpy as np
 from deepfly.Config import config
 from deepfly.Camera import Camera
 from deepfly.optim_util import project_on_last, energy_drosoph
-from deepfly.Config import config
+from deepfly import logger
+
+
+def solve_belief_propagation(cam_list, img_id, bone_param, num_peak=10, prior=None):
+        # find all the connected parts
+        j_id_list_list = [
+            [j for j in range(config["skeleton"].num_joints) if config["skeleton"].limb_id[j] == limb_id]
+            for limb_id in range(config["skeleton"].num_limbs)
+        ]
+
+        chain_list = list()
+        for j_id_l in j_id_list_list:
+            visible = np.zeros(shape=(len(j_id_l),), dtype=np.int)
+            for cam in cam_list:
+                visible += [
+                    config["skeleton"].camera_see_joint(cam.cam_id, j_id) for j_id in j_id_l
+                ]
+            if np.all(visible >= 2):
+                chain_list.append(
+                    LegBP(
+                        cam_list=cam_list,
+                        img_id=img_id,
+                        j_id_list=j_id_l,
+                        bone_param=bone_param,
+                        num_peak=num_peak,
+                        prior=prior,
+                    )
+                )
+            else:
+                pass
+                # logger.debug("Joints {} is not visible from at least two cameras".format(j_id_l))
+
+        logger.debug([
+                [len(leg[i].candid_list) for i in range(len(leg.jointbp))]
+                for leg in chain_list
+            ])
+
+        for chain in chain_list:
+            chain.propagate()
+            chain.solve()
+
+        # read the best 2d locations
+        points2d_list = [
+            np.zeros((config["skeleton"].num_joints, 2), dtype=float)
+            for _ in range(len(cam_list))
+        ]
+        for leg in chain_list:
+            for cam_idx in range(len(cam_list)):
+                for idx, j_id in enumerate(leg.j_id_list):
+                    points2d_list[cam_idx][j_id] = leg[idx][leg[idx].argmin].p2d[
+                        cam_idx
+                    ]
+
+        return points2d_list.copy()
+
 
 class LegBP:
     def __init__(
         self,
-        camera_network,
+        cam_list,
         img_id,
         j_id_list,
         bone_param=config["bone_param"],
@@ -19,14 +73,13 @@ class LegBP:
         upper_bound=config["upper_bound"],
         image_shape=config["image_shape"],
     ):
-        self.camera_network = camera_network
-        self.cam_list = self.camera_network.cam_list
+        self.cam_list = cam_list
         self.img_id = img_id
         self.j_id_list = j_id_list
         self.bone_param = bone_param
         self.num_peak = num_peak
         self.upper_bound = upper_bound
-        self.cam_id_list = [cam.cam_id for cam in self.camera_network]
+        self.cam_id_list = [cam.cam_id for cam in self.cam_list]
 
         self.image_res = image_shape
         self.jointbp = [JointBP(j_id) for j_id in j_id_list]
@@ -49,7 +102,7 @@ class LegBP:
             ]
             p2d_list = []
             # find 2d proposals for a given joint for each camera, by taking local maximums
-            for cam in self.camera_network:
+            for cam in self.cam_list:
                 min_distance = 1
                 threshold_abs = 0.0
                 '''
@@ -92,7 +145,7 @@ class LegBP:
 
                 p2d_list_iter = list()
                 cam_list_iter = list()
-                for cam, p2d in zip(self.camera_network.cam_list, p2d_prop):
+                for cam, p2d in zip(self.cam_list, p2d_prop):
                     if config["skeleton"].camera_see_joint(cam.cam_id, j.j_id):
                         p2d_list_iter.append(p2d)
                         cam_list_iter.append(cam)
@@ -155,7 +208,7 @@ class LegBP:
                         )
                     p2d_list_iter = np.array(p2d_list_iter).reshape(-1, 2)
                     p3d, err_proj, prob_hm, _ = energy_drosoph(
-                        self.camera_network.cam_list,
+                        self.cam_list,
                         self.img_id,
                         j.j_id,
                         p2d_list_iter,

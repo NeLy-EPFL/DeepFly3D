@@ -9,7 +9,6 @@ from scipy.sparse import lil_matrix
 
 import deepfly.logger as logger
 from deepfly.Config import config
-from deepfly.BP import LegBP
 from deepfly.Camera import Camera
 from deepfly.cv_util import *
 from deepfly.os_util import read_calib
@@ -451,61 +450,8 @@ class CameraNetwork:
         )
 
         self.triangulate(cam_id_list)
-
         return res
-
-    def solveBP(self, img_id, bone_param, num_peak=10, prior=None):
-        # find all the connected parts
-        j_id_list_list = [
-            [j for j in range(config["skeleton"].num_joints) if config["skeleton"].limb_id[j] == limb_id]
-            for limb_id in range(config["skeleton"].num_limbs)
-        ]
-
-        chain_list = list()
-        for j_id_l in j_id_list_list:
-            visible = np.zeros(shape=(len(j_id_l),), dtype=np.int)
-            for cam in self.cam_list:
-                visible += [
-                    config["skeleton"].camera_see_joint(cam.cam_id, j_id) for j_id in j_id_l
-                ]
-            if np.all(visible >= 2):
-                chain_list.append(
-                    LegBP(
-                        camera_network=self,
-                        img_id=img_id,
-                        j_id_list=j_id_l,
-                        bone_param=bone_param,
-                        num_peak=num_peak,
-                        prior=prior,
-                    )
-                )
-            else:
-                pass
-                # logger.debug("Joints {} is not visible from at least two cameras".format(j_id_l))
-
-        logger.debug([
-                [len(leg[i].candid_list) for i in range(len(leg.jointbp))]
-                for leg in chain_list
-            ])
-
-        for chain in chain_list:
-            chain.propagate()
-            chain.solve()
-
-        # read the best 2d locations
-        points2d_list = [
-            np.zeros((config["skeleton"].num_joints, 2), dtype=float)
-            for _ in range(len(self.cam_list))
-        ]
-        for leg in chain_list:
-            for cam_idx in range(self.num_cameras):
-                for idx, j_id in enumerate(leg.j_id_list):
-                    points2d_list[cam_idx][j_id] = leg[idx][leg[idx].argmin].p2d[
-                        cam_idx
-                    ]
-
-        return points2d_list.copy()
-
+    
     def save_network(self, path, meta=None):
         if path is not None and os.path.exists(path):  # to prevent overwriting
             d = pickle.load(open(path, "rb"))
@@ -605,6 +551,7 @@ class CameraNetwork:
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
         ax.set_zlabel("Z")
+
 
 def residuals(
         params,

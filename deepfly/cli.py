@@ -11,7 +11,6 @@ from colorama import Style, init as colorama_init
 from deepfly import logger
 from deepfly import video
 from deepfly.core import Core
-from deepfly.utils_ramdya_lab import find_default_camera_ordering
 
 
 def main():
@@ -216,10 +215,10 @@ def run(args):
         core.save_pose()
 
     if args.video_2d:
-        video._make_pose2d_video(core)
+        video.make_pose2d_video(core.plot_2d, core.num_images, core.input_folder, core.output_folder)
 
     if args.video_3d:
-        video._make_pose3d_video(core)
+        video.make_pose3d_video(core.get_points3d(), core.plot_2d, core.num_images, core.input_folder, core.output_folder)
 
     return 0
 
