@@ -2,6 +2,9 @@ import os.path
 import math  # inf
 import numpy as np
 import re
+import pickle
+
+from sklearn.neighbors import NearestNeighbors
 
 from deepfly import logger
 from deepfly.os_util import (
@@ -19,10 +22,6 @@ from deepfly.pose2d.drosophila import main as pose2d_main
 from deepfly.pose2d import ArgParse
 from deepfly.procrustes import procrustes_seperate
 from deepfly.signal_util import smooth_pose2d, filter_batch
-
-
-from sklearn.neighbors import NearestNeighbors
-import pickle
 
 
 def find_default_camera_ordering(input_folder):
@@ -319,7 +318,6 @@ class Core:
                     pts2d[cam_id, img_id, :] = manual_corrections[cam_id][img_id]
                     count += 1
 
-
         if "fly" in config["name"]:
             # some post-processing for body-coxa
             for cam_id in range(len(self.camNetAll.cam_list)):
@@ -333,7 +331,7 @@ class Core:
         dict_merge = self.camNetAll.save_network(path=None)
         dict_merge["points2d"] = pts2d
 
-        # ugly hack to temporarly incorporate manual corrections
+        # temporarly incorporate manual corrections
         c = 0
         for cam_id in range(config["num_cameras"]):
             for img_id in range(self.num_images):

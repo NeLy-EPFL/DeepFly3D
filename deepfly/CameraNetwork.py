@@ -288,8 +288,6 @@ class CameraNetwork:
                         continue
                     if not config["skeleton"].camera_see_joint(cam.cam_id, j_id):
                         continue
-                    # if prior and not self.mask_prior[img_id, j_id, 0]:
-                    #    continue
                     if unique and not self.mask_unique[img_id, j_id, 0]:
                         continue
                     if cam.cam_id == 3:
