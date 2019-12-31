@@ -4,6 +4,7 @@ import logging
 import math
 import os  # for find_subfolder
 from pathlib import Path
+import numpy as np
 
 from colorama import Style, init as colorama_init
 
@@ -206,10 +207,8 @@ def run(args):
     
     core = Core(args.input_folder, args.output_folder, args.num_images_max)
     core.overwrite = args.overwrite  # monkey-patch: save it for later
-    fdo = find_default_camera_ordering
-    camera_ids = args.camera_ids
-    camera_ids = np.array(camera_ids) if camera_ids else fdo(core.input_folder)
-    core.update_camera_ordering(camera_ids)
+    if args.camera_ids is not None:
+        core.update_camera_ordering(args.camera_ids)
 
     if not args.skip_estimation:
         core.pose2d_estimation(core.overwrite)
