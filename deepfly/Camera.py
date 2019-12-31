@@ -34,24 +34,6 @@ class Camera:
         self.R = None
         self.rvec = None
         self.tvec = None
-        """
-        # Calculation for the focal length of the cameras
-        sensor_width_mm_x = 11.3
-        sensor_width_mm_y = 7.1
-        image_width_in_pixels = 1920.0
-        image_height_in_pixels = 1200.0
-        focal_mm = 94.0
-
-        # converting focal mm to focal pixels
-        pixel_size_mm = 5.86 * (10 ** -3)  # (10**-3)
-        f_pixel = (focal_mm / pixel_size_mm)
-        print("Focal length guess in pixels {:.6}".format(f_pixel))
-        print("Focal length guess in pixels {:.6}".format(
-            (focal_mm / sensor_width_mm_x) * image_width_in_pixels))
-
-        self.focal_length_x = (focal_mm / sensor_width_mm_x) * image_width_in_pixels
-        self.focal_length_y = (focal_mm / sensor_width_mm_y) * image_height_in_pixels
-        """
         self.image_shape = (480, 960)
         self.focal_length_x = 16041.0
         self.focal_length_y = 15971.7
