@@ -229,47 +229,6 @@ class CameraNetwork:
             [cam.mask_unique for cam in self.cam_list]
         )
 
-    def solvePnp(self, cam_id, ignore_joint_list=config["skeleton"].ignore_joint_id):
-        points3d_pnp = []
-        points2d_pnp = []
-        data_shape = self.cam_list[0].points2d.shape
-        for img_id in range(data_shape[0]):
-            for j_id in range(data_shape[1]):
-                if not config["skeleton"].camera_see_joint(
-                        cam_id, j_id
-                ):
-                    continue
-                if np.any(
-                        self.cam_list[cam_id][img_id, j_id, :] == 0
-                ):
-                    continue
-                if j_id in ignore_joint_list:
-                    continue
-                if np.any(self.points3d_m[img_id, j_id] == 0):
-                    continue
-                points3d_pnp.append(self.points3d_m[img_id, j_id, :])
-                points2d_pnp.append(self.cam_list[cam_id][img_id][j_id, :])
-
-        objectPoints = np.array(points3d_pnp)
-        imagePoints = np.array(points2d_pnp)
-
-        logger.debug("objectPoints shape: {}".format(objectPoints.shape))
-        if objectPoints.shape[0] > 4:
-            found, rvec, tvec = cv2.solvePnP(
-                objectPoints,
-                imagePoints,
-                self.cam_list[cam_id].intr,
-                self.cam_list[cam_id].distort,
-                useExtrinsicGuess=True,
-                rvec = self.cam_list[cam_id].rvec,
-                tvec = self.cam_list[cam_id].tvec
-            )
-            R = cv2.Rodrigues(rvec)[0]
-            self.cam_list[cam_id].set_R(R)
-            self.cam_list[cam_id].set_tvec(tvec)
-        else:
-            logger.debug("Skipping PnP, not enough points")
-
     def reprojection_error(self, cam_indices=None, ignore_joint_list=None):
         if ignore_joint_list is None:
             ignore_joint_list = config["skeleton"].ignore_joint_id
