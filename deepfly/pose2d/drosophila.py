@@ -23,7 +23,7 @@ from deepfly.pose2d.utils.misc import save_checkpoint, save_dict
 from deepfly.pose2d.utils.imutils import save_image, drosophila_image_overlay
 from deepfly.pose2d.ArgParse import create_parser
 from deepfly.os_util import *
-import deepfly.pose2d.datasets
+from deepfly.pose2d.DrosophilaDataset import DrosophilaDataset
 import deepfly.pose2d.models as models
 from deepfly.pose2d.utils.misc import get_time, to_numpy
 from deepfly.Camera import Camera
@@ -187,7 +187,7 @@ def main(args):
             pass
         logger.debug('Going to process {} images'.format(max_img_id+1))
         unlabeled_loader = DataLoader(
-            deepfly.pose2d.datasets.Drosophila(
+            DrosophilaDataset(
                 data_folder=args.data_folder,
                 train=False,
                 sigma=args.sigma,
@@ -675,7 +675,7 @@ def create_dataloader():
     )
 
     train_loader = DataLoader(
-        deepfly.pose2d.datasets.Drosophila(
+        DrosophilaDataset(
             data_folder=args.data_folder,
             train=True,
             sigma=args.sigma,
@@ -695,7 +695,7 @@ def create_dataloader():
         worker_init_fn=worker_init_fn,
     )
     val_loader = DataLoader(
-        deepfly.pose2d.datasets.Drosophila(
+        DrosophilaDataset(
             data_folder=args.data_folder,
             train=False,
             sigma=args.sigma,

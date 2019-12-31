@@ -12,7 +12,7 @@ import glob
 FOLDER_NAME = 0
 IMAGE_NAME = 1
 
-class Drosophila(data.Dataset):
+class DrosophilaDataset(data.Dataset):
     def __init__(
         self,
         data_folder,
@@ -230,7 +230,6 @@ class Drosophila(data.Dataset):
         logger.debug("Successfully imported {} Images in Drosophila Dataset".format(len(self)))
 
     def _compute_mean(self):
-        file_path = os.path.abspath(os.path.dirname(__file__))
         meanstd_file = config["mean"]
         if isfile(meanstd_file):
             meanstd = torch.load(meanstd_file)

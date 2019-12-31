@@ -137,6 +137,7 @@ def rotate_points3d(pts_t):
 
     return pts_t
 
+
 def plot_drosophila_3d(
         ax_3d,
         points3d,
@@ -228,6 +229,7 @@ def plot_drosophila_3d(
                 linewidth=5,
                 zorder=zorder[bone[0]],
             )
+
 
 def normalize_pose_3d(points3d, normalize_length=False, normalize_median=True, rotate=False):
     if normalize_median:
