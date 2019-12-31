@@ -17,25 +17,25 @@ img2d_aspect = (2, 1)  # this is the aspect ration for one image on the 3d video
 video_width = 500  # total width of the 2d and 3d videos
 
 
-def _make_pose2d_video(args):
+def _make_pose2d_video(core):
     """ Creates pose2d estimation videos """
     # Here we create a generator (keyword "yield")
     def imgs_generator():
         def stack(img_id):
-            plot = lambda c, i: args.plot_2d(c, i, smooth=True)
+            plot = lambda c, i: core.plot_2d(c, i, smooth=True)
             row1 = np.hstack([plot(cam_id, img_id) for cam_id in [0, 1, 2]])
             row2 = np.hstack([plot(cam_id, img_id) for cam_id in [4, 5, 6]])
             return np.vstack([row1, row2])
 
-        for img_id in range(args.num_images):
+        for img_id in range(core.num_images):
             yield stack(img_id)
 
     # We can call next(generator) on this instance to get the images,
     # just like for an iterator
     generator = imgs_generator()
 
-    video_name = 'video_pose2d_' + args.input_folder.replace('/', '_') + '.mp4'
-    _make_video(args, video_name, generator)
+    video_name = 'video_pose2d_' + core.input_folder.replace('/', '_') + '.mp4'
+    _make_video(core, video_name, generator)
 
 
 def _make_pose3d_video(core):

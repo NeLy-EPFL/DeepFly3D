@@ -6,7 +6,11 @@ import deepfly.logger as logger
 
 from deepfly.CameraNetwork import CameraNetwork
 from deepfly.Config import config
-from deepfly.os_util import write_camera_order, read_camera_order, read_calib, get_max_img_id
+from deepfly.os_util import (
+    write_camera_order, 
+    read_camera_order, 
+    read_calib, 
+    get_max_img_id)
 from deepfly.optim_util import energy_drosoph
 from deepfly.plot_util import normalize_pose_3d
 from deepfly.signal_util import smooth_pose2d, filter_batch
@@ -19,18 +23,21 @@ from deepfly import logger
 from sklearn.neighbors import NearestNeighbors
 import pickle
 
-known_users = [  
-    (r'/CLC/', [0, 6, 5, 4, 3, 2, 1]),
-    (r'data/test', [0, 1, 2, 3, 4, 5, 6])
-]
-
 
 def find_default_camera_ordering(input_folder):
-    input_folder = str(input_folder)  # allows input_folder to be a pathlib.Path instance
-    candidates = [ordering for (regex, ordering) in known_users if re.search(regex, input_folder)]
+    known_users = [  
+        (r'/CLC/', [0, 6, 5, 4, 3, 2, 1]),
+        (r'data/test', [0, 1, 2, 3, 4, 5, 6])
+    ]
+    #
+    input_folder = str(input_folder)  # use `str` in case pathlib.Path instance
+    def match(regex):
+        return re.search(regex, input_folder)
+    candidates = [order for (regex, order) in known_users if match(regex)]
     if candidates:
-        logger.debug(f'Default camera ordering found for current user: {candidates[0]}')
-        return np.array(candidates[0])
+        order = candidates[0]
+        logger.debug(f'Default camera ordering found: {order}')
+        return np.array(order)
 
 
 class Core:
