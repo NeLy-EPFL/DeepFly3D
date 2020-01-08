@@ -418,8 +418,8 @@ class CameraNetwork:
 
         if path is not None:
             pickle.dump(d, open(path, "wb"))
-        else:
-            return d
+        
+        return d
 
     def load_network(self, calib):
         d = calib

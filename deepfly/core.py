@@ -318,7 +318,7 @@ class Core:
         dict_merge = self.camNetAll.save_network(path=None)
         pts2d_orig = self.camNetAll.get_points2d_matrix()
         
-        # temporality incorporate corrected values
+        # temporarily incorporate corrected values
         self.camNetAll.set_points2d_matrix(pts2d)
         self.post_process(pts2d)
         dict_merge["points2d"] = pts2d
@@ -346,7 +346,8 @@ class Core:
 
 
     def save_calibration(self):
-        calib_path = f"{self.output_folder}/calib_{self.input_folder.replace('/', '_')}.pkl"
+        filename = f"calib_{self.input_folder.replace('/', '_')}.pkl"
+        calib_path = os.path.join(self.output_folder, filename)
         print("Saving calibration {}".format(calib_path))
         self.camNetAll.save_network(calib_path)
 

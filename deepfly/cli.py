@@ -206,6 +206,7 @@ def run(args):
     
     core = Core(args.input_folder, args.output_folder, args.num_images_max)
     core.overwrite = args.overwrite  # monkey-patch: save it for later
+    
     if args.camera_ids is not None:
         core.update_camera_ordering(args.camera_ids)
 
