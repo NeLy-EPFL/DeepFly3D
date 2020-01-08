@@ -18,7 +18,14 @@ video_width = 500  # total width of the 2d and 3d videos
 
 
 def make_pose2d_video(plot_2d, num_images, input_folder, output_folder):
-    """ Creates pose2d estimation videos """
+    """Creates pose2d estimation videos and writes it to output_folder.
+    
+    Parameters:
+    plot_2d: a function callback which generates an image as a numpy array
+    num_images: the number of images to use for the video
+    input_folder: input folder containing the images
+    output_folder: output folder where to write the video.
+    """
     # Here we create a generator (keyword "yield")
     def imgs_generator():
         def stack(img_id):
@@ -40,6 +47,16 @@ def make_pose2d_video(plot_2d, num_images, input_folder, output_folder):
 
 
 def make_pose3d_video(points3d, plot_2d, num_images, input_folder, output_folder):
+    """Creates pose3d estimation videos and writes it to output_folder.
+    
+    Parameters:
+    points3d: estimated 3D joints positions.
+    plot_2d: a function callback which generates an image as a numpy array
+    num_images: the number of images to use for the video
+    input_folder: input folder containing the images
+    output_folder: output folder where to write the video.
+    """
+    
     def imgs_generator():
         def stack(img_id):
             row1 = np.hstack([_compute_2d_img(plot_2d, img_id, cam_id) for cam_id in (0, 1, 2)])
@@ -59,9 +76,11 @@ def make_pose3d_video(points3d, plot_2d, num_images, input_folder, output_folder
 
 
 def _make_video(video_path, imgs):
-    """ Code used to generate a video using cv2.
-    - video_path: a path ending with .mp4, for instance: "/results/pose2d.mp4"
-    - imgs: an iterable or generator with the images to turn into a video
+    """Code used to generate a video using cv2.
+    
+    Parameters:
+    video_path: a path ending with .mp4, for instance: "/results/pose2d.mp4"
+    imgs: an iterable or generator with the images to turn into a video
     """
 
     first_frame = next(imgs)
@@ -92,12 +111,23 @@ def _resize(current_shape, new_width):
 
 
 def _compute_2d_img(plot_2d, img_id, cam_id):
+    """Uses plot_2d to generate an image and resizes it using cv2.
+    
+    Returns:
+    A numpy array containing the resized image.
+    """
     img = plot_2d(cam_id, img_id, smooth=True)
     img = cv2.resize(img, (img2d_aspect[0]*img3d_dpi, img2d_aspect[1]*img3d_dpi))
     return img
 
 
 def _compute_3d_img(points3d, img_id, cam_id):
+    """Generates the 3D image showing joints positions based on points3d.
+    
+    Returns:
+    A numpy array containing the resulting 3D image projected on 2D.
+    """
+    
     import numpy as np
 
     plt.style.use('dark_background')

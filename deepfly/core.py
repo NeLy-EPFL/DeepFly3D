@@ -25,6 +25,15 @@ from deepfly.signal_util import smooth_pose2d, filter_batch
 
 
 def find_default_camera_ordering(input_folder):
+    """Uses regexes to infer the correct camera ordering based on folder path.
+
+    This is useful for Ramdya's Lab as a given data acquisition agent (say CLC)
+    always uses the same camera ordering.
+
+    Parameters:
+    input_folder: the folder path on which to run the regexes.
+    """
+
     known_users = [  
         (r'/CLC/', [0, 6, 5, 4, 3, 2, 1]),
         (r'data/test', [0, 1, 2, 3, 4, 5, 6])
@@ -41,6 +50,7 @@ def find_default_camera_ordering(input_folder):
 
 
 class Core:
+    """Main interface to interact and use the 2d and 3d pose estimation network."""
 
     def __init__(self, input_folder, output_subfolder, num_images_max):
         self.input_folder = input_folder
@@ -118,6 +128,15 @@ class Core:
 
 
     def update_camera_ordering(self, cidread2cid):
+        """Writes the new ordering inside the output folder and uses it.
+
+        Parameters:
+        cidread2cid: the new camera ordering to write and use.
+
+        Returns:
+        boolean: whether the ordering was successfuly updated.
+        """
+
         if cidread2cid is None:
             return False
 
@@ -133,6 +152,12 @@ class Core:
 
 
     def pose2d_estimation(self, overwrite=True):
+        """Runs the pose2d estimation on self.input_folder.
+
+        Parameters:
+        overwrite: whether to overwrite existing pose estimation results (default: True)
+        """
+
         parser = ArgParse.create_parser()
         args, _ = parser.parse_known_args()
         args.checkpoint = False
@@ -152,14 +177,37 @@ class Core:
         
 
     def next_error(self, img_id):
+        """Finds the next image with an error in prediction after img_id.
+
+        Parameters:
+        img_id: a valid image id after which to search for an error.
+        
+        Returns:
+        int: None or the id of an image with an error in prediction.
+        """
+
         return self.next_error_in_range(range(img_id+1, self.max_img_id+1))
 
 
     def prev_error(self, img_id):
+        """Finds the previous image with an error in prediction before img_id.
+
+        Parameters:
+        img_id: a valid image id before which to search for an error.
+        
+        Returns:
+        int: None or the id of an image with an error in prediction.
+        """
+        
         return self.next_error_in_range(range(img_id-1, -1, -1))
         
 
     def calibrate_calc(self, min_img_id, max_img_id):
+        """Calibrates and saves the results in the output folder.
+
+        Uses the images between min_img_id and max_img_id for the calibration.
+        """
+
         print(f"Calibration considering frames between {min_img_id}:{max_img_id}")
         calib = read_calib(config["calib_fine"])
         assert calib is not None
@@ -198,6 +246,18 @@ class Core:
 
 
     def nearest_joint(self, cam_id, img_id, x, y):
+        """Finds the joint nearest to (x,y) coordinates on the img_id of cam_id.
+
+        Parameters:
+        cam_id: the id of the camera from which the image is taken
+        img_id: the id of an image on which to look for a joint
+        x: abscissa of the point from which we want the nearest joint
+        y: coordinate of the point from which we want the nearest joint
+        
+        Returns:
+        (x,y): the coordinates of the joint nearest to (x,y)
+        """
+
         joints = range(config["skeleton"].num_joints)
         visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
         unvisible_joints = [j_id for j_id in joints if not visible(j_id)]
@@ -211,6 +271,8 @@ class Core:
 
 
     def move_joint(self, cam_id, img_id, joint_id, x, y):
+        """Moves the joint specified by joint_id to position (x,y)."""
+
         modified_joints = self.db.read_modified_joints(cam_id, img_id)
         modified_joints = list(sorted(set(modified_joints + [joint_id])))
         points = self.corrected_points2d(cam_id, img_id)
@@ -219,12 +281,19 @@ class Core:
 
 
     def solve_bp(self, img_id):
+        """Solves the belief propagation on image specified by img_id."""
         if self.has_calibration and self.has_pose:
             self.solve_bp_for_camnet(img_id, self.camNetLeft)
             self.solve_bp_for_camnet(img_id, self.camNetRight)
         
     
     def smooth_points2d(self, cam_id, private_cache = dict()):
+        """Gets the smoothened points2d of cam_id.
+
+        Parameters:
+        cam_id: the camera id from which to get the points2d
+        private_cache: private argument used as a singleton instance to store a cache.
+        """
         if cam_id not in private_cache:
             cam = self.camNetAll.cam_list[cam_id]
             private_cache[cam_id] = smooth_pose2d(cam.points2d)
@@ -238,6 +307,19 @@ class Core:
         smooth=False,
         joints=[],
         ):
+        """Plots the 2d pose estimation results.
+
+        Parameters:
+        cam_id: id of the camera from which to take the image
+        img_id: id of the image to plot
+        with_corrections: whether to plot manually corrected joints positions (default: False)
+        smooth: whether to smoothen the joints positions for nicer videos (default: False)
+        joints: ids of the joints to plot, use empty list for all joints (default: [])
+
+        Returns:
+        an image as an np.array with the plot.
+        """
+
         cam = self.camNetAll.cam_list[cam_id]
         joints = joints if joints else range(config["skeleton"].num_joints)
         visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
@@ -274,6 +356,16 @@ class Core:
 
 
     def plot_heatmap(self, cam_id, img_id, joints=[]):
+        """Plots the probability map for joint positions.
+
+        Parameters:
+        cam_id: id of the camera from which to take the image
+        img_id: id of the image to plot
+        joints: ids of the joints to plot, use empty list for all joints (default: [])
+
+        Returns:
+        an image as an np.array with the probability map represented as heatmap.
+        """
         cam = self.camNetAll.cam_list[cam_id]
         joints = joints if joints else range(config["skeleton"].num_joints)
         visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
@@ -282,10 +374,16 @@ class Core:
 
 
     def get_image(self, cam_id, img_id):
+        """Returns the img_id image from cam_id camera."""
         return self.camNetAll.cam_list[cam_id].get_image(img_id)
 
 
     def get_points3d(self):
+        """Returns a numpy array with 3d positions of the joints.
+
+        Indexing is as follows:
+        array[image_id][joint_id] = (x, y, z)
+        """
         camNetL = self.camNetLeft
         camNetR = self.camNetRight
         
@@ -304,10 +402,12 @@ class Core:
 
 
     def save_corrections(self):
+        """Writes the manual corrections to a file in the output folder."""
         self.db.dump()
 
 
     def post_process(self, points2d_matrix):
+        """Runs some hardcoded post-processing on the pose estimation results."""
         pts2d = points2d_matrix
         if "fly" in config["name"]:
             # some post-processing for body-coxa
@@ -321,6 +421,7 @@ class Core:
 
 
     def save_pose(self):
+        """Saves the pose estimation results to a file in the output folder."""
         pts2d = self.corrected_points2d_matrix()
         dict_merge = self.camNetAll.save_network(path=None)
         pts2d_orig = self.camNetAll.get_points2d_matrix()
@@ -353,6 +454,7 @@ class Core:
 
 
     def save_calibration(self):
+        """Saves the calibration results to a file in the output folder."""
         filename = "calib.pkl" #f"calib_{self.input_folder.replace('/', '_')}.pkl"
         calib_path = os.path.join(self.output_folder, filename)
         print("Saving calibration {}".format(calib_path))
@@ -360,6 +462,12 @@ class Core:
 
 
     def corrected_points2d(self, cam_id, img_id):
+        """Gets the estimated or manually corrected 2d position of the joints.
+        
+        Returns:
+        An array with the position of the joints on img_id from cam_id.
+        """
+
         points2d = self.camNetAll.cam_list[cam_id].get_points2d(img_id).copy()
         manual_corrections = self.db.manual_corrections()
         if img_id in manual_corrections.get(cam_id, {}):
@@ -368,6 +476,14 @@ class Core:
 
 
     def corrected_points2d_matrix(self):
+        """Gets the estimated or manually corrected 2d positions of the joints.
+
+        Returns:
+        An array with the positions of the joints for each cam_id, img_id.
+        Indexing is as follows: results[cam_id][img_id][joint_id] = (x,y)
+        """
+
+
         manual_corrections = self.db.manual_corrections()
         pts2d = self.camNetAll.get_points2d_matrix()
         for cam_id in range(config["num_cameras"]):
@@ -378,6 +494,7 @@ class Core:
 
 
     def setup_camera_ordering(self):
+        """Reads camera ordering from file or attempts to use a default ordering instead."""
         default = find_default_camera_ordering(self.input_folder)
         if default is not None:  # np.arrays don't evaluate to bool
             write_camera_order(self.output_folder, default)
@@ -385,6 +502,7 @@ class Core:
 
 
     def set_cameras(self):
+        """Creates the camera network instances using the latest calibration files."""
         calib = read_calib(self.output_folder)
         self.camNetAll = CameraNetwork(
             image_folder=self.input_folder,
@@ -426,6 +544,11 @@ class Core:
 
 
     def next_error_in_range(self, range_of_ids):
+        """Finds the first image in range_of_ids on which there is an estimation error.
+
+        Returns:
+        An image id with a suspected pose estimation error or None if none found.
+        """
         all_joints = range(config["skeleton"].num_joints)
         pictorial = config["skeleton"].pictorial_joint_list
         joints = [j for j in all_joints if j in pictorial]
@@ -437,6 +560,8 @@ class Core:
 
 
     def get_joint_reprojection_error(self, img_id, joint_id, camNet):
+        """Computes the joint_reprojection_error for joint_id on img_id"""
+
         visible_cameras = [
             cam
             for cam in camNet.cam_list
@@ -451,6 +576,12 @@ class Core:
 
 
     def joint_has_error(self, img_id, joint_id):
+        """Indicates whether joint_id was estimated with error or not.
+
+        Returns:
+        boolean: whether there is a suspected error for joint_id on img_id.
+        """
+
         get_error = self.get_joint_reprojection_error
         err_left  = get_error(img_id, joint_id, self.camNetLeft)
         err_right = get_error(img_id, joint_id, self.camNetRight)
@@ -459,6 +590,7 @@ class Core:
 
 
     def solve_bp_for_camnet(self, img_id, camNet):
+        """Solves the belief propagation on the provided camera network."""
         # Compute prior
         prior = []
         manual_corrections = self.db.manual_corrections()
@@ -490,6 +622,18 @@ class Core:
 
 
     def write_corrections(self, cam_id, img_id, modified_joints, points2d):
+        """Saves the provided manual corrections to a file in the output_folder.
+
+        Only the corrections which differ sufficiently from the original
+        pose estimation results are saved.
+
+        Parameters:
+        cam_id: id of the camera from which to take the image
+        img_id: id of the image on which the corrections are made
+        modified_joints: list of joints that have been corrected
+        points2d: array of the (x,y) location of *all* the joints on img_id.
+        """
+
         l1_threshold = 30
         original_points2d = self.camNetAll.cam_list[cam_id].get_points2d(img_id)
         l1_error = np.abs(original_points2d - points2d)

@@ -14,6 +14,8 @@ from deepfly.core import Core
 
 
 def main():
+    """Main entry point to run the command-line interface."""
+
     args = parse_cli_args()
     colorama_init()
 
@@ -37,6 +39,14 @@ def main():
 
 
 def setup_logger(args):
+    """Configures deepfly's logger to output to console.
+    
+    The correct verbosity level is parsed from the command-line arguments.
+
+    Parameters:
+    args: the parsed command-line arguments (see: parse_cli_args())
+    """
+
     handler = logging.StreamHandler()
     handler.setLevel(logging.DEBUG)
     l = logger.getLogger()
@@ -51,6 +61,12 @@ def setup_logger(args):
 
 
 def parse_cli_args():
+    """Uses ArgParse to parse the command line arguments.
+    
+    Returns:
+    A simple namespace containing parsed arguments values.
+    """
+    
     parser = argparse.ArgumentParser(
         description = "DeepFly3D pose estimation"
     )
@@ -126,6 +142,12 @@ def parse_cli_args():
 
 
 def print_debug(args):
+    """Prints each (key, value) pair in args.
+    
+    Parameters:
+    args: the parsed command-line arguments (see: parse_cli_args())
+    """
+
     print(f"Enabled logging level: {logging.getLevelName(logger.getLogger().getEffectiveLevel())}")
     #
     print('Arguments are:')
@@ -136,6 +158,12 @@ def print_debug(args):
 
 
 def run_from_file(args):
+    """Processes every folder listed in the args.input_folder text file.
+    
+    Parameters:
+    args: the parsed command-line arguments (see: parse_cli_args())
+    """
+
     logger.info(f'{Style.BRIGHT}Looking for folders listed in {args.input_folder}{Style.RESET_ALL}')
     try:
         with open(args.input_folder, 'r') as f:
@@ -165,6 +193,12 @@ def run_from_file(args):
 
 
 def run_recursive(args):
+    """Processes every subfolder named 'images' in the args.input_folder folder.
+    
+    Parameters:
+    args: the parsed command-line arguments (see: parse_cli_args())
+    """
+
     subfolder_name = 'images'
     msg = f'{Style.BRIGHT}Recursively looking for subfolders named `{subfolder_name}` inside `{args.input_folder}`{Style.RESET_ALL}'
     logger.info(msg)
@@ -177,6 +211,13 @@ def run_recursive(args):
 
 
 def run_in_folders(args, folders):
+    """Processes successively each folder in folders.
+    
+    Parameters:
+    args: the parsed command-line arguments (see: parse_cli_args())
+    folders: a list of folders to process
+    """
+
     errors = []
     for folder in folders:
         try:
@@ -196,6 +237,11 @@ def run_in_folders(args, folders):
 
 
 def run(args):
+    """Processes the image folder args.input_folder.
+
+    Parameters:
+    args: the parsed command-line arguments (see: parse_cli_args())
+    """
     nothing_to_do = args.skip_estimation and (not args.video_2d) and (not args.video_3d)
 
     if nothing_to_do:
@@ -229,8 +275,13 @@ def run(args):
 def find_subfolders(path, name):
     """
     Implements a Breadth First Search algorithm to find all subfolders named `name`.
+    
     Using a BFS allows to stop as soon as we find the target subfolder, without listing its content.
     Which is a performance improvement when target subfolders contain hundreds on thousands of images.
+
+    Parameters:
+    path: a path where to run the BFS
+    name: the target filename we are looking for (typically "images" for an images subfolder)
     """
     found = []
     to_visit = deque()
