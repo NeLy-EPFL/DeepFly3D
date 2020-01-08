@@ -214,7 +214,9 @@ def run(args):
         core.pose2d_estimation(core.overwrite)
         core.calibrate_calc(0, core.max_img_id)
         core.save_pose()
-
+    else:
+        core.calibrate_calc(0, core.max_img_id)
+        
     if args.video_2d:
         video.make_pose2d_video(core.plot_2d, core.num_images, core.input_folder, core.output_folder)
 

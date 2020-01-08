@@ -178,7 +178,7 @@ class Core:
                     pt = self.corrected_points2d(cam_id, img_id)
                     self.camNetAll.cam_list[cam_id].points2d[img_id, :] = pt
                     c += 1
-        print("Calibration: replaced {c} points from manuall correction")
+        print(f"Calibration: replaced {c} with manual corrections")
 
         # keep the pts only in the range
         for cam in self.camNetAll.cam_list:
@@ -224,6 +224,13 @@ class Core:
             self.solve_bp_for_camnet(img_id, self.camNetRight)
         
     
+    def smooth_points2d(self, cam_id, private_cache = dict()):
+        if cam_id not in private_cache:
+            cam = self.camNetAll.cam_list[cam_id]
+            private_cache[cam_id] = smooth_pose2d(cam.points2d)
+        return private_cache[cam_id]
+
+
     def plot_2d(self, 
         cam_id,
         img_id,
@@ -252,7 +259,7 @@ class Core:
             r_list = compute_r_list(img_id)
             circle_color = (0, 255, 0) if corrected else (0, 0, 255)
         else:
-            pts2d = smooth_pose2d(cam.points2d) if smooth else cam.points2d
+            pts2d = self.smooth_points2d(cam_id) if smooth else cam.points2d
             pts2d = pts2d[img_id]
             r_list = None
             circle_color = None
@@ -346,7 +353,7 @@ class Core:
 
 
     def save_calibration(self):
-        filename = f"calib_{self.input_folder.replace('/', '_')}.pkl"
+        filename = "calib.pkl" #f"calib_{self.input_folder.replace('/', '_')}.pkl"
         calib_path = os.path.join(self.output_folder, filename)
         print("Saving calibration {}".format(calib_path))
         self.camNetAll.save_network(calib_path)

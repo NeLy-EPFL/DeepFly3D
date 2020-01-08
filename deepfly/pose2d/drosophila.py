@@ -66,7 +66,7 @@ def on_cuda(torch_var, *cuda_args, **cuda_kwargs):
 
 def main(args):
     global best_acc
-    return 
+
     # create model
     logger.debug("Creating model '{}', stacks={}, blocks={}".format(
             args.arch, args.stacks, args.blocks
