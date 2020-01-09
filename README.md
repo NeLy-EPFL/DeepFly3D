@@ -18,6 +18,12 @@ Code for data preparation and augmentation are taken from the [Stacked hourglass
 * Adapting DeepFly3D on different datasets: [Adapting (Will be updated soon)](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/adapt.md)
 
 ## Changes
+### Changes in 0.4
+
+- Using the CLI, the output folder can be changed using the `--output-folder` flag
+- CLI and GUI now use the same pose estimation code, so changes will automatically propagate to both
+- Minor tweaks in the GUI layout, functionality kept unchanged
+
 ### Changes in 0.3
 - Results are saved in df3d folder instead of the image folder.
 - Much faster startup time.
