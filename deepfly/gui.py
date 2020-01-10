@@ -16,11 +16,11 @@ def main():
     app = QW.QApplication([])
     window = DeepflyGUI()
     window.setup(**cli_args)
-    window.set_width(app.primaryScreen().size().width())
+    window.set_width(app.desktop().size().width())
     window.show()
     app.exec_()
 
-
+    
 def parse_cli_args(argv):
     """Parses the argument string argv.
 
@@ -461,7 +461,9 @@ class DeepflyGUI(QW.QWidget):
         height, width, _ = im.shape
         bytesPerLine = 3 * width
         qIm = QImage(im, width, height, bytesPerLine, QImage.Format_RGB888)
-        iv.setPixmap(QPixmap.fromImage(qIm))
+        pixmap = QPixmap.fromImage(qIm)
+        pixmap = pixmap.scaledToWidth(400)
+        iv.setPixmap(pixmap)
 
 
     def eventFilter(self, iv, e):
