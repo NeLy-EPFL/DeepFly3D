@@ -1,7 +1,7 @@
 import argparse
 import os
 import deepfly.pose2d.models as models
-from deepfly.GUI.Config import config
+from deepfly.Config import config
 
 model_names = sorted(
     name
@@ -45,7 +45,7 @@ def add_arguments(parser):
     )
     parser.add_argument(
         "--test-batch",
-        default=64,
+        default=96,
         type=int,
         metavar="N",
         dest="test_batch",
@@ -112,7 +112,7 @@ def add_arguments(parser):
     parser.add_argument(
         "--output_folder",
         dest="output_folder",
-        default="df3d/",
+        default='df3d',
         type=str,
         metavar="PATH",
         help="path to place final results",

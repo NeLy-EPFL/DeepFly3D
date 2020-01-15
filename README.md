@@ -18,6 +18,12 @@ Code for data preparation and augmentation are taken from the [Stacked hourglass
 * Adapting DeepFly3D on different datasets: [Adapting (Will be updated soon)](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/adapt.md)
 
 ## Changes
+### Changes in 0.4
+
+- Using the CLI, the output folder can be changed using the `--output-folder` flag
+- CLI and GUI now use the same pose estimation code, so changes will automatically propagate to both
+- Minor tweaks in the GUI layout, functionality kept unchanged
+
 ### Changes in 0.3
 - Results are saved in df3d folder instead of the image folder.
 - Much faster startup time. 
@@ -73,16 +79,16 @@ In general, displaying pose estimation results should be as easy as:
 
 ```python
 import matplotlib.pyplot as plt
-from deepfly.GUI.CameraNetwork import CameraNetwork
+from deepfly.CameraNetwork import CameraNetwork
 camNet = CameraNetwork(image_folder=image_folder)
 image_folder = './data/test'
 
-plt.imshow(camNet[1].plot_2d())
+plt.imshow(camNet.cam_list[1].plot_2d())
 ```
 and to display heatmaps: 
 
 ```python
-plt.imshow(camNet[1].plot_heatmap())
+plt.imshow(camNet.cam_list[1].plot_heatmap())
 ```
 
 To create more complicated figures, or replicate the figures from the paper, you can use the the pose_result file which is saved in the same folder as the images. The notebook, ```notebook_visualize/visualize.ipynb```, shows you the steps to create the following figure:

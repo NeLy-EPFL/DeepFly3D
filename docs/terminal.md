@@ -38,7 +38,7 @@ test_folder_list = ["2018-06-07--17-00-16--semih-walking--3"]
 ```
 
 ### Using Automatic/Manual Corrections for Training
-Manual/Automatic corrections are stored inside the ```pose_corr*.pkl``` files under the image folder. To also incorporate them into the training, go to [pose2d/dataset/drosophila.py](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/deepfly/pose2d/datasets/drosophila.py), and set the ```manual_path_list = ['../data/test']``` variable. DeepFly3D will search __recursively__ on the specified folder to find the correction files and will automatically add them.
+Manual/Automatic corrections are stored inside the ```pose_corr*.pkl``` files under the image folder. To also incorporate them into the training, go to [pose2d/DrosophilaDataset.py](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/deepfly/pose2d/DrosophilaDataset.py), and set the ```manual_path_list = ['../data/test']``` variable. DeepFly3D will search __recursively__ on the specified folder to find the correction files and will automatically add them.
 
 
 ## Prediction
