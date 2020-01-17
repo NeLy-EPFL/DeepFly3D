@@ -12,8 +12,12 @@ from deepfly.CameraNetwork import CameraNetwork
 from deepfly.Config import config
 from deepfly.DB import PoseDB
 from deepfly.optim_util import energy_drosoph
-from deepfly.os_util import (get_max_img_id, read_calib, read_camera_order,
-                             write_camera_order)
+from deepfly.os_util import (
+    get_max_img_id,
+    read_calib,
+    read_camera_order,
+    write_camera_order,
+)
 from deepfly.plot_util import normalize_pose_3d
 from deepfly.pose2d import ArgParse
 from deepfly.pose2d.drosophila import main as pose2d_main
@@ -64,6 +68,7 @@ class Core:
         self.db = PoseDB(self.output_folder)
         self.setup_camera_ordering()
         self.set_cameras()
+        self.check_cameras()
 
     # -------------------------------------------------------------------------
     # properties
@@ -513,6 +518,10 @@ class Core:
         self.camNetRight.bone_param = config["bone_param"]
         calib = read_calib(config["calib_fine"])
         self.camNetAll.load_network(calib)
+
+    def check_cameras(self):
+        cam_missing = [cam.cam_id for cam in self.camNetAll.cam_list if cam.is_empty()]
+        assert not cam_missing, "Some cameras are missing: {}".format(cam_missing)
 
     def next_error_in_range(self, range_of_ids):
         """Finds the first image in range_of_ids on which there is an estimation error.

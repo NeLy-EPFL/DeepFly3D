@@ -3,7 +3,7 @@ import glob
 import os
 import pickle
 
-import matplotlib.pyplot as plt
+import cv2
 import numpy as np
 from scipy.optimize import least_squares
 from scipy.sparse import lil_matrix
@@ -12,8 +12,6 @@ import deepfly.logger as logger
 import deepfly.skeleton_fly as skeleton
 from deepfly.Camera import Camera
 from deepfly.Config import config
-import cv2
-
 from deepfly.cv_util import triangulate_linear
 from deepfly.os_util import read_calib, read_camera_order
 
@@ -266,19 +264,14 @@ class CameraNetwork:
                 points2d_iter = list()
                 for cam in cam_list:
                     if j_id in ignore_joint_list:
-                        # print("a")
                         continue
                     if np.any(self.points3d_m[img_id, j_id, :] == 0):
-                        # print("b")
                         continue
                     if np.any(cam[img_id, j_id, :] == 0):
-                        # print("c")
                         continue
                     if not config["skeleton"].camera_see_joint(cam.cam_id, j_id):
-                        # print("d")
                         continue
                     if cam.cam_id == 3:
-                        # print("e")
                         continue
                     cam_list_iter.append(cam)
                     points2d_iter.append(cam[img_id, j_id, :])
@@ -322,12 +315,6 @@ class CameraNetwork:
         camera_indices = [cid2cidx[cid] for cid in camera_indices]
         camera_indices = np.array(camera_indices)
         point_indices = np.array(point_indices)
-
-        """
-        camera_indices -= np.min(
-            camera_indices
-        )  # XXX assumes cameras are consecutive :/
-        """
 
         n_cameras = camera_params.shape[0]
         n_points = points3d_ba.shape[0]

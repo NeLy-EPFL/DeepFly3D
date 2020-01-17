@@ -5,7 +5,6 @@ import cv2
 import numpy as np
 import skimage
 import skimage.feature
-from scipy.spatial import KDTree
 
 from deepfly.Config import config
 from deepfly.plot_util import plot_drosophila_2d, plot_drosophila_heatmap
@@ -89,9 +88,15 @@ class Camera:
     def get_euler_angles(self):
         return Camera.R_to_eulerAngles(self.R)
 
-#########################
-###########    OPERATIONS
-#########################
+    #########################
+    ###########    OPERATIONS
+    #########################
+
+    def is_empty(self):
+        has_points2d = np.any(self.points2d != 0)
+        has_images = self.get_image(img_id=0) is not None
+
+        return not has_points2d and not has_images
 
     def __getitem__(self, key):
         return self.points2d[key].reshape(-1, 2)
@@ -118,10 +123,11 @@ class Camera:
         ).ravel()
         return np.mean(np.abs(err_list)), np.array(err_list)
 
-#########################
-#################    PLOT
-#########################
+    #########################
+    #################    PLOT
+    #########################
 
+    # TODO refactor
     def get_heatmap(self, img_id, j_id=None):
         if "fly" in config["name"]:
             if j_id is None:
@@ -179,25 +185,27 @@ class Camera:
                 return self.hm[self.cam_id_read, img_id, :]
 
     def get_image(self, img_id, flip=False):
-        try:
-            image_path = os.path.join(
-                self.image_folder,
-                "camera_{}_img_{:06}.jpg".format(self.cam_id_read, img_id),
-            )
-            # print('Reading: ' + image_path)
+
+        from deepfly.os_util import constr_img_name
+
+        img_name, img_name_pad = (
+            constr_img_name(self.cam_id_read, img_id),
+            constr_img_name(self.cam_id_read, img_id, pad=True),
+        )
+
+        image_path = os.path.join(self.image_folder, "{}.jpg".format(img_name))
+        image_pad_path = os.path.join(self.image_folder, "{}.jpg".format(img_name_pad))
+        if os.path.isfile(image_path):
             img = cv2.imread(image_path)
-            if img is None:
-                raise FileNotFoundError
-        except FileNotFoundError:
-            img = cv2.imread(
-                os.path.join(
-                    self.image_folder,
-                    "camera_{}_img_{}.jpg".format(self.cam_id_read, img_id),
-                )
-            )
+        elif os.path.isfile(image_pad_path):
+            img = cv2.imread(image_pad_path)
+        else:
+            raise FileNotFoundError
+
         if img is None:
             print("Cannot find", self.cam_id, img_id)
             raise FileNotFoundError
+
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         if img.ndim == 2:
             img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
@@ -209,7 +217,6 @@ class Camera:
 
     def get_points2d(self, img_id):
         if self.points2d is not None:
-            # get the points from self.points2d
             pts = self[img_id]
         else:
             raise NotImplementedError
@@ -291,9 +298,9 @@ class Camera:
                 hm_tmp[i] = cv2.flip(hm[i], 1)
         return plot_drosophila_heatmap(inp, hm_tmp, concat=concat, scale=scale)
 
-#########################
- #########################    STATIC
-#########################
+    #########################
+    #########################    STATIC
+    #########################
 
     @staticmethod
     def hm_to_pred(
