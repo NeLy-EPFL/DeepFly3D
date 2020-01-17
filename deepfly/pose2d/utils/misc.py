@@ -1,17 +1,15 @@
 from __future__ import absolute_import
 
 import datetime
-import itertools
+import json
 import os
 import pickle
 import shutil
 import time
-
 from shutil import copyfile
 
 import scipy.io
 import torch
-import json
 
 
 def to_numpy(tensor):

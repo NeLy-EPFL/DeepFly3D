@@ -2,15 +2,14 @@ import glob
 import os
 
 import numpy as np
-from pathlib import Path
 from deepfly.Config import config
-import re
+
 
 import deepfly.logger as logger
-import os
 
 
 def get_max_img_id(path):
+    print(path)
     bound_low = 0
     bound_high = 100000
 
@@ -23,14 +22,16 @@ def get_max_img_id(path):
         curr = (bound_low + bound_high) // 2
 
     if not image_exists_img_id(path, curr):
+        logger.debug("Cannot find image at {} with img_id {}".format(path, curr))
         raise FileNotFoundError("No image found.")
 
     return curr
 
 
 def image_exists_img_id(path, img_id):
-    return os.path.isfile(os.path.join(path, constr_img_name(0, img_id, False)) + '.jpg') or os.path.isfile(
-        os.path.join(path, constr_img_name(0, img_id, True)) + '.jpg')
+    return os.path.isfile(
+        os.path.join(path, constr_img_name(0, img_id, False)) + ".jpg"
+    ) or os.path.isfile(os.path.join(path, constr_img_name(0, img_id, True)) + ".jpg")
 
 
 def constr_img_name(cid, pid, pad=True):
@@ -41,7 +42,9 @@ def constr_img_name(cid, pid, pad=True):
 
 
 def read_camera_order(folder):
-    assert os.path.isdir(folder), "Trying to call read_camera_order on {}, which is not a folder".format(folder)
+    assert os.path.isdir(
+        folder
+    ), "Trying to call read_camera_order on {}, which is not a folder".format(folder)
 
     path = os.path.join(folder, "./cam_order.npy")
     if os.path.isfile(path):
@@ -49,7 +52,11 @@ def read_camera_order(folder):
     else:
         order = np.arange(config["num_cameras"])
         write_camera_order(folder, order)
-        logger.debug('Could not find camera order under {}. Writing the default ordering {}.'.format(folder, order))
+        logger.debug(
+            "Could not find camera order under {}. Writing the default ordering {}.".format(
+                folder, order
+            )
+        )
 
     cidread2cid = order.copy()
     cid2cidread = np.zeros(cidread2cid.size, dtype=int)
@@ -60,10 +67,14 @@ def read_camera_order(folder):
 
 
 def write_camera_order(folder, cidread2cid):
-    assert os.path.isdir(folder), "Trying to write_camera_order into {}, which is not a folder".format(folder)
+    assert os.path.isdir(
+        folder
+    ), "Trying to write_camera_order into {}, which is not a folder".format(folder)
 
     path = os.path.join(folder, "cam_order")
-    logger.debug('Writing the camera ordering {} into folder {}'.format(cidread2cid, folder))
+    logger.debug(
+        "Writing the camera ordering {} into folder {}".format(cidread2cid, folder)
+    )
     # print("Saving camera order {}: {}".format(path, cidread2cid))
 
     np.save(path, cidread2cid)
@@ -83,12 +94,5 @@ def read_calib(folder):
 
 
 def parse_img_name(name):
-    #print('Parsing name: {}'.format(name))
+    # print('Parsing name: {}'.format(name))
     return int(name.split("_")[1]), int(name.split("_")[3].replace(".jpg", ""))
-
-
-def constr_img_name(cid, pid, pad=True):
-    if pad:
-        return "camera_{}_img_{:06d}".format(cid, pid)
-    else:
-        return "camera_{}_img_{}".format(cid, pid)

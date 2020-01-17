@@ -1,14 +1,6 @@
 import argparse
 import os
-import deepfly.pose2d.models as models
 from deepfly.Config import config
-
-model_names = sorted(
-    name
-    for name in models.__dict__
-    if name.islower() and not name.startswith("__") and callable(models.__dict__[name])
-)
-
 
 def add_arguments(parser):
     parser.add_argument("--arch", "-a", metavar="ARCH", default="hg")
@@ -112,7 +104,7 @@ def add_arguments(parser):
     parser.add_argument(
         "--output_folder",
         dest="output_folder",
-        default='df3d',
+        default="df3d",
         type=str,
         metavar="PATH",
         help="path to place final results",
@@ -153,7 +145,7 @@ def add_arguments(parser):
     )
     parser.add_argument(
         "--train-joints",
-        default=[0, 1, 2, 3, 4],
+        default=range(config["skeleton"].num_joints // 2),
         nargs="+",
         dest="train_joints",
         type=int,
@@ -161,7 +153,7 @@ def add_arguments(parser):
     )
     parser.add_argument(
         "--acc-joints",
-        default=[2, 3, 4],
+        default=range(config["skeleton"].num_joints // 2),
         nargs="+",
         type=int,
         dest="acc_joints",

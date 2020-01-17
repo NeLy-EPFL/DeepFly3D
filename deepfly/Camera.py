@@ -8,27 +8,15 @@ import skimage.feature
 from scipy.spatial import KDTree
 
 from deepfly.Config import config
-from deepfly.plot_util import plot_drosophila_heatmap, plot_drosophila_2d
-import math
+from deepfly.plot_util import plot_drosophila_2d, plot_drosophila_heatmap
+
 
 class Camera:
-    def __init__(
-        self,
-        cid,
-        image_folder,
-        json_path=None,
-        hm=None,
-        points2d=None,
-        num_images=1000,
-        cid_read=None,
-    ):
+    def __init__(self, cid, image_folder, hm=None, points2d=None, cid_read=None):
         self.cam_id = cid
         self.cam_id_read = cid_read if cid_read is not None else cid
-        self.json_path = json_path
         self.image_folder = image_folder
         self.points2d = points2d  # pixel coordinates, not normalized
-        if json_path is not None:  # to read annotations from
-            self.__parse_json(json_path, num_images=num_images)
         self.hm = hm
 
         self.R = None
@@ -49,7 +37,6 @@ class Camera:
         )
         self.distort = np.zeros(5, dtype=np.float)
         self.P = None
-        self.mask_unique = None
 
     def set_intrinsic(self, intrinsic):
         self.intr = intrinsic
@@ -83,7 +70,7 @@ class Camera:
         self.intr[1, 1] = fy
         self.P = Camera.calc_projection_matrix(self.R, self.tvec, self.intr)
 
-    def set_alpha(self, alpha, r=94, inv=False):
+    def set_alpha(self, alpha, r=94):
         self.set_eulerAngles(np.array([0.0, alpha, 0.0]))
         sign_x = 1 if 0 < alpha < math.pi else -1
         sign_z = (
@@ -102,46 +89,12 @@ class Camera:
     def get_euler_angles(self):
         return Camera.R_to_eulerAngles(self.R)
 
-    """
-    OPERATIONS
-    """
+#########################
+###########    OPERATIONS
+#########################
 
     def __getitem__(self, key):
         return self.points2d[key].reshape(-1, 2)
-
-    def calc_mask_unique(self, thr=3):
-        m = np.zeros(shape=self.points2d.shape, dtype=np.bool)
-        size_list = []
-        for j in range(self.points2d.shape[1]):
-            mask = np.zeros(self.points2d.shape, np.bool)
-            mask[:, j, :] = True
-            # mask = np.logical_and(mask, self.points2d != 0)
-            if np.sum(mask) == 0:
-                continue
-
-            r, c, _ = np.nonzero(mask)
-            r = r[::2]
-            c = c[::2]
-
-            pts = self[mask]
-            kd_tree = KDTree(pts)
-            res = kd_tree.query_pairs(r=thr, p=2)
-            for (p1, p2) in res:
-                if mask[r[p1], c[p1], 0] and mask[r[p2], c[p2], 0]:
-                    mask[r[p2], c[p2], :] = False
-
-            size_list.append(np.sum(mask) / 2.0)
-            m = np.logical_or(m, mask)
-        self.mask_unique = m
-        print("Camera {} after pruning: {}".format(self.cam_id, size_list))
-        return m
-
-    def intersect(self, cam, ignore_joint_list=[0]):
-        assert np.array_equal(self.points2d.shape, cam.points2d.shape)
-        bool_intersect = np.logical_and(self.points2d != 0, cam.points2d != 0)
-        for j in ignore_joint_list:
-            bool_intersect[:, np.arange(j, bool_intersect.shape[1], 5), :] = False
-        return bool_intersect
 
     def project(self, points3d):
         if points3d.shape[0] != 3:
@@ -165,9 +118,9 @@ class Camera:
         ).ravel()
         return np.mean(np.abs(err_list)), np.array(err_list)
 
-    """
-    PLOT
-    """
+#########################
+#################    PLOT
+#########################
 
     def get_heatmap(self, img_id, j_id=None):
         if "fly" in config["name"]:
@@ -215,7 +168,10 @@ class Camera:
                 j_id = [j_id]
             if self.hm is None:
                 # print("Trying to read nonexisting heatmap")
-                return np.zeros(shape=(len(j_id), config["hm_shape"][0], config["hm_shape"][1]), dtype=float)
+                return np.zeros(
+                    shape=(len(j_id), config["hm_shape"][0], config["hm_shape"][1]),
+                    dtype=float,
+                )
 
             if j_id is not None:
                 return self.hm[self.cam_id_read, img_id, j_id, :]
@@ -224,8 +180,11 @@ class Camera:
 
     def get_image(self, img_id, flip=False):
         try:
-            image_path = os.path.join(self.image_folder,"camera_{}_img_{:06}.jpg".format(self.cam_id_read, img_id))
-            #print('Reading: ' + image_path)
+            image_path = os.path.join(
+                self.image_folder,
+                "camera_{}_img_{:06}.jpg".format(self.cam_id_read, img_id),
+            )
+            # print('Reading: ' + image_path)
             img = cv2.imread(image_path)
             if img is None:
                 raise FileNotFoundError
@@ -270,7 +229,7 @@ class Camera:
         flip_image=False,
         circle_color=None,
         zorder=None,
-        r_list=None
+        r_list=None,
     ):
         if img is None:
             img = self.get_image(img_id, flip=flip_image)
@@ -302,7 +261,7 @@ class Camera:
             draw_limbs=draw_limbs,
             circle_color=circle_color,
             zorder=zorder,
-            r_list=r_list
+            r_list=r_list,
         )
         return img
 
@@ -332,9 +291,9 @@ class Camera:
                 hm_tmp[i] = cv2.flip(hm[i], 1)
         return plot_drosophila_heatmap(inp, hm_tmp, concat=concat, scale=scale)
 
-    """
-    STATIC
-    """
+#########################
+ #########################    STATIC
+#########################
 
     @staticmethod
     def hm_to_pred(

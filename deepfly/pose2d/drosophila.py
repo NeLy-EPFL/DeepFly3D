@@ -1,38 +1,37 @@
-from __future__ import print_function, absolute_import
+from __future__ import absolute_import, print_function
 
-import time
 import os
-from os.path import isdir, isfile, join
+import time
+from os.path import isfile
 from pathlib import Path
 
-import matplotlib as mpl
-
-# mpl.use("Agg")
-import matplotlib.pyplot as plt
-
+import cv2
 import torch
-from torch.utils.data import DataLoader
 import torch.nn.parallel
-import torch.backends.cudnn as cudnn
 import torch.optim
-
 from progress.bar import Bar
-from deepfly.pose2d.utils.logger import Logger, savefig
-from deepfly.pose2d.utils.evaluation import accuracy, AverageMeter, mse_acc
-from deepfly.pose2d.utils.misc import save_checkpoint, save_dict
-from deepfly.pose2d.utils.imutils import save_image, drosophila_image_overlay
-from deepfly.pose2d.ArgParse import create_parser
-from deepfly.os_util import *
-from deepfly.pose2d.DrosophilaDataset import DrosophilaDataset
-import deepfly.pose2d.models as models
-from deepfly.pose2d.utils.misc import get_time, to_numpy
+from torch.utils.data import DataLoader
+
+import deepfly.logger as logger
 from deepfly.Camera import Camera
 from deepfly.Config import config
 
-import deepfly.logger as logger
-import cv2
+from deepfly.os_util import get_max_img_id, read_camera_order
+from deepfly.pose2d.ArgParse import create_parser
+from deepfly.pose2d.DrosophilaDataset import DrosophilaDataset
+from deepfly.pose2d.models.hourglass import hg
+from deepfly.pose2d.utils.evaluation import AverageMeter, accuracy, mse_acc
+from deepfly.pose2d.utils.misc import get_time, save_checkpoint, save_dict, to_numpy
 
-best_acc = 0
+import numpy as np
+
+
+from enum import Enum
+
+
+class Mode(Enum):
+    train = 0
+    test = 1
 
 
 class NoOutputBar(Bar):
@@ -51,7 +50,70 @@ class NoOutputBar(Bar):
     def start(self):
         pass
 
-    
+
+def worker_init_fn(worker_id):
+    np.random.seed(np.random.get_state()[1][0] + worker_id)
+
+
+def load_weights(model, resume: str):
+    if isfile(resume):
+        logger.debug("Loading checkpoint '{}'".format(resume))
+        checkpoint = (
+            torch.load(resume)
+            if torch.cuda.is_available()
+            else torch.load(resume, map_location=torch.device("cpu"))
+        )
+
+        if "mpii" in resume:  # weights for sh trained on mpii dataset
+            logger.debug("Removing input/output layers")
+            ignore_weight_list_template = [
+                "module.score.{}.bias",
+                "module.score.{}.weight",
+                "module.score_.{}.weight",
+            ]
+            ignore_weight_list = list()
+            for i in range(8):
+                for template in ignore_weight_list_template:
+                    ignore_weight_list.append(template.format(i))
+            for k in ignore_weight_list:
+                if k in checkpoint["state_dict"]:
+                    checkpoint["state_dict"].pop(k)
+
+            state = model.state_dict()
+            state.update(checkpoint["state_dict"])
+            logger.debug(model.state_dict())
+            logger.debug(checkpoint["state_dict"])
+            model.load_state_dict(state, strict=False)
+        else:
+            pretrained_dict = checkpoint["state_dict"]
+            model.load_state_dict(pretrained_dict, strict=False)
+
+        logger.debug(
+            "Loaded checkpoint '{}' (epoch {})".format(resume, checkpoint["epoch"])
+        )
+    else:
+        logger.debug("=> no checkpoint found at '{}'".format(resume))
+        raise FileNotFoundError
+
+
+def df3dLoss(output, target_var, joint_exists, num_classes):
+    joint_exists = joint_exists.data.numpy()
+    loss_weight = torch.ones((output[0].size(0), num_classes, 1, 1))
+    if np.any(joint_exists == 0):
+        batch_index = (np.logical_not(joint_exists)).nonzero()[:, 0]
+        joint_index = (np.logical_not(joint_exists)).nonzero()[:, 1]
+        loss_weight[batch_index, joint_index, :, :] = 0.0
+
+    # logger.debug(loss_weight)
+    loss_weight.requires_grad = True
+    loss_weight = on_cuda(loss_weight)
+    loss = weighted_mse_loss(output[0], target_var, weights=loss_weight)
+    for j in range(1, len(output)):
+        loss += weighted_mse_loss(output[j], target_var, weights=loss_weight)
+
+    return loss
+
+
 def weighted_mse_loss(inp, target, weights):
     out = (inp - target) ** 2
     out = out * weights.expand_as(out)
@@ -61,613 +123,123 @@ def weighted_mse_loss(inp, target, weights):
 
 
 def on_cuda(torch_var, *cuda_args, **cuda_kwargs):
-    return torch_var.cuda(*cuda_args, **cuda_kwargs) if torch.cuda.is_available() else torch_var
-
-
-def main(args):
-    global best_acc
-
-    # create model
-    logger.debug("Creating model '{}', stacks={}, blocks={}".format(
-            args.arch, args.stacks, args.blocks
-        )
-    )
-    model = models.__dict__[args.arch](
-        num_stacks=args.stacks,
-        num_blocks=args.blocks,
-        num_classes=args.num_classes,
-        num_feats=args.features,
-        inplanes=args.inplanes,
-        init_stride=args.stride,
+    return (
+        torch_var.cuda(*cuda_args, **cuda_kwargs)
+        if torch.cuda.is_available()
+        else torch_var
     )
 
-    model = on_cuda(torch.nn.DataParallel(model))
-    criterion = on_cuda(torch.nn.MSELoss(reduction='mean'))  # deprecated: size_average=True
-    optimizer = torch.optim.RMSprop(
-        model.parameters(),
-        lr=args.lr,
-        momentum=args.momentum,
-        weight_decay=args.weight_decay,
+
+def get_save_path_pred(unlabeled, output_folder):
+    unlabeled_replace = unlabeled.replace("/", "-")
+    save_path = os.path.join(
+        "/{}".format(unlabeled),
+        output_folder,
+        "./preds_{}.pkl".format(unlabeled_replace),
     )
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, verbose=True, patience=5
+    save_path = Path(save_path)
+    return save_path
+
+
+def get_save_path_heatmap(unlabeled, output_folder):
+    unlabeled_replace = unlabeled.replace("/", "-")
+    save_path = os.path.join(
+        "/{}".format(unlabeled),
+        output_folder,
+        "heatmap_{}.pkl".format(unlabeled_replace),
+    )
+    save_path = Path(save_path)
+    return save_path
+
+
+def get_output_path(path, output_folder):
+    save_path = os.path.join("/{}".format(path), output_folder)
+
+    return save_path
+
+
+def process_folder(
+    model, loader, unlabeled, output_folder, overwrite, num_classes, acc_joints
+):
+    save_path_pred, save_path_heatmap = (
+        get_save_path_pred(unlabeled, output_folder),
+        get_save_path_heatmap(unlabeled, output_folder),
     )
 
-    # optionally resume from a checkpoint
-    title = "Drosophila-" + args.arch
-    if args.resume:
-        if isfile(args.resume):
-            logger.debug("Loading checkpoint '{}'".format(args.resume))
-            checkpoint = torch.load(args.resume) if torch.cuda.is_available() else torch.load(args.resume, map_location=torch.device('cpu'))
+    if os.path.isfile(save_path_pred) and not overwrite:
+        logger.info("Prediction file exists, skipping pose estimation")
+        return None, None
+    elif os.path.isfile(save_path_pred) and overwrite:
+        logger.info("Overwriting existing predictions")
 
-            if "mpii" in args.resume and not args.unlabeled:  # weights for sh trained on mpii dataset
-                logger.debug("Removing input/output layers")
-                ignore_weight_list_template = [
-                    "module.score.{}.bias",
-                    "module.score.{}.weight",
-                    "module.score_.{}.weight",
-                ]
-                ignore_weight_list = list()
-                for i in range(8):
-                    for template in ignore_weight_list_template:
-                        ignore_weight_list.append(template.format(i))
-                for k in ignore_weight_list:
-                    if k in checkpoint["state_dict"]:
-                        checkpoint["state_dict"].pop(k)
+    save_path_heatmap.parent.mkdir(exist_ok=True, parents=True)
+    save_path_pred.parent.mkdir(exist_ok=True, parents=True)
 
-                state = model.state_dict()
-                state.update(checkpoint["state_dict"])
-                logger.debug(model.state_dict())
-                logger.debug(checkpoint["state_dict"])
-                model.load_state_dict(state, strict=False)
-            elif "mpii" in args.resume and args.unlabeled:
-                model.load_state_dict(checkpoint['state_dict'], strict=False)
-            else:
-                pretrained_dict = checkpoint["state_dict"]
-                model.load_state_dict(pretrained_dict, strict=False)
-
-                args.start_epoch = checkpoint["epoch"]
-                args.img_res = checkpoint["image_shape"]
-                args.hm_res = checkpoint["heatmap_shape"]
-                logger.debug("Loading the optimizer")
-                logger.debug(
-                    "Setting image resolution and heatmap resolution: {} {}".format(
-                        args.img_res, args.hm_res
-                    )
-                )
-            logger.debug(
-                "Loaded checkpoint '{}' (epoch {})".format(
-                    args.resume, checkpoint["epoch"]
-                )
-            )
-        else:
-            print("=> no checkpoint found at '{}'".format(args.resume))
-            raise FileNotFoundError
-
-    # prepare loggers
-    if not args.unlabeled:
-        logger2 = Logger(join(args.checkpoint, "log.txt"), title=title)
-        logger2.set_names(
-            [
-                "Epoch",
-                "LR",
-                "Train Loss",
-                "Val Loss",
-                "Train Acc",
-                "Val Acc",
-                "Val Mse",
-                "Val Jump",
-            ]
-        )
-
-    # cudnn.benchmark = True
-    logger.debug("Total params: %.2fM" % (sum(p.numel() for p in model.parameters()) / 1000000.0))
-
-    if args.unlabeled:
-        unlabeled_folder = args.unlabeled
-        unlabeled_folder_replace = unlabeled_folder.replace("/", "-")
-
-        save_path = os.path.join(
-            args.data_folder,
-            "/{}".format(unlabeled_folder),
-            args.output_folder,
-            "./preds_{}.pkl".format(unlabeled_folder_replace),
-        )
-
-        if os.path.isfile(save_path) and not args.overwrite:
-            logger.info('Prediction file exists, skipping pose estimation')
-            return None, None
-        elif os.path.isfile(save_path) and args.overwrite:
-            logger.info('Overwriting existing predictions')
-
-        max_img_id = get_max_img_id(unlabeled_folder)
-        try:
-            max_img_id = min(max_img_id, args.num_images_max-1)
-        except:
-            pass
-        logger.debug('Going to process {} images'.format(max_img_id+1))
-        unlabeled_loader = DataLoader(
-            DrosophilaDataset(
-                data_folder=args.data_folder,
-                train=False,
-                sigma=args.sigma,
-                session_id_train_list=None,
-                folder_train_list=None,
-                img_res=args.img_res,
-                hm_res=args.hm_res,
-                augmentation=False,
-                evaluation=True,
-                unlabeled=unlabeled_folder,
-                num_classes=args.num_classes,
-                max_img_id=max_img_id,
-                output_folder=args.output_folder,
-            ),
-            batch_size=args.test_batch,
-            shuffle=False,
-            num_workers=args.workers,
-            pin_memory=False,
-            drop_last=False,
-        )
-
-        valid_loss, valid_acc, val_pred, _, mse, jump_acc = validate(
-            unlabeled_loader, 0, model, criterion, args, save_path=unlabeled_folder
-        )
-        #logger.debug(f"val_score_maps have shape: {val_score_maps.shape}")
-
-        logger.debug("Saving Results, flipping heatmaps")
-        cid_to_reverse = config["flip_cameras"]  # camera id to reverse predictions and heatmaps
-        path = os.path.join(unlabeled_folder, args.output_folder)
-        logger.debug("Reading camera ordering from {} for image flipping.".format(path))
-
-        cidread2cid, cid2cidread = read_camera_order(path)
-        cid_read_to_reverse = [cid2cidread[cid] for cid in cid_to_reverse]
-
-        logger.debug(
-            "Flipping heatmaps for images with cam_id: {}".format(
-                cid_read_to_reverse
-            )
-        )
-        val_pred[cid_read_to_reverse, :, :, 0] = (
-            1 - val_pred[cid_read_to_reverse, :, :, 0]
-        )
-        '''
-        for cam_id in cid_read_to_reverse:
-            for img_id in range(val_score_maps.shape[1]):
-                for j_id in range(val_score_maps.shape[2]):
-                    val_score_maps[cam_id, img_id, j_id, :, :] = cv2.flip(
-                        val_score_maps[cam_id, img_id, j_id, :, :], 1
-                    )
-        '''
-        save_dict(val_pred, save_path)
-
-        logger.debug("Finished saving results")
-    else:
-        train_loader, val_loader = create_dataloader()
-        lr = args.lr
-        for epoch in range(args.start_epoch, args.epochs):
-            # lr = adjust_learning_rate(optimizer, epoch, lr, args.schedule, args.gamma)
-            logger.debug("\nEpoch: %d | LR: %.8f" % (epoch + 1, lr))
-
-            # train for one epoch
-            train_loss, train_acc, train_predictions, train_mse, train_mse_jump = train(
-                train_loader, epoch, model, optimizer, criterion, args
-            )
-            # # evaluate on validation set
-            valid_loss, valid_acc, val_pred, val_score_maps, mse, jump_acc = validate(
-                val_loader, epoch, model, criterion, args, save_path=args.unlabeled
-            )
-            scheduler.step(valid_loss)
-            # append logger file
-            logger2.append(
-                [
-                    epoch + 1,
-                    lr,
-                    train_loss,
-                    valid_loss,
-                    train_acc,
-                    valid_acc,
-                    mse,
-                    jump_acc,
-                ]
-            )
-
-            # remember best acc and save checkpoint
-            is_best = valid_acc > best_acc
-            best_acc = max(valid_acc, best_acc)
-            save_checkpoint(
-                {
-                    "epoch": epoch + 1,
-                    "arch": args.arch,
-                    "state_dict": model.state_dict(),
-                    "optimizer_state_dict": optimizer.state_dict(),
-                    "best_acc": best_acc,
-                    "optimizer": optimizer.state_dict(),
-                    "multiview": args.multiview,
-                    "temporal": args.temporal,
-                    "image_shape": args.img_res,
-                    "heatmap_shape": args.hm_res,
-                },
-                val_pred,
-                is_best,
-                checkpoint=args.checkpoint,
-                snapshot=args.snapshot,
-            )
-
-            fig = plt.figure()
-            logger2.plot(["Train Acc", "Val Acc"])
-            savefig(os.path.join(args.checkpoint, "log.eps"))
-            plt.close(fig)
-    
-    return None, val_pred
-    logger2.close()
-
-
-def train(train_loader, epoch, model, optimizer, criterion, args):
-    batch_time = AverageMeter()
-    data_time = AverageMeter()
-    losses = AverageMeter()
-    acces = AverageMeter()
-
-    mse = AverageMeter()
-    mse_hip = AverageMeter()
-    mse_coxa = AverageMeter()
-    mse_femur = AverageMeter()
-    mse_tibia = AverageMeter()
-    mse_tarsus = AverageMeter()
-    mse_jump = AverageMeter()
-
-    avg_local_max = AverageMeter()
-
-    # to later save the disk
-    predictions = dict()
-    # switch to train mode
-    model.train()
-
-    end = time.time()
-
-    bar = Bar("Processing", max=len(train_loader)) if logger.debug_enabled() else NoOutputBar()
-    bar.start()
-    for i, (inputs, target, meta) in enumerate(train_loader):
-        # reset seed for truly random transformations on input
-        np.random.seed()
-        # measure data loading time
-        data_time.update(time.time() - end)
-        input_var = (torch.autograd.Variable(on_cuda(inputs)))
-        target_var = torch.autograd.Variable(on_cuda(target, non_blocking=True))
-
-        # compute output
-        output = model(input_var)
-        score_map = output[-1].data.cpu()
-
-        loss_weight = torch.ones((inputs.size(0), args.num_classes, 1, 1))
-        if np.any(meta["joint_exists"] == 0):
-            batch_index = (np.logical_not(meta["joint_exists"])).nonzero()[:, 0]
-            joint_index = (np.logical_not(meta["joint_exists"])).nonzero()[:, 1]
-            loss_weight[batch_index, joint_index, :, :] = 0.0
-
-        # logger.debug(loss_weight)
-        loss_weight.requires_grad = True
-        loss_weight = on_cuda(loss_weight)
-        loss = weighted_mse_loss(output[0], target_var, weights=loss_weight)
-        for j in range(1, len(output)):
-            loss += weighted_mse_loss(output[j], target_var, weights=loss_weight)
-
-        # Compute gradient and do SGD step
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        acc = accuracy(score_map, target, args.acc_joints)
-
-        # measure accuracy and record loss
-        mse_err = mse_acc(target_var.data.cpu(), score_map)
-
-        logger.debug(f'{mse_err.size()}, {mse_err[:, 0] > 50}, {meta["image_name"][0]}')
-        mse.update(torch.mean(mse_err[args.acc_joints, :]), inputs.size(0))  # per joint
-        mse_hip.update(torch.mean(mse_err[np.arange(0, 15, 5), :]), inputs.size(0))
-        mse_coxa.update(torch.mean(mse_err[np.arange(1, 15, 5), :]), inputs.size(0))
-        mse_femur.update(torch.mean(mse_err[np.arange(2, 15, 5), :]), inputs.size(0))
-        mse_tibia.update(torch.mean(mse_err[np.arange(3, 15, 5), :]), inputs.size(0))
-        mse_tarsus.update(torch.mean(mse_err[np.arange(4, 15, 5), :]), inputs.size(0))
-        losses.update(loss.item(), inputs.size(0))
-        acces.update(acc[0], inputs.size(0))
-        jump_thr = args.hm_res[0] * 5.0 / 64.0
-        mse_jump.update(
-            np.mean(np.ravel(mse_err[args.acc_joints, :] > jump_thr)) * 100.0,
-            inputs.size(0),
-        )
-
-        if i < args.num_output_image:
-            drosophila_img = drosophila_image_overlay(
-                inputs, target, args.hm_res, 3, args.train_joints
-            )
-
-            folder_name = (
-                meta["folder_name"][0].replace("/", "-")
-                + meta["folder_name"][1].replace("/", "-")
-                + meta["folder_name"][2].replace("/", "-")
-            )
-            image_name = meta["image_name"][0]
-            template = "./train_gt_{}_{}_{:06d}_{}_joint_{}.jpg"
-
-            save_image(
-                img_path=os.path.join(
-                    args.checkpoint_image_dir,
-                    template.format(
-                        epoch, folder_name, meta["pid"][0], meta["cid"][0], []
-                    ),
-                ),
-                img=drosophila_img,
-            )
-
-        if i < args.num_output_image and False:
-            drosophila_img = drosophila_image_overlay(
-                inputs,
-                score_map,
-                args.hm_res,
-                3,
-                args.train_joints,
-                img_id=int(meta["image_name"][0].split("_")[-1]),
-            )
-            template = "{}_train_pred_epoch_{}_{}_{:06d}_{}.jpg"
-
-            folder_name = meta["folder_name"][0]
-            folder_name = (
-                folder_name.replace(" ", "_").replace("\\", "-").replace("/", "-")
-            )
-            save_image_name = template.format(
-                "left" if meta["cid"][0] == 0 else "right",
-                epoch,
-                folder_name,
-                meta["pid"][0],
-                meta["cid"][0],
-            )
-
-            save_image_name = save_image_name.replace(" ", "_ ").replace("\\", "-")
-            save_image(
-                img_path=os.path.join(args.checkpoint_image_dir, save_image_name),
-                img=drosophila_img,
-            )
-
-        # measure elapsed time
-        batch_time.update(time.time() - end)
-        end = time.time()
-
-        # plot progress
-        bar.suffix = "({batch}/{size}) D:{data:.6f}s|B:{bt:.3f}s|L:{loss:.8f}|Acc:{acc: .4f}|Mse:{mse: .3f} F-T:{mse_femur: .3f} T-Tar:{mse_tibia: .3f} Tar-tip:{mse_tarsus: .3f} Jump:{mse_jump: .4f}".format(
-            batch=i + 1,
-            size=len(train_loader),
-            data=data_time.val,
-            bt=batch_time.val,
-            total=bar.elapsed_td,
-            eta=bar.eta_td,
-            loss=losses.avg,
-            acc=acces.avg,
-            mse=mse.avg,
-            mse_hip=mse_hip.avg,
-            mse_femur=mse_femur.avg,
-            mse_tibia=mse_tibia.avg,
-            mse_tarsus=mse_tarsus.avg,
-            mse_coxa=mse_coxa.avg,
-            mse_jump=mse_jump.avg,
-        )
-        bar.next()
-
-    bar.finish()
-    return losses.avg, acces.avg, predictions, mse.avg, mse_jump.avg
-
-
-def validate(val_loader, epoch, model, criterion, args, save_path=False):
-    # keeping statistics
-    batch_time = AverageMeter()
-    data_time = AverageMeter()
-    losses = AverageMeter()
-    acces = AverageMeter()
-
-    mse = AverageMeter()
-    mse_hip = AverageMeter()
-    mse_coxa = AverageMeter()
-    mse_femur = AverageMeter()
-    mse_tibia = AverageMeter()
-    mse_tarsus = AverageMeter()
-    mse_jump = AverageMeter()
-    avg_local_max = AverageMeter()
-
-    # predictions and score maps
-    num_cameras = 7
-    predictions = np.zeros(
+    logger.debug(f"creaint heatmap path: {save_path_heatmap}")
+    heatmap = np.memmap(
+        filename=save_path_heatmap,
+        dtype="float32",
+        mode="w+",
         shape=(
-            num_cameras + 1,
-            val_loader.dataset.greatest_image_id() + 1,
+            config["num_cameras"] + 1,
+            loader.dataset.greatest_image_id() + 1,
             config["num_predict"],
-            2,
+            config["heatmap_shape"][0],
+            config["heatmap_shape"][1],
         ),
-        dtype=np.float32,
     )  # num_cameras+1 for the mirrored camera 3
-    logger.debug("Predictions shape {}".format(predictions.shape))
+    logger.debug(f"creating heatmap shape: {heatmap.shape}")
 
-    if save_path is not None:
-        unlabeled_folder_replace = save_path.replace("/", "-")
-        # score_map_filename = os.path.join(args.data_folder, "./heatmap_{}.pkl".format(unlabeled_folder_replace))
-        score_map_filename = os.path.join(
-            args.data_folder,
-            "/{}".format(save_path),
-            args.output_folder,
-            "heatmap_{}.pkl".format(unlabeled_folder_replace),
-        )
+    pred, heatmap, _, _, _ = step(
+        loader=loader,
+        model=model,
+        optimizer=None,
+        mode=Mode.test,
+        heatmap=heatmap,
+        epoch=0,
+        num_classes=num_classes,
+        acc_joints=acc_joints,
+    )
 
-        score_map_path = Path(score_map_filename)
-        score_map_path.parent.mkdir(exist_ok=True, parents=True)
-        print(score_map_path)
-        '''
-        score_map_arr = np.zeros(
-            dtype="float32",
-            shape=(
-                num_cameras + 1,
-                val_loader.dataset.greatest_image_id() + 1,
-                config["num_predict"],
-                args.hm_res[0],
-                args.hm_res[1],
-            ),
-        )  # num_cameras+1 for the mirrored camera 3
-        '''
+    _, cid2cidread = read_camera_order(get_output_path(unlabeled, output_folder))
+    cid_to_reverse = config["flip_cameras"]
+    cid_read_to_reverse = [cid2cidread[cid] for cid in cid_to_reverse]
 
-    # switch to evaluate mode
-    model.eval()
+    pred = flip_pred(pred, cid_read_to_reverse)
+    logger.debug("Flipping heatmaps")
+    heatmap = flip_heatmap(heatmap, cid_read_to_reverse)
+    logger.debug("Flipping heatmaps")
 
-    end = time.time()
-    bar = Bar("Processing", max=len(val_loader)) if logger.info_enabled() else NoOutputBar()
-    bar.start()
-    for i, (inputs, target, meta) in enumerate(val_loader):
-        # measure data loading time
-        data_time.update(time.time() - end)
+    save_dict(pred, save_path_pred)
+    if type(heatmap) != np.memmap:
+        save_dict(heatmap, save_path_heatmap)
 
-        target = on_cuda(target, non_blocking=True)
-        input_var = torch.autograd.Variable(on_cuda(inputs))
-        target_var = torch.autograd.Variable(target)
+    print(pred.shape)
+    return pred, heatmap
 
-        # compute output
-        with torch.no_grad():
-            output = model(input_var)
-        score_map = output[-1].data.cpu()
 
-        # loss = criterion(output[-1], target_var)
-        acc = accuracy(score_map.cpu(), target.cpu(), args.acc_joints)
-
-        # generate predictions
-        if save_path is not None:
-            for n, cam_id, cam_read_id, img_id in zip(
-                range(score_map.size(0)), meta["cid"], meta["cam_read_id"], meta["pid"]
-            ):
-                smap = to_numpy(score_map[n, :, :, :])
-                #score_map_arr[cam_read_id, img_id, :] = smap
-                pr = Camera.hm_to_pred(
-                    smap, threshold_abs=0.0
+def flip_heatmap(heatmap, cid_read_to_reverse):
+    for cam_id in cid_read_to_reverse:
+        for img_id in range(heatmap.shape[1]):
+            for j_id in range(heatmap.shape[2]):
+                heatmap[cam_id, img_id, j_id, :, :] = cv2.flip(
+                    heatmap[cam_id, img_id, j_id, :, :], 1
                 )
-                predictions[cam_read_id, img_id, :] = pr
 
-        # measure accuracy and record loss
-        mse_err = mse_acc(target_var.data.cpu(), score_map)
-        mse.update(torch.mean(mse_err[args.acc_joints, :]), inputs.size(0))
-        mse_hip.update(
-            torch.mean(mse_err[np.arange(0, mse_err.shape[0], 5), :]), inputs.size(0)
-        )
-        mse_coxa.update(
-            torch.mean(mse_err[np.arange(1, mse_err.shape[0], 5), :]), inputs.size(0)
-        )
-        mse_femur.update(
-            torch.mean(mse_err[np.arange(2, mse_err.shape[0], 5), :]), inputs.size(0)
-        )
-        mse_tibia.update(
-            torch.mean(mse_err[np.arange(3, mse_err.shape[0], 5), :]), inputs.size(0)
-        )
-        mse_tarsus.update(
-            torch.mean(mse_err[np.arange(4, mse_err.shape[0], 5), :]), inputs.size(0)
-        )
-
-        losses.update(0, inputs.size(0))
-        acces.update(acc[0], inputs.size(0))
-        jump_thr = args.hm_res[0] * 5.0 / 64.0
-        mse_jump.update(
-            np.mean(np.ravel(mse_err[args.acc_joints, :] > jump_thr)) * 100.0,
-            inputs.size(0),
-        )
-
-        if args.unlabeled and i < args.num_output_image:
-            drosophila_img = drosophila_image_overlay(
-                inputs,
-                score_map,
-                args.hm_res,
-                3,
-                np.arange(config["num_predict"]),
-                img_id=int(meta["image_name"][0].split("_")[-1]),
-            )
-
-            template = "{}_overlay_val_epoch_{}_{}_{:06d}_{}.jpg"
-
-            folder_name = meta["folder_name"][0]
-            folder_name = (
-                folder_name.replace(" ", "_").replace("\\", "-").replace("/", "-")
-            )
-            save_image_name = template.format(
-                "left" if meta["cid"][0] == 0 else "right",
-                epoch,
-                folder_name,
-                meta["pid"][0],
-                meta["cid"][0],
-            )
-
-            save_image_name = save_image_name.replace(" ", "_ ").replace("\\", "-")
-            save_image(
-                img_path=os.path.join(args.checkpoint_image_dir, save_image_name),
-                img=drosophila_img,
-            )
-
-        elif i < args.num_output_image:
-            drosophila_img = drosophila_image_overlay(
-                inputs, score_map, args.hm_res, 3, np.arange(config["num_predict"])
-            )
-            folder_name = meta["folder_name"][0]
-
-            template = "./overlay_val_epoch_{}_{}_{:06d}_{}.jpg"
-            save_image_name = template.format(
-                epoch, folder_name.replace("/", "-"), meta["pid"][0], meta["cid"][0]
-            )
-
-            save_image_name = save_image_name.replace(" ", "_ ").replace("\\", "-")
-            save_image(
-                img_path=os.path.join(args.checkpoint_image_dir, save_image_name),
-                img=drosophila_img,
-            )
-
-        # measure elapsed time
-        batch_time.update(time.time() - end)
-        end = time.time()
-
-        # plot progress
-        bar.suffix = "({batch}/{size}) D:{data:.6f}s|B:{bt:.3f}s|L:{loss:.8f}|Acc:{acc: .4f}|Mse:{mse: .3f}|F-T:{mse_femur: .3f}|T-Tar:{mse_tibia: .3f}|Tar-tip:{mse_tarsus: .3f}".format(
-            batch=i + 1,
-            size=len(val_loader),
-            data=data_time.val,
-            bt=batch_time.val,
-            total=bar.elapsed_td,
-            eta=bar.eta_td,
-            loss=losses.avg,
-            acc=acces.avg,
-            mse=mse.avg,
-            mse_hip=mse_hip.avg,
-            mse_femur=mse_femur.avg,
-            mse_tibia=mse_tibia.avg,
-            mse_tarsus=mse_tarsus.avg,
-            mse_coxa=mse_coxa.avg,
-            mse_jump=mse_jump.avg,
-            local_max_count=avg_local_max.avg,
-        )
-        bar.next()
-
-    bar.finish()
-    '''
-    if save_path is not None:
-        score_map_arr.flush()
-    else:
-        score_map_arr = None
-    '''
-    return losses.avg, acces.avg, predictions, None, mse.avg, mse_jump.avg
+    return heatmap
 
 
-def worker_init_fn(worker_id):
-    np.random.seed(np.random.get_state()[1][0] + worker_id)
+def flip_pred(pred, cid_read_to_reverse):
+    pred[cid_read_to_reverse, :, :, 0] = 1 - pred[cid_read_to_reverse, :, :, 0]
+
+    return pred
 
 
 def create_dataloader():
-    session_id_list = [
-        "q47rx0Ybo0QHraRuDWken9WtPTA2"
-    ]
+    session_id_list = ["q47rx0Ybo0QHraRuDWken9WtPTA2"]
     train_session_id_list, test_session_id_list = session_id_list, session_id_list
     if args.train_folder_list is None:
-        args.train_folder_list = [
-            "2018-05-29--18-58-22--semih",
-        ]
+        args.train_folder_list = ["2018-05-29--18-58-22--semih"]
     test_folder_list = ["2018-06-07--17-00-16--semih-walking--3"]
     # make sure training and test sets are mutually exclusive
     assert (
@@ -718,36 +290,230 @@ def create_dataloader():
     return train_loader, val_loader
 
 
-# Code belows trains the network starting from the MPII dataset
+def main(args):
+    logger.debug(
+        "Creating model '{}', stacks={}, blocks={}".format(
+            args.arch, args.stacks, args.blocks
+        )
+    )
+    model = hg(
+        num_stacks=args.stacks,
+        num_blocks=args.blocks,
+        num_classes=args.num_classes,
+        num_feats=args.features,
+        inplanes=args.inplanes,
+        init_stride=args.stride,
+    )
+    model = on_cuda(torch.nn.DataParallel(model))
+    optimizer = torch.optim.RMSprop(
+        model.parameters(),
+        lr=args.lr,
+        momentum=args.momentum,
+        weight_decay=args.weight_decay,
+    )
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, verbose=True, patience=5
+    )
+
+    if args.resume:
+        load_weights(model, args.resume)
+
+    logger.debug(
+        "Total params: %.2fM" % (sum(p.numel() for p in model.parameters()) / 1000000.0)
+    )
+
+    if args.unlabeled:
+        loader = DataLoader(
+            DrosophilaDataset(
+                data_folder=args.data_folder,
+                train=False,
+                sigma=args.sigma,
+                session_id_train_list=None,
+                folder_train_list=None,
+                img_res=args.img_res,
+                hm_res=args.hm_res,
+                augmentation=False,
+                evaluation=True,
+                unlabeled=args.unlabeled,
+                num_classes=args.num_classes,
+                max_img_id=min(get_max_img_id(args.unlabeled), args.max_img_id),
+                output_folder=args.output_folder,
+            ),
+            batch_size=args.test_batch,
+            shuffle=False,
+            num_workers=args.workers,
+            pin_memory=False,
+            drop_last=False,
+        )
+        pred, heatmap = process_folder(
+            model,
+            loader,
+            args.unlabeled,
+            args.output_folder,
+            args.overwrite,
+            num_classes=args.num_classes,
+            acc_joints=args.acc_joints,
+        )
+        return pred, heatmap
+    else:
+        train_loader, val_loader = create_dataloader()
+        lr = args.lr
+        best_acc = 0
+        for epoch in range(args.start_epoch, args.epochs):
+            logger.debug("\nEpoch: %d | LR: %.8f" % (epoch + 1, lr))
+
+            _, _, _, _, _ = step(
+                loader=train_loader,
+                model=model,
+                optimizer=optimizer,
+                mode=Mode.train,
+                heatmap=False,
+                epoch=epoch,
+                num_classes=args.num_classes,
+                acc_joints=args.acc_joints,
+            )
+            val_pred, _, val_loss, val_acc, val_mse = step(
+                loader=val_loader,
+                model=model,
+                optimizer=optimizer,
+                mode=Mode.test,
+                heatmap=False,
+                epoch=epoch,
+                num_classes=args.num_classes,
+                acc_joints=args.acc_joints,
+            )
+            scheduler.step(val_loss)
+            is_best = val_acc > best_acc
+            best_acc = max(val_acc, best_acc)
+            save_checkpoint(
+                {
+                    "epoch": epoch + 1,
+                    "arch": args.arch,
+                    "state_dict": model.state_dict(),
+                    "optimizer_state_dict": optimizer.state_dict(),
+                    "best_acc": best_acc,
+                    "optimizer": optimizer.state_dict(),
+                    "image_shape": args.img_res,
+                    "heatmap_shape": args.hm_res,
+                },
+                val_pred,
+                is_best,
+                checkpoint=args.checkpoint,
+                snapshot=args.snapshot,
+            )
+
+
+def step(loader, model, optimizer, mode, heatmap, epoch, num_classes, acc_joints):
+    keys_am = [
+        "batch_time",
+        "data_time",
+        "losses",
+        "acces",
+        "mse",
+        "body_coxa",
+        "coxa_femur",
+        "femur_tibia",
+        "tibia_tarsus",
+        "tarsus_tip",
+    ]
+    am = {k: AverageMeter() for k in keys_am}
+
+    if mode == mode.train:
+        model.train()
+    elif mode == mode.test:
+        model.eval()
+
+    start = time.time()
+    bar = (
+        Bar("Processing", max=len(loader)) if logger.debug_enabled() else NoOutputBar()
+    )
+    bar.start()
+
+    predictions = np.zeros(
+        shape=(
+            config["num_cameras"] + 1,
+            loader.dataset.greatest_image_id() + 1,
+            config["num_predict"],
+            2,
+        ),
+        dtype=np.float32,
+    )  # num_cameras+1 for the mirrored camera 3
+    for i, (inputs, target, meta) in enumerate(loader):
+        np.random.seed()
+        am["data_time"].update(time.time() - start)
+        input_var = torch.autograd.Variable(on_cuda(inputs))
+        target_var = torch.autograd.Variable(on_cuda(target, non_blocking=True))
+
+        output = model(input_var)
+        heatmap_batch = output[-1].data.cpu()
+
+        for n, cam_read_id, img_id in zip(
+            range(heatmap_batch.size(0)), meta["cam_read_id"], meta["pid"]
+        ):
+            smap = to_numpy(heatmap_batch[n, :, :, :])
+            pr = Camera.hm_to_pred(smap, threshold_abs=0.0)
+            predictions[cam_read_id, img_id, :] = pr
+            if heatmap is not None:
+                heatmap[cam_read_id, img_id, :] = smap
+
+        # loss = df3dLoss(output, target_var, meta["joint_exists"], num_classes)
+        if mode == mode.train:
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        acc = accuracy(heatmap_batch, target, acc_joints)
+        # am["acces"].add(acc)
+        mse_err = mse_acc(target_var.data.cpu(), heatmap_batch)
+        # am["mse"].add(mse_err)
+        am["batch_time"].update(time.time() - start)
+        start = time.time()
+
+        bar.suffix = "{epoch} | ({batch}/{size}) D:{data:.6f}s|B:{bt:.3f}s|L:{loss:.8f}|Acc:{acc: .4f}|Mse:{mse: .3f} F-T:{mse_femur: .3f} T-Tar:{mse_tibia: .3f} Tar-tip:{mse_tarsus: .3f}".format(
+            epoch=epoch,
+            batch=i + 1,
+            size=len(loader),
+            data=am["data_time"].val,
+            bt=am["batch_time"].val,
+            total=bar.elapsed_td,
+            eta=bar.eta_td,
+            loss=am["losses"].avg,
+            acc=am["acces"].avg,
+            mse=am["mse"].avg,
+            mse_hip=am["body_coxa"].avg,
+            mse_femur=am["coxa_femur"].avg,
+            mse_tibia=am["femur_tibia"].avg,
+            mse_tarsus=am["tarsus_tip"].avg,
+        )
+        bar.next()
+
+    bar.finish()
+    return (predictions, heatmap, am["losses"].avg, am["acces"].avg, am["mse"].avg)
+
+
 if __name__ == "__main__":
+    # prepare
     parser = create_parser()
     args = parser.parse_args()
 
     args.train_joints = np.arange(args.num_classes)
-    acc_joints_tmp = []
-    for i in range(3):
-        p = [(i * 5) + k for k in args.acc_joints]
-        acc_joints_tmp.extend(p)
-    args.acc_joints = acc_joints_tmp
     logger.debug(f"Training joints: {args.train_joints}")
     logger.debug(f"Acc joints: {args.acc_joints}")
 
+    args.checkpoint = (
+        args.checkpoint.replace(" ", "_").replace("(", "_").replace(")", "_")
+    )
     args.checkpoint = os.path.join(
         args.checkpoint,
         get_time()
-        + "_{}_{}_{}_{}_{}_{}_{}".format(
+        + "_{}_{}_{}_{}_{}_{}".format(
             "predict" if args.unlabeled else "training",
             args.arch,
             args.stacks,
             args.img_res,
             args.blocks,
-            "mv" if args.multiview else "",
-            "temp" if args.multiview else "",
             args.name,
         ),
-    )
-    args.checkpoint = (
-        args.checkpoint.replace(" ", "_").replace("(", "_").replace(")", "_")
     )
     args.checkpoint = args.checkpoint.replace("__", "_").replace("--", "-")
     logger.debug("Checkpoint dir: {}".format(args.checkpoint))
@@ -757,12 +523,5 @@ if __name__ == "__main__":
     if args.unlabeled is None:
         os.makedirs(args.checkpoint, exist_ok=True)
         os.makedirs(args.checkpoint_image_dir, exist_ok=True)
-
-        if args.carry:
-            p1 = os.path.join(args.annotation_path, args.unlabeled + "_network")
-            os.makedirs(p1, exist_ok=True)
-
-            p2 = os.path.join(args.data_folder, args.unlabeled + "_network")
-            os.makedirs(p2, exist_ok=True)
 
     main(args)
