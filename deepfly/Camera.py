@@ -189,7 +189,7 @@ class Camera:
         from deepfly.os_util import constr_img_name
 
         img_name, img_name_pad = (
-            constr_img_name(self.cam_id_read, img_id),
+            constr_img_name(self.cam_id_read, img_id, pad=False),
             constr_img_name(self.cam_id_read, img_id, pad=True),
         )
 
