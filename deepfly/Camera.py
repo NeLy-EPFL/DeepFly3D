@@ -189,12 +189,13 @@ class Camera:
         from deepfly.os_util import constr_img_name
 
         img_name, img_name_pad = (
-            constr_img_name(self.cam_id_read, img_id),
+            constr_img_name(self.cam_id_read, img_id, pad=False),
             constr_img_name(self.cam_id_read, img_id, pad=True),
         )
 
         image_path = os.path.join(self.image_folder, "{}.jpg".format(img_name))
         image_pad_path = os.path.join(self.image_folder, "{}.jpg".format(img_name_pad))
+
         if os.path.isfile(image_path):
             img = cv2.imread(image_path)
         elif os.path.isfile(image_pad_path):

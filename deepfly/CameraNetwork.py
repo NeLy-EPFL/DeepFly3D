@@ -14,6 +14,26 @@ from deepfly.Camera import Camera
 from deepfly.Config import config
 from deepfly.cv_util import triangulate_linear
 from deepfly.os_util import read_calib, read_camera_order
+from deepfly.os_util import parse_img_name
+import json
+
+
+def load_pred_from_json(path_json, folder_name, num_images):
+    json_data = json.load(open(path_json, "r"))
+    pred = np.zeros((config["num_cameras"] + 1, num_images, skeleton.num_joints//2, 2))
+
+    for session_id in json_data.keys():
+        if folder_name in json_data[session_id]["data"]:
+            for image_name in json_data[session_id]["data"][folder_name].keys():
+
+                cid, img_id = parse_img_name(image_name)
+                anot = json_data[session_id]["data"][folder_name][image_name][
+                    "position"
+                ]
+
+                pred[cid, img_id, :15] = anot[:15]
+
+    return pred
 
 
 def pred2pred_cam(pred, cam_id, cam_id_read, image_shape, num_images):
@@ -109,7 +129,12 @@ class CameraNetwork:
                 logger.debug("no pred file under {}".format(self.folder_output))
             if pred is None and pred_path is not None:
                 logger.debug("loading pred path {}".format(pred_path))
-                pred = np.load(file=pred_path, mmap_mode="r", allow_pickle=True)
+                if pred_path.endswith(".json"):
+                    pred = load_pred_from_json(
+                        pred_path, os.path.basename(image_folder), self.num_images
+                    )
+                else:
+                    pred = np.load(file=pred_path, mmap_mode="r", allow_pickle=True)
 
             num_images_in_pred = pred.shape[1] if pred is not None else num_images
 
