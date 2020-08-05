@@ -1,17 +1,8 @@
 import argparse
+import os
+from deepfly.Config import config
 
-import deepfly.pose2d.models as models
-from deepfly.GUI.Config import config
-
-model_names = sorted(
-    name
-    for name in models.__dict__
-    if name.islower() and not name.startswith("__") and callable(models.__dict__[name])
-)
-
-
-def create_parser():
-    parser = argparse.ArgumentParser(description="PyTorch ImageNet Training")
+def add_arguments(parser):
     parser.add_argument("--arch", "-a", metavar="ARCH", default="hg")
     parser.add_argument(
         "-j",
@@ -35,14 +26,6 @@ def create_parser():
         metavar="N",
         help="manual epoch number (useful on restarts)",
     )
-    parser.add_argument(
-        "--snapshot",
-        default=0,
-        type=int,
-        metavar="N",
-        help="How often to take a snapshot of the model (0 = never)",
-    )
-    parser.add_argument("--name", default="", type=str, metavar="N")
     # hyper-parameters
     parser.add_argument(
         "--train-batch",
@@ -54,7 +37,7 @@ def create_parser():
     )
     parser.add_argument(
         "--test-batch",
-        default=64,
+        default=96,
         type=int,
         metavar="N",
         dest="test_batch",
@@ -92,20 +75,12 @@ def create_parser():
         default=0.1,
         help="LR is multiplied by gamma on schedule.",
     )
-    parser.add_argument(
-        "--label-type",
-        metavar="LABELTYPE",
-        default="Gaussian",
-        choices=["Gaussian", "Cauchy"],
-        help="Labelmap dist type: (default=Gaussian)",
-    )
     # paths
-    import os
     file_path = os.path.abspath(os.path.dirname(__file__))
     parser.add_argument(
         "-c",
         "--checkpoint",
-        default=os.path.join(file_path, "../../checkpoint/"),
+        default=False,
         type=str,
         metavar="PATH",
         help="path to save checkpoint (default: checkpoint)",
@@ -113,7 +88,7 @@ def create_parser():
     parser.add_argument(
         "--json-file",
         default=os.path.join(file_path, "../../data/drosophilaimaging-export.json"),
-        dest='json_file',
+        dest="json_file",
         type=str,
         metavar="PATH",
         help="path to save checkpoint (default: checkpoint)",
@@ -121,57 +96,27 @@ def create_parser():
     parser.add_argument(
         "--data-folder",
         dest="data_folder",
-        default="./data/drosophila/",
+        default="data/drosophila/",
         type=str,
         metavar="PATH",
         help="path to read data from",
     )
     parser.add_argument(
-        "--resume",
-        default="",
+        "--output_folder",
+        dest="output_folder",
+        default="df3d",
         type=str,
         metavar="PATH",
-        help="path to latest checkpoint (default: none)",
+        help="path to place final results",
+    )
+    parser.add_argument(
+        "--resume",
+        default=config["resume"],
+        type=str,
+        metavar="PATH",
+        help="path to latest checkpoint (default: {})".format(config["resume"]),
     )
     # debug
-    parser.add_argument(
-        "--print-freq",
-        "-p",
-        default=10,
-        type=int,
-        metavar="N",
-        help="print frequency (default: 10)",
-    )
-    parser.add_argument(
-        "--debug-freq",
-        "-v",
-        default=100,
-        type=int,
-        metavar="N",
-        help="debug frequency (default:100)",
-    )
-    parser.add_argument(
-        "-e",
-        "--evaluate",
-        dest="evaluate",
-        action="store_true",
-        help="evaluate model on validation set",
-    )
-    parser.add_argument(
-        "-d",
-        "--debug",
-        dest="debug",
-        action="store_true",
-        help="show intermediate results",
-    )
-    parser.add_argument(
-        "-do",
-        "--debug-outliers",
-        dest="debug_outliers",
-        action="store_true",
-        default=False,
-        help="print outliers",
-    )
     parser.add_argument(
         "--annotation-path",
         dest="annotation_path",
@@ -192,20 +137,6 @@ def create_parser():
         help="Number of keypoints",
     )
     parser.add_argument(
-        "--sigma",
-        type=float,
-        default=1,
-        help="Sigma to generate Gaussian groundtruth map.",
-    )
-    parser.add_argument(
-        "-f",
-        "--flip",
-        dest="flip",
-        action="store_true",
-        default=False,
-        help="flip the input during validation",
-    )
-    parser.add_argument(
         "--augmentation",
         "-aug",
         action="store_true",
@@ -213,17 +144,8 @@ def create_parser():
         help="whether to perform random contrast and brightness change on the training data",
     )
     parser.add_argument(
-        "-mv",
-        "--multi-view",
-        dest="multiview",
-        action="store_true",
-        default=False,
-        help="Whether to infer three images at the same time",
-    )
-    parser.add_argument("--temporal", action="store_true", default=False)
-    parser.add_argument(
         "--train-joints",
-        default=[0, 1, 2, 3, 4],
+        default=range(config["skeleton"].num_joints // 2),
         nargs="+",
         dest="train_joints",
         type=int,
@@ -231,7 +153,7 @@ def create_parser():
     )
     parser.add_argument(
         "--acc-joints",
-        default=[2, 3, 4],
+        default=range(config["skeleton"].num_joints // 2),
         nargs="+",
         type=int,
         dest="acc_joints",
@@ -240,11 +162,11 @@ def create_parser():
     parser.add_argument("--unlabeled", type=str, metavar="PATH", default=None)
     parser.add_argument(
         "--unlabeled-recursive",
+        "--recursive",
         dest="unlabeled_recursive",
         action="store_true",
         default=False,
     )
-    parser.add_argument("--carry", action="store_true", default=False)
     parser.add_argument(
         "--train-folder-list",
         default=None,
@@ -256,7 +178,7 @@ def create_parser():
     parser.add_argument(
         "-s",
         "--stacks",
-        default=8,
+        default=config["num_stacks"],
         type=int,
         metavar="N",
         help="Number of hourglasses to stack",
@@ -290,5 +212,10 @@ def create_parser():
     )
     parser.add_argument("--inplanes", default=64, type=int, metavar="N")
     parser.add_argument("--stride", default=2, type=int, metavar="N")
-
+    parser.add_argument("--sigma", default=1, type=int)
     return parser
+
+
+def create_parser():
+    parser = argparse.ArgumentParser(description="DF3D Training")
+    return add_arguments(parser)

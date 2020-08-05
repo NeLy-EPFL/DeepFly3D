@@ -5,9 +5,9 @@ with open("README.md", "r") as fh:
 
 setup(
     name="deepfly",
-    version='0.1',
+    version='0.2',
     packages=["deepfly"],
-    entry_points={"console_scripts": ["deepfly3d = deepfly.GUI.main:main"]},
+    entry_points={"console_scripts": ["df3d = deepfly.gui:main", "df3d-cli = deepfly.cli:main"]},
     author="Semih Gunel",
     author_email="semih.gunel@epfl.ch",
     description="GUI and 3D pose estimation pipeline for tethered Drosophila.",
@@ -17,12 +17,14 @@ setup(
     install_requires=[
         "PyQt5",
         "sklearn",
-        "numpy<=1.14.1",
         "scipy<=1.2.1",
         "scikit-video",
         "scikit-image",
         "matplotlib",
         "torchvision",
         "opencv-python>=3.4.0.12",
+        "tqdm",
+        "colorama",
+        "progress"
     ],
 )

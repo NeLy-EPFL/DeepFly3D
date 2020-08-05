@@ -8,7 +8,7 @@ import scipy.misc
 import torch.nn as nn
 from torchvision.transforms import ToPILImage, ToTensor, ColorJitter, RandomAffine
 
-from deepfly.GUI.Config import config
+from deepfly.Config import config
 from deepfly.pose2d.utils.evaluation import get_preds
 from .misc import *
 
