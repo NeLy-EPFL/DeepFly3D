@@ -23,6 +23,7 @@ Code for data preparation and augmentation are taken from the [Stacked hourglass
 - Using the CLI, the output folder can be changed using the `--output-folder` flag
 - CLI and GUI now use the same pose estimation code, so changes will automatically propagate to both
 - Minor tweaks in the GUI layout, functionality kept unchanged
+=======
 
 ### Changes in 0.3
 - Results are saved in df3d folder instead of the image folder.

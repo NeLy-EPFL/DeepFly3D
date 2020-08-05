@@ -76,7 +76,6 @@ def write_camera_order(folder, cidread2cid):
         "Writing the camera ordering {} into folder {}".format(cidread2cid, folder)
     )
     # print("Saving camera order {}: {}".format(path, cidread2cid))
-
     np.save(path, cidread2cid)
 
 
