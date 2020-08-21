@@ -184,6 +184,7 @@ def run_from_file(args):
 
     folders = list(dict.fromkeys(folders))  # removes duplicate entries
     folders = [f for f in folders if f.strip()]  # remove blank lines
+    folders_str = "\n-".join(folders)
     folders = [Path(f) for f in folders]  # convert to path objects
 
     bad = [f for f in folders if not f.is_dir()]
@@ -193,7 +194,6 @@ def run_from_file(args):
         return 1
 
     s = "s" if len(folders) > 1 else ""
-    folders_str = "\n-".join(folders)
     logger.info(f"Folder{s} found:\n-{folders_str}")
     args.from_file = False
     run_in_folders(args, folders)
