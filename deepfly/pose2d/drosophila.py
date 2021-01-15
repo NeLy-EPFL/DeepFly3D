@@ -176,6 +176,7 @@ def process_folder(
     save_path_pred.parent.mkdir(exist_ok=True, parents=True)
 
     logger.debug(f"creaint heatmap path: {save_path_heatmap}")
+    '''
     heatmap = np.memmap(
         filename=save_path_heatmap,
         dtype="float32",
@@ -189,7 +190,8 @@ def process_folder(
         ),
     )  # num_cameras+1 for the mirrored camera 3
     logger.debug(f"creating heatmap shape: {heatmap.shape}")
-
+    '''
+    heatmap = False
     pred, heatmap, _, _, _ = step(
         loader=loader,
         model=model,
@@ -207,12 +209,12 @@ def process_folder(
 
     pred = flip_pred(pred, cid_read_to_reverse)
     logger.debug("Flipping heatmaps")
-    heatmap = flip_heatmap(heatmap, cid_read_to_reverse)
+    #heatmap = flip_heatmap(heatmap, cid_read_to_reverse)
     logger.debug("Flipping heatmaps")
 
     save_dict(pred, save_path_pred)
-    if type(heatmap) != np.memmap:
-        save_dict(heatmap, save_path_heatmap)
+    #if type(heatmap) != np.memmap:
+    #    save_dict(heatmap, save_path_heatmap)
 
     print(pred.shape)
     return pred, heatmap
@@ -453,8 +455,8 @@ def step(loader, model, optimizer, mode, heatmap, epoch, num_classes, acc_joints
             smap = to_numpy(heatmap_batch[n, :, :, :])
             pr = Camera.hm_to_pred(smap, threshold_abs=0.0)
             predictions[cam_read_id, img_id, :] = pr
-            if heatmap is not None:
-                heatmap[cam_read_id, img_id, :] = smap
+            #if heatmap is not None:
+            #    heatmap[cam_read_id, img_id, :] = smap
 
         # loss = df3dLoss(output, target_var, meta["joint_exists"], num_classes)
         if mode == mode.train:
