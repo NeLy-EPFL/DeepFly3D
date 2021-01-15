@@ -127,63 +127,6 @@ class Camera:
     #################    PLOT
     #########################
 
-    # TODO refactor
-    def get_heatmap(self, img_id, j_id=None):
-        if "fly" in config["name"]:
-            if j_id is None:
-                if self.cam_id == 3:
-                    j_id = list(range(config["skeleton"].num_joints))
-                else:
-                    j_id = list(range(config["num_predict"]))
-            if not isinstance(j_id, list):
-                j_id = [j_id]
-            if self.hm is None:
-                # print("Trying to read nonexisting heatmap")
-                return np.zeros(shape=(len(j_id), 64, 128), dtype=float)
-            for j in j_id:
-                if not config["skeleton"].camera_see_joint(self.cam_id, j):
-                    # print("Trying to read heatmap from camera {} point {}".format(self.cam_id, j))
-                    pass
-
-            if self.cam_id > 3:
-                j_id = [(j % (config["skeleton"].num_joints // 2)) for j in j_id]
-            if self.cam_id < 3 or self.cam_id > 3:
-                if j_id is not None:
-                    return self.hm[self.cam_id_read, img_id, j_id, :]
-                else:
-                    return self.hm[self.cam_id_read, img_id, :]
-            elif self.cam_id == 3:
-                cam3_j = [j for j in j_id if j < config["num_predict"]]
-                cam7_j = [
-                    j % (config["num_predict"])
-                    for j in j_id
-                    if j >= config["num_predict"]
-                ]
-                cam3_hm = self.hm[self.cam_id_read, img_id, cam3_j, :, :]
-                cam7_hm = self.hm[7, img_id, cam7_j, :, :]
-                if cam3_j and cam7_j:
-                    return np.concatenate([cam3_hm, cam7_hm])
-                elif cam3_j:
-                    return cam3_hm
-                elif cam7_j:
-                    return cam7_hm
-                else:
-                    raise NotImplementedError
-        else:
-            if not isinstance(j_id, list):
-                j_id = [j_id]
-            if self.hm is None:
-                # print("Trying to read nonexisting heatmap")
-                return np.zeros(
-                    shape=(len(j_id), config["hm_shape"][0], config["hm_shape"][1]),
-                    dtype=float,
-                )
-
-            if j_id is not None:
-                return self.hm[self.cam_id_read, img_id, j_id, :]
-            else:
-                return self.hm[self.cam_id_read, img_id, :]
-
     def get_image(self, img_id, flip=False):
 
         from deepfly.os_util import constr_img_name
@@ -272,32 +215,6 @@ class Camera:
             r_list=r_list,
         )
         return img
-
-    def plot_heatmap(
-        self,
-        img_id,
-        hm=None,
-        img=None,
-        concat=False,
-        draw_joints=None,
-        scale=1,
-        flip_heatmap=False,
-        flip_image=False,
-    ):
-        """
-        concat: Whether to return a single image or njoints images concatenated
-        """
-        if img is None:
-            inp = self.get_image(img_id, flip=flip_image)
-        else:
-            inp = img
-        if hm is None and self.hm is not None:
-            hm = self.get_heatmap(img_id, draw_joints)  # self.hm[img_id, :, :, :]
-        hm_tmp = hm.copy()
-        if flip_heatmap:
-            for i in range(hm.shape[0]):
-                hm_tmp[i] = cv2.flip(hm[i], 1)
-        return plot_drosophila_heatmap(inp, hm_tmp, concat=concat, scale=scale)
 
     #########################
     #########################    STATIC

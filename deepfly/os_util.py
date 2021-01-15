@@ -79,19 +79,6 @@ def write_camera_order(folder, cidread2cid):
     np.save(path, cidread2cid)
 
 
-def read_calib(folder):
-    calibration_path = glob.glob(os.path.join(folder, "calib*.pkl"))
-    if len(calibration_path) > 0:
-        calibration_path = calibration_path[0]
-        calib = np.load(file=calibration_path, allow_pickle=True)
-    else:
-        # print("Cannot read calibration file from the folder {}".format(folder))
-        calibration_path = None
-        calib = None
-
-    return calib
-
-
 def parse_img_name(name):
     # print('Parsing name: {}'.format(name))
     return int(name.split("_")[1]), int(name.split("_")[3].replace(".jpg", ""))

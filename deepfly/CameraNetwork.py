@@ -13,14 +13,18 @@ import deepfly.skeleton_fly as skeleton
 from deepfly.Camera import Camera
 from deepfly.Config import config
 from deepfly.cv_util import triangulate_linear
-from deepfly.os_util import read_calib, read_camera_order
+from deepfly.os_util import read_camera_order
 from deepfly.os_util import parse_img_name
 import json
+from itertools import product
+import numpy as np
 
-
+"""
 def load_pred_from_json(path_json, folder_name, num_images):
     json_data = json.load(open(path_json, "r"))
-    pred = np.zeros((config["num_cameras"] + 1, num_images, skeleton.num_joints//2, 2))
+    pred = np.zeros(
+        (config["num_cameras"] + 1, num_images, skeleton.num_joints // 2, 2)
+    )
 
     for session_id in json_data.keys():
         if folder_name in json_data[session_id]["data"]:
@@ -34,30 +38,48 @@ def load_pred_from_json(path_json, folder_name, num_images):
                 pred[cid, img_id, :15] = anot[:15]
 
     return pred
+"""
 
 
-def pred2pred_cam(pred, cam_id, cam_id_read, image_shape, num_images):
-    if pred is None:
-        return None
-    num_images_in_pred = num_images
+def json2points2d(json, image_shape, num_images):
+    """convert json df3d annotate format to df3d format
+    """
+    pred = np.zeros((7, num_images, skeleton.num_joints, 2))
+    for k, v in json.items():
+        v = json[k]
+        p = np.array(json[k]["position"]) * image_shape
+        img_id = int(k.split("_")[-1])
+        cam_id = int(k.split("_")[1])
+        p2 = np.zeros((38, 2))
+        p2[:15] = p[:15]
+        p2[19 : 19 + 15] = p[15:30]
+        pred[cam_id, img_id] = p2
+
+    return pred
+
+
+def pred2points2d(pred, cam_id, cam_id_read, image_shape):
+    """convert sh output to df3d format
+    """
     pred_cam = np.zeros(shape=(pred.shape[1], skeleton.num_joints, 2), dtype=float)
     num_joints = skeleton.num_joints
+    num_images = pred.shape[1]
 
     if cam_id > 3:
-        pred_cam[:num_images_in_pred, num_joints // 2 :, :] = (
-            pred[cam_id_read, :num_images_in_pred] * image_shape
+        pred_cam[:num_images, num_joints // 2 :, :] = (
+            pred[cam_id_read, :num_images] * image_shape
         )
     elif cam_id == 3:
-        pred_cam[:num_images_in_pred, : num_joints // 2, :] = (
-            pred[cam_id_read, :num_images_in_pred] * image_shape
+        pred_cam[:num_images, : num_joints // 2, :] = (
+            pred[cam_id_read, :num_images] * image_shape
         )
         if pred.shape[0] > 7:
-            pred_cam[:num_images_in_pred, num_joints // 2 :, :] = (
-                pred[7, :num_images_in_pred] * image_shape
+            pred_cam[:num_images, num_joints // 2 :, :] = (
+                pred[7, :num_images] * image_shape
             )
     elif cam_id < 3:
-        pred_cam[:num_images_in_pred, : num_joints // 2, :] = (
-            pred[cam_id_read, :num_images_in_pred] * image_shape
+        pred_cam[:num_images, : num_joints // 2, :] = (
+            pred[cam_id_read, :num_images] * image_shape
         )
 
     return pred_cam
@@ -71,8 +93,24 @@ def find_pred_path(path_folder):
     return pred_path_list[0] if len(pred_path_list) else None
 
 
+def find_calib_path(path_folder):
+    pred_path_list = glob.glob(os.path.join(path_folder, "calib*"))
+    pred_path_list.sort(key=os.path.getmtime)
+    pred_path_list = pred_path_list[::-1]
+
+    return pred_path_list[0] if len(pred_path_list) else None
+
+
 def find_hm_path(path_folder):
     heatmap_path_list = glob.glob(os.path.join(path_folder, "heatmap*.pkl"))
+    heatmap_path_list.sort(key=os.path.getmtime)
+    heatmap_path_list = heatmap_path_list[::-1]
+
+    return heatmap_path_list[0] if len(heatmap_path_list) else None
+
+
+def find_pose_result_path(path_folder):
+    heatmap_path_list = glob.glob(os.path.join(path_folder, "pose_result*.pkl"))
     heatmap_path_list.sort(key=os.path.getmtime)
     heatmap_path_list = heatmap_path_list[::-1]
 
@@ -91,101 +129,66 @@ class CameraNetwork:
         self,
         image_folder,
         output_folder,
-        cam_list=None,
-        calibration=None,
         num_images=900,
+        cam_list=None,
         cam_id_list=range(config["num_cameras"]),
         cid2cidread=None,
-        heatmap=None,
         pred=None,
-        hm_path=None,
-        pred_path=None,
     ):
-        self.folder = image_folder
-        self.folder_output = output_folder
-        self.dict_name = image_folder
-        self.points3d_m = None
-        self.bone_param = None
+        self.image_folder = image_folder
+        self.output_folder = output_folder
+        self.points3d = None
         self.num_images = num_images
-        self.num_joints = config["skeleton"].num_joints
-        self.heatmap_shape = config["heatmap_shape"]
-        self.image_shape = config["image_shape"]
         self.num_cameras = len(cam_id_list)
 
-        if cid2cidread is not None:
-            self.cid2cidread = cid2cidread
-        else:
-            _, cid2cidread = read_camera_order(self.folder_output)
-            self.cid2cidread = cid2cidread
+        self.cid2cidread = (
+            cid2cidread
+            if cid2cidread is not None
+            else read_camera_order(self.output_folder)[0]
+        )
 
         if cam_list:
             logger.debug("Camera list is already given, skipping loading.")
             self.cam_list = cam_list
+            return
+
+        self.cam_list = list()
+        pred_path = find_pred_path(self.output_folder)
+        if pred_path is not None:
+            logger.debug("no pred file under {}".format(self.output_folder))
+            pred = np.load(file=pred_path, mmap_mode="r", allow_pickle=True)
+            pred = pred[:, : self.num_images]
         else:
-            self.cam_list = list()
-            if pred_path is None:
-                pred_path = find_pred_path(self.folder_output)
-            if pred_path is None:
-                logger.debug("no pred file under {}".format(self.folder_output))
-            if pred is None and pred_path is not None:
-                logger.debug("loading pred path {}".format(pred_path))
-                if pred_path.endswith(".json"):
-                    pred = load_pred_from_json(
-                        pred_path, os.path.basename(image_folder), self.num_images
+            pred = None
+
+        for cam_id in cam_id_list:
+            cam_id_read = self.cid2cidread[cam_id]
+            self.cam_list.append(
+                Camera(
+                    cid=cam_id,
+                    cid_read=cam_id_read,
+                    image_folder=image_folder,
+                    points2d=pred2points2d(
+                        pred, cam_id, cam_id_read, config["image_shape"]
                     )
-                else:
-                    pred = np.load(file=pred_path, mmap_mode="r", allow_pickle=True)
-
-            num_images_in_pred = pred.shape[1] if pred is not None else num_images
-
-            if hm_path is None:
-                hm_path = find_hm_path(self.folder_output)
-            if hm_path is None:
-                logger.debug("no heatmap file under {}".format(self.folder_output))
-            if heatmap is None and hm_path is not None:
-                hm_shape = (
-                    config["num_cameras"] + 1,
-                    num_images_in_pred,
-                    config["num_predict"],
-                    self.heatmap_shape[0],
-                    self.heatmap_shape[1],
+                    if pred is not None
+                    else pred,
+                    hm=None,
                 )
-                logger.debug("Heatmap shape: {}".format(hm_shape))
-                logger.debug("Reading hm from {}".format(hm_path))
-                heatmap = load_heatmap(hm_path, hm_shape)
+            )
 
-            if self.num_images is not None and self.num_images < num_images_in_pred:
-                if pred is not None:
-                    pred = pred[:, : self.num_images]
-                if heatmap is not None:
-                    heatmap = heatmap[:, : self.num_images]
-
-            for cam_id in cam_id_list:
-                cam_id_read = cid2cidread[cam_id]
-                pred_cam = pred2pred_cam(
-                    pred, cam_id, cam_id_read, self.image_shape, num_images_in_pred
-                )
-                self.cam_list.append(
-                    Camera(
-                        cid=cam_id,
-                        cid_read=cam_id_read,
-                        image_folder=image_folder,
-                        hm=heatmap,
-                        points2d=pred_cam,
-                    )
-                )
-
-        if calibration is None:
-            logger.debug("Reading calibration from {}".format(self.folder_output))
-            calibration = read_calib(self.folder_output)
-        if calibration is not None:
+        calibration_path = find_calib_path(self.output_folder)
+        if calibration_path is not None:
+            calibration = np.load(file=calibration_path, allow_pickle=True)
+            logger.debug("Reading calibration from {}".format(self.output_folder))
             _ = self.load_network(calibration)
 
-    def set_cid2cidread(self, cid2cidread):
-        assert len(self.cam_list) == len(cid2cidread)
-        self.cid2cidread = cid2cidread
-        for cam, cidread in zip(self.cam_list, cid2cidread):
-            cam.cam_id_read = cidread
+    def set_default_camera_parameters(self):
+        c = np.load(find_calib_path(config["calib_fine"]), allow_pickle=True)
+        self.load_network(c)
+
+    def __getitem__(self, item):
+        return self.cam_list[item]
 
     def has_calibration(self):
         return np.all([c.P is not None for c in self.cam_list])
@@ -196,125 +199,121 @@ class CameraNetwork:
     def has_heatmap(self):
         return self.cam_list[0].hm is not None
 
-    def triangulate(self, cam_id_list=None):
+    def triangulate(self):
         assert self.cam_list
 
-        if cam_id_list is None:
-            cam_id_list = list(range(self.num_cameras))
-        points2d_shape = self.cam_list[0].points2d.shape
-        self.points3d_m = np.zeros(
-            shape=(points2d_shape[0], points2d_shape[1], 3), dtype=np.float
-        )
-        data_shape = self.cam_list[0].points2d.shape
-        for img_id in range(data_shape[0]):
-            for j_id in range(data_shape[1]):
-                cam_list_iter = list()
-                points2d_iter = list()
-                for cam in [self.cam_list[cam_idx] for cam_idx in cam_id_list]:
-                    if np.any(cam[img_id, j_id, :] == 0):
-                        continue
-                    if not config["skeleton"].camera_see_joint(cam.cam_id, j_id):
-                        continue
+        s = self.cam_list[0].points2d.shape
+        self.points3d = np.zeros(shape=(s[0], s[1], 3), dtype=np.float)
+
+        for img_id, j_id in product(range(s[0]), range(s[1])):
+            cam_list_iter = list()
+            points2d_iter = list()
+            for cam in self.cam_list:
+                if not (
+                    np.any(cam[img_id, j_id, :] == 0)
+                    or not config["skeleton"].camera_see_joint(cam.cam_id, j_id)
+                ):
                     cam_list_iter.append(cam)
                     points2d_iter.append(cam[img_id, j_id, :])
 
-                if len(cam_list_iter) >= 2:
-                    self.points3d_m[img_id, j_id, :] = triangulate_linear(
-                        cam_list_iter, points2d_iter
-                    )
+            if len(cam_list_iter) >= 2:
+                self.points3d[img_id, j_id, :] = triangulate_linear(
+                    cam_list_iter, points2d_iter
+                )
 
-    def reprojection_error(self, cam_indices=None, ignore_joint_list=None):
-        if ignore_joint_list is None:
-            ignore_joint_list = config["skeleton"].ignore_joint_id
-        if cam_indices is None:
-            cam_indices = range(len(self.cam_list))
+    def reprojection_error(self):
+        ignore_joint_list = config["skeleton"].ignore_joint_id
+        s = self.points3d.shape
+        err = np.zeros((len(self.cam_list), s[0], s[1]))
+        for (img_id, j_id, cam_idx) in product(
+            range(s[0]), range(s[1]), range(len(self.cam_list))
+        ):
+            p3d = self.points3d[img_id, j_id].reshape(1, 3)
+            if (
+                config["skeleton"].camera_see_joint(self[cam_idx].cam_id, j_id)
+                and not j_id in ignore_joint_list
+                and not np.any(self.points3d[img_id, j_id, :] == 0)
+                and not np.any(self[cam_idx][img_id, j_id, :] == 0)
+            ):
+                err[cam_idx, img_id, j_id] = np.sum(
+                    np.abs(self[cam_idx].project(p3d) - self[cam_idx][img_id, j_id])
+                )
 
-        err_list = list()
-        for (img_id, j_id, _), _ in np.ndenumerate(self.points3d_m):
-            p3d = self.points3d_m[img_id, j_id].reshape(1, 3)
-            if j_id in ignore_joint_list:
-                continue
-            for cam in self.cam_list:
-                if not config["skeleton"].camera_see_joint(cam.cam_id, j_id):
-                    continue
-                err_list.append((cam.project(p3d) - cam[img_id, j_id]).ravel())
-
-        err_mean = np.mean(np.abs(err_list))
+        err_mean = np.mean(np.abs(err))
         logger.debug("Ignore_list {}:  {:.4f}".format(ignore_joint_list, err_mean))
-        return err_list
+        return err
 
-    def prepare_bundle_adjust_param(
-        self, camera_id_list=None, ignore_joint_list=None, max_num_images=1000
-    ):
-        logger.debug("Calibration ignore joint list {}".format(ignore_joint_list))
-        if ignore_joint_list is None:
-            ignore_joint_list = config["skeleton"].ignore_joint_id
+    def prepare_bundle_adjust_param(self, camera_id_list=None, max_num_images=1000):
+        ignore_joint_list = config["skeleton"].ignore_joint_id
+        # logger.debug("Calibration ignore joint list {}".format(ignore_joint_list))
         if camera_id_list is None:
             camera_id_list = list(range(self.num_cameras))
 
-        camera_params = np.zeros(shape=(len(camera_id_list), 13), dtype=float)
-        cam_list = [self.cam_list[c] for c in camera_id_list]
-        for i, cid in enumerate(camera_id_list):
-            camera_params[i, 0:3] = np.squeeze(cam_list[cid].rvec)
-            camera_params[i, 3:6] = np.squeeze(cam_list[cid].tvec)
-            camera_params[i, 6] = cam_list[cid].focal_length_x
-            camera_params[i, 7] = cam_list[cid].focal_length_y
-            camera_params[i, 8:13] = np.squeeze(cam_list[cid].distort)
+        camera_params = np.zeros(shape=(len(self.cam_list), 13), dtype=float)
+        cam_list = self.cam_list  # [self.cam_list[c] for c in camera_id_list]
+        for cid in range(len(self.cam_list)):
+            camera_params[cid, 0:3] = np.squeeze(cam_list[cid].rvec)
+            camera_params[cid, 3:6] = np.squeeze(cam_list[cid].tvec)
+            camera_params[cid, 6] = cam_list[cid].focal_length_x
+            camera_params[cid, 7] = cam_list[cid].focal_length_y
+            camera_params[cid, 8:13] = np.squeeze(cam_list[cid].distort)
 
         point_indices = []
         camera_indices = []
         points2d_ba = []
         points3d_ba = []
-        points3d_ba_source = dict()
-        points3d_ba_source_inv = dict()
+        # points3d_ba_source = dict()
+        # points3d_ba_source_inv = dict()
         point_index_counter = 0
-        data_shape = self.points3d_m.shape
+        s = self.points3d.shape
 
-        if data_shape[0] > max_num_images:
+        img_id_list = np.arange(s[0] - 1)
+        if s[0] > max_num_images:
             logger.debug(
                 "There are too many ({}) images for calibration. Selecting {} randomly.".format(
-                    data_shape[0], max_num_images
+                    s[0], max_num_images
                 )
             )
-            img_id_list = np.random.randint(
-                0, high=data_shape[0] - 1, size=(max_num_images)
-            )
-        else:
-            logger.debug("Using {} images for calibration".format(data_shape[0]))
-            img_id_list = np.arange(data_shape[0] - 1)
+            img_id_list = np.random.randint(0, high=s[0] - 1, size=(max_num_images))
 
-        for img_id in img_id_list:
-            for j_id in range(data_shape[1]):
-                cam_list_iter = list()
-                points2d_iter = list()
-                for cam in cam_list:
-                    if j_id in ignore_joint_list:
-                        continue
-                    if np.any(self.points3d_m[img_id, j_id, :] == 0):
-                        continue
-                    if np.any(cam[img_id, j_id, :] == 0):
-                        continue
-                    if not config["skeleton"].camera_see_joint(cam.cam_id, j_id):
-                        continue
-                    if cam.cam_id == 3:
-                        continue
-                    cam_list_iter.append(cam)
-                    points2d_iter.append(cam[img_id, j_id, :])
+        for img_id, j_id in product(img_id_list, range(s[1])):
+            # cam_list_iter = list()
+            # points2d_iter = list()
+            for cam_idx, cam in enumerate(cam_list):
+                if (
+                    j_id not in ignore_joint_list
+                    and not np.any(self.points3d[img_id, j_id, :] == 0)
+                    and not np.any(cam[img_id, j_id, :] == 0)
+                    and config["skeleton"].camera_see_joint(cam.cam_id, j_id)
+                    # and cam.cam_id != 3
+                    and cam_idx in camera_id_list
+                ):
+                    points2d_ba.extend(cam[img_id, j_id, :])
+                    points3d_ba.append(self.points3d[img_id, j_id, :])
+                    point_indices.append(point_index_counter)
+                    point_index_counter += 1
+                    camera_indices.append(cam_idx)
+
+                # cam_list_iter.append(cam)
+                # points2d_iter.append(cam[img_id, j_id, :])
 
                 # the point is seen by at least two cameras, add it to the bundle adjustment
+                """
                 if len(cam_list_iter) >= 2:
-                    points3d_iter = self.points3d_m[img_id, j_id, :]
+                    points3d_iter = self.points3d[img_id, j_id, :]
                     points2d_ba.extend(points2d_iter)
                     points3d_ba.append(points3d_iter)
                     point_indices.extend([point_index_counter] * len(cam_list_iter))
-                    points3d_ba_source[(img_id, j_id)] = point_index_counter
-                    points3d_ba_source_inv[point_index_counter] = (img_id, j_id)
+                    #points3d_ba_source[(img_id, j_id)] = point_index_counter
+                    #points3d_ba_source_inv[point_index_counter] = (img_id, j_id)
                     point_index_counter += 1
                     camera_indices.extend([cam.cam_id for cam in cam_list_iter])
+                """
+        # c = 0
 
-        c = 0
         # make sure stripes from both sides share the same point id's
         # TODO move this into config file
+        """
         if "fly" in config["name"]:
             for idx, point_idx in enumerate(point_indices):
                 img_id, j_id = points3d_ba_source_inv[point_idx]
@@ -332,12 +331,13 @@ class CameraNetwork:
                             (img_id, j_id - config["skeleton"].num_joints // 2)
                         ]
                         c += 1
-
-        logger.debug("Replaced {} points".format(c))
+        """
+        # logger.debug("Replaced {} points".format(c))
         points3d_ba = np.squeeze(np.array(points3d_ba))
         points2d_ba = np.squeeze(np.array(points2d_ba))
-        cid2cidx = {v: k for (k, v) in enumerate(np.sort(np.unique(camera_indices)))}
-        camera_indices = [cid2cidx[cid] for cid in camera_indices]
+        # print(points3d_ba.shape, points2d_ba.s, s,)
+        # cid2cidx = {v: k for (k, v) in enumerate(np.sort(np.unique(camera_indices)))}
+        # camera_indices = [cid2cidx[cid] for cid in camera_indices]
         camera_indices = np.array(camera_indices)
         point_indices = np.array(point_indices)
 
@@ -355,19 +355,21 @@ class CameraNetwork:
             point_indices,
         )
 
-    def bundle_adjust(
-        self, cam_id_list=None, ignore_joint_list=config["skeleton"].ignore_joint_id
-    ):
+    def calibrate(self, cam_id_list=None):
         assert self.cam_list
+        ignore_joint_list = config["skeleton"].ignore_joint_id
         if cam_id_list is None:
             cam_id_list = range(self.num_cameras)
 
-        self.reprojection_error(
-            cam_indices=cam_id_list, ignore_joint_list=ignore_joint_list
-        )
-        x0, points_2d, n_cameras, n_points, camera_indices, point_indices = self.prepare_bundle_adjust_param(
-            cam_id_list, ignore_joint_list=ignore_joint_list
-        )
+        self.reprojection_error()
+        (
+            x0,
+            points_2d,
+            n_cameras,
+            n_points,
+            camera_indices,
+            point_indices,
+        ) = self.prepare_bundle_adjust_param(cam_id_list)
         logger.debug(f"Number of points for calibration: {n_points}")
         A = bundle_adjustment_sparsity(
             n_cameras, n_points, camera_indices, point_indices
@@ -381,7 +383,7 @@ class CameraNetwork:
             ftol=1e-4,
             method="trf",
             args=(
-                [self.cam_list[i] for i in cam_id_list],
+                self.cam_list,
                 n_cameras,
                 n_points,
                 camera_indices,
@@ -397,7 +399,7 @@ class CameraNetwork:
             )
         )
 
-        self.triangulate(cam_id_list)
+        self.triangulate()
         return res
 
     def save_network(self, path, meta=None):

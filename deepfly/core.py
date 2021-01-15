@@ -14,7 +14,6 @@ from deepfly.DB import PoseDB
 from deepfly.optim_util import energy_drosoph
 from deepfly.os_util import (
     get_max_img_id,
-    read_calib,
     read_camera_order,
     write_camera_order,
 )
@@ -37,6 +36,8 @@ def find_default_camera_ordering(input_folder):
 
     known_users = [
         (r"/CLC/", [0, 6, 5, 4, 3, 2, 1]),
+        (r"/FA/", [6, 5, 4, 3, 2, 1, 0]),
+        (r"/SG/", [6, 5, 4, 3, 2, 1, 0]),
         (r"data/test", [0, 1, 2, 3, 4, 5, 6]),
     ]
     #
@@ -141,7 +142,8 @@ class Core:
         print("Camera order {}".format(cidread2cid))
         write_camera_order(self.output_folder, cidread2cid)
         self.cidread2cid, self.cid2cidread = read_camera_order(self.output_folder)
-        self.camNetAll.set_cid2cidread(self.cid2cidread)
+        #self.camNetAll.set_cid2cidread(self.cid2cidread)
+        raise NotImplementedError
         return True
 
     def pose2d_estimation(self, overwrite=True):
@@ -173,7 +175,7 @@ class Core:
 
         Parameters:
         img_id: a valid image id after which to search for an error.
-        
+
         Returns:
         int: None or the id of an image with an error in prediction.
         """
@@ -185,7 +187,7 @@ class Core:
 
         Parameters:
         img_id: a valid image id before which to search for an error.
-        
+
         Returns:
         int: None or the id of an image with an error in prediction.
         """
@@ -199,9 +201,10 @@ class Core:
         """
 
         print(f"Calibration considering frames between {min_img_id}:{max_img_id}")
-        calib = read_calib(config["calib_fine"])
-        assert calib is not None
-        self.camNetAll.load_network(calib)
+        #calib = read_calib(config["calib_fine"])
+        #assert calib is not None
+        #self.camNetAll.load_network(calib)
+        self.camNetAll.set_default_camera_parameters
 
         # print(self.camNetAll.cam_list[0].points2d.shape, "awawd")
 
@@ -228,9 +231,9 @@ class Core:
             cam.points2d = cam.points2d[min_img_id:max_img_id, :]
 
         self.camNetLeft.triangulate()
-        self.camNetLeft.bundle_adjust(cam_id_list=(0, 1, 2))
+        self.camNetLeft.calibrate(cam_id_list=(0, 1, 2))
         self.camNetRight.triangulate()
-        self.camNetRight.bundle_adjust(cam_id_list=(0, 1, 2))
+        self.camNetRight.calibrate(cam_id_list=(0, 1, 2))
 
         # put old values back
         for cam_id in range(config["num_cameras"]):
@@ -247,7 +250,7 @@ class Core:
         img_id: the id of an image on which to look for a joint
         x: abscissa of the point from which we want the nearest joint
         y: coordinate of the point from which we want the nearest joint
-        
+
         Returns:
         (x,y): the coordinates of the joint nearest to (x,y)
         """
@@ -372,17 +375,17 @@ class Core:
         camNetR = self.camNetRight
 
         camNetL.triangulate()
-        camNetL.bundle_adjust(cam_id_list=(0, 1, 2))
+        camNetL.calibrate(cam_id_list=(0, 1, 2))
 
         camNetR.triangulate()
-        camNetR.bundle_adjust(cam_id_list=(0, 1, 2))
+        camNetR.calibrate(cam_id_list=(0, 1, 2))
 
         self.camNetAll.triangulate()
-        points3d_m = self.camNetAll.points3d_m.copy()
-        points3d_m = procrustes_seperate(points3d_m)
-        points3d_m = normalize_pose_3d(points3d_m, rotate=True)
-        points3d_m = filter_batch(points3d_m)
-        return points3d_m
+        points3d = self.camNetAll.points3d.copy()
+        points3d = procrustes_seperate(points3d)
+        points3d = normalize_pose_3d(points3d, rotate=True)
+        points3d = filter_batch(points3d)
+        return points3d
 
     def save_corrections(self):
         """Writes the manual corrections to a file in the output folder."""
@@ -414,7 +417,8 @@ class Core:
 
         if self.camNetLeft.has_calibration() and self.camNetLeft.has_pose():
             self.camNetAll.triangulate()
-            pts3d = self.camNetAll.points3d_m
+            pts3d = self.camNetAll.points3d
+            dict_merge["points3d_wo_procrustes"] = pts3d
             if config["procrustes_apply"]:
                 print("Applying Procrustes on 3D Points")
                 pts3d = procrustes_seperate(pts3d)
@@ -444,7 +448,7 @@ class Core:
 
     def corrected_points2d(self, cam_id, img_id):
         """Gets the estimated or manually corrected 2d position of the joints.
-        
+
         Returns:
         An array with the position of the joints on img_id from cam_id.
         """
@@ -480,21 +484,22 @@ class Core:
 
     def set_cameras(self):
         """Creates the camera network instances using the latest calibration files."""
-        calib = read_calib(self.output_folder)
+        #calib = read_calib(self.output_folder)
         self.camNetAll = CameraNetwork(
             image_folder=self.input_folder,
             output_folder=self.output_folder,
             cam_id_list=range(config["num_cameras"]),
             cid2cidread=self.cid2cidread,
             num_images=self.num_images,
-            calibration=calib,
+            #calibration=calib,
         )
+        #print(len(self.camNetAll.cam_list))
         self.camNetLeft = CameraNetwork(
             image_folder=self.input_folder,
             output_folder=self.output_folder,
             cam_id_list=config["left_cameras"],
             num_images=self.num_images,
-            calibration=calib,
+            #calibration=calib,
             cid2cidread=[self.cid2cidread[cid] for cid in config["left_cameras"]],
             cam_list=[
                 cam
@@ -507,17 +512,18 @@ class Core:
             output_folder=self.output_folder,
             cam_id_list=config["right_cameras"],
             num_images=self.num_images,
-            calibration=calib,
+            #calibration=calib,
             cid2cidread=[self.cid2cidread[cid] for cid in config["right_cameras"]],
             cam_list=[
                 self.camNetAll.cam_list[cam_id] for cam_id in config["right_cameras"]
             ],
         )
 
-        self.camNetLeft.bone_param = config["bone_param"]
-        self.camNetRight.bone_param = config["bone_param"]
-        calib = read_calib(config["calib_fine"])
-        self.camNetAll.load_network(calib)
+        if not self.camNetAll.has_calibration():
+            self.camNetLeft.bone_param = config["bone_param"]
+            self.camNetRight.bone_param = config["bone_param"]
+            #calib = read_calib(config["calib_fine"])
+            self.camNetAll.set_default_camera_parameters()
 
     def check_cameras(self):
         cam_missing = [cam.cam_id for cam in self.camNetAll.cam_list if cam.is_empty()]
