@@ -1,2 +1,0 @@
-- [ ] move df3d files inside ./output folder. This will increase the startup time and will decrease the visual clutter.
-- [ ] Better CLI support. 
