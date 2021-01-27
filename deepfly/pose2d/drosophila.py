@@ -174,9 +174,8 @@ def process_folder(
 
     save_path_heatmap.parent.mkdir(exist_ok=True, parents=True)
     save_path_pred.parent.mkdir(exist_ok=True, parents=True)
-
-    logger.debug(f"creaint heatmap path: {save_path_heatmap}")
     '''
+    logger.debug(f"creaint heatmap path: {save_path_heatmap}")
     heatmap = np.memmap(
         filename=save_path_heatmap,
         dtype="float32",
@@ -208,15 +207,15 @@ def process_folder(
     cid_read_to_reverse = [cid2cidread[cid] for cid in cid_to_reverse]
 
     pred = flip_pred(pred, cid_read_to_reverse)
-    logger.debug("Flipping heatmaps")
+    #logger.debug("Flipping heatmaps")
     #heatmap = flip_heatmap(heatmap, cid_read_to_reverse)
-    logger.debug("Flipping heatmaps")
+    #logger.debug("Flipping heatmaps")
 
     save_dict(pred, save_path_pred)
     #if type(heatmap) != np.memmap:
     #    save_dict(heatmap, save_path_heatmap)
 
-    print(pred.shape)
+    #print(pred.shape)
     return pred, heatmap
 
 

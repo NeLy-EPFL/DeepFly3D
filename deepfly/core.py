@@ -38,7 +38,8 @@ def find_default_camera_ordering(input_folder):
         (r"/CLC/", [0, 6, 5, 4, 3, 2, 1]),
         (r"/FA/", [6, 5, 4, 3, 2, 1, 0]),
         (r"/SG/", [6, 5, 4, 3, 2, 1, 0]),
-        (r"Hermans_Laura", [6, 5, 4, 3, 2, 1, 0]),
+        (r"Laura", [0, 6, 5, 4, 3, 2, 1]),
+        (r"AYMANNS_Florian", [6, 5, 4, 3, 2, 1, 0]),
         (r"data/test", [0, 1, 2, 3, 4, 5, 6]),
     ]
     #
@@ -52,6 +53,8 @@ def find_default_camera_ordering(input_folder):
         order = candidates[0]
         logger.debug(f"Default camera ordering found: {order}")
         return np.array(order)
+    else:
+        raise NotImplementedError('Cannot find camera ordering ')
 
 
 class Core:
