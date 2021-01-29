@@ -22,6 +22,7 @@ from deepfly.pose2d.DrosophilaDataset import DrosophilaDataset
 from deepfly.pose2d.models.hourglass import hg
 from deepfly.pose2d.utils.evaluation import AverageMeter, accuracy, mse_acc
 from deepfly.pose2d.utils.misc import get_time, save_checkpoint, save_dict, to_numpy
+from deepfly.pose2d.utils.imutils import save_image, drosophila_image_overlay
 
 import numpy as np
 
@@ -64,29 +65,8 @@ def load_weights(model, resume: str):
             else torch.load(resume, map_location=torch.device("cpu"))
         )
 
-        if "mpii" in resume:  # weights for sh trained on mpii dataset
-            logger.debug("Removing input/output layers")
-            ignore_weight_list_template = [
-                "module.score.{}.bias",
-                "module.score.{}.weight",
-                "module.score_.{}.weight",
-            ]
-            ignore_weight_list = list()
-            for i in range(8):
-                for template in ignore_weight_list_template:
-                    ignore_weight_list.append(template.format(i))
-            for k in ignore_weight_list:
-                if k in checkpoint["state_dict"]:
-                    checkpoint["state_dict"].pop(k)
-
-            state = model.state_dict()
-            state.update(checkpoint["state_dict"])
-            logger.debug(model.state_dict())
-            logger.debug(checkpoint["state_dict"])
-            model.load_state_dict(state, strict=False)
-        else:
-            pretrained_dict = checkpoint["state_dict"]
-            model.load_state_dict(pretrained_dict, strict=False)
+        pretrained_dict = checkpoint["state_dict"]
+        model.load_state_dict(pretrained_dict, strict=False)
 
         logger.debug(
             "Loaded checkpoint '{}' (epoch {})".format(resume, checkpoint["epoch"])
@@ -96,22 +76,12 @@ def load_weights(model, resume: str):
         raise FileNotFoundError
 
 
-def df3dLoss(output, target_var, joint_exists, num_classes):
-    joint_exists = joint_exists.data.numpy()
-    loss_weight = torch.ones((output[0].size(0), num_classes, 1, 1))
-    if np.any(joint_exists == 0):
-        batch_index = (np.logical_not(joint_exists)).nonzero()[:, 0]
-        joint_index = (np.logical_not(joint_exists)).nonzero()[:, 1]
-        loss_weight[batch_index, joint_index, :, :] = 0.0
-
-    # logger.debug(loss_weight)
-    loss_weight.requires_grad = True
-    loss_weight = on_cuda(loss_weight)
-    loss = weighted_mse_loss(output[0], target_var, weights=loss_weight)
+def df3dLoss(output, target, joint_exists):
+    # joint_exists = joint_exists.data.numpy()
+    loss = joint_exists * ((output[0] - target) ** 2).sum(dim=(-1, -2)).sum()
     for j in range(1, len(output)):
-        loss += weighted_mse_loss(output[j], target_var, weights=loss_weight)
-
-    return loss
+        loss += joint_exists * ((output[j] - target) ** 2).sum(dim=(-1, -2)).sum()
+    return loss.sum()
 
 
 def weighted_mse_loss(inp, target, weights):
@@ -130,12 +100,12 @@ def on_cuda(torch_var, *cuda_args, **cuda_kwargs):
     )
 
 
-def get_save_path_pred(unlabeled, output_folder):
+def get_save_path_pred(unlabeled, output_folder, front):
     unlabeled_replace = unlabeled.replace("/", "-")
     save_path = os.path.join(
         "/{}".format(unlabeled),
         output_folder,
-        "./preds_{}.pkl".format(unlabeled_replace),
+        "./{}preds_{}.pkl".format("front_" if front else "", unlabeled_replace),
     )
     save_path = Path(save_path)
     return save_path
@@ -159,10 +129,17 @@ def get_output_path(path, output_folder):
 
 
 def process_folder(
-    model, loader, unlabeled, output_folder, overwrite, num_classes, acc_joints
+    model,
+    loader,
+    unlabeled,
+    output_folder,
+    overwrite,
+    num_classes,
+    acc_joints,
+    front=False,
 ):
     save_path_pred, save_path_heatmap = (
-        get_save_path_pred(unlabeled, output_folder),
+        get_save_path_pred(unlabeled, output_folder, front),
         get_save_path_heatmap(unlabeled, output_folder),
     )
 
@@ -174,22 +151,7 @@ def process_folder(
 
     save_path_heatmap.parent.mkdir(exist_ok=True, parents=True)
     save_path_pred.parent.mkdir(exist_ok=True, parents=True)
-    '''
-    logger.debug(f"creaint heatmap path: {save_path_heatmap}")
-    heatmap = np.memmap(
-        filename=save_path_heatmap,
-        dtype="float32",
-        mode="w+",
-        shape=(
-            config["num_cameras"] + 1,
-            loader.dataset.greatest_image_id() + 1,
-            config["num_predict"],
-            config["heatmap_shape"][0],
-            config["heatmap_shape"][1],
-        ),
-    )  # num_cameras+1 for the mirrored camera 3
-    logger.debug(f"creating heatmap shape: {heatmap.shape}")
-    '''
+
     heatmap = False
     pred, heatmap, _, _, _ = step(
         loader=loader,
@@ -200,6 +162,7 @@ def process_folder(
         epoch=0,
         num_classes=num_classes,
         acc_joints=acc_joints,
+        unlabeled=True,
     )
 
     _, cid2cidread = read_camera_order(get_output_path(unlabeled, output_folder))
@@ -207,15 +170,8 @@ def process_folder(
     cid_read_to_reverse = [cid2cidread[cid] for cid in cid_to_reverse]
 
     pred = flip_pred(pred, cid_read_to_reverse)
-    #logger.debug("Flipping heatmaps")
-    #heatmap = flip_heatmap(heatmap, cid_read_to_reverse)
-    #logger.debug("Flipping heatmaps")
 
     save_dict(pred, save_path_pred)
-    #if type(heatmap) != np.memmap:
-    #    save_dict(heatmap, save_path_heatmap)
-
-    #print(pred.shape)
     return pred, heatmap
 
 
@@ -237,29 +193,17 @@ def flip_pred(pred, cid_read_to_reverse):
 
 
 def create_dataloader():
-    session_id_list = ["q47rx0Ybo0QHraRuDWken9WtPTA2"]
-    train_session_id_list, test_session_id_list = session_id_list, session_id_list
-    if args.train_folder_list is None:
-        args.train_folder_list = ["2018-05-29--18-58-22--semih"]
-    test_folder_list = ["2018-06-07--17-00-16--semih-walking--3"]
-    # make sure training and test sets are mutually exclusive
-    assert (
-        len(set.intersection(set(args.train_folder_list), set(test_folder_list))) == 0
-    )
 
     train_loader = DataLoader(
         DrosophilaDataset(
-            data_folder=args.data_folder,
+            data_folder="/home/user/Desktop/DeepFly3D/gizem_annot_train.pkl",
             train=True,
-            sigma=args.sigma,
-            session_id_train_list=train_session_id_list,
-            folder_train_list=args.train_folder_list,
             img_res=args.img_res,
             hm_res=args.hm_res,
             augmentation=args.augmentation,
             num_classes=args.num_classes,
-            jsonfile=args.json_file,
             output_folder=args.output_folder,
+            front=True,
         ),
         batch_size=args.train_batch,
         shuffle=True,
@@ -269,18 +213,15 @@ def create_dataloader():
     )
     val_loader = DataLoader(
         DrosophilaDataset(
-            data_folder=args.data_folder,
+            data_folder="/home/user/Desktop/DeepFly3D/gizem_annot_test.pkl",
             train=False,
-            sigma=args.sigma,
-            session_id_train_list=test_session_id_list,
-            folder_train_list=test_folder_list,
             img_res=args.img_res,
             hm_res=args.hm_res,
             augmentation=False,
             evaluation=True,
             num_classes=args.num_classes,
-            jsonfile=args.json_file,
             output_folder=args.output_folder,
+            front=True,
         ),
         batch_size=args.test_batch,
         shuffle=False,
@@ -306,14 +247,11 @@ def main(args):
         init_stride=args.stride,
     )
     model = on_cuda(torch.nn.DataParallel(model))
-    optimizer = torch.optim.RMSprop(
-        model.parameters(),
-        lr=args.lr,
-        momentum=args.momentum,
-        weight_decay=args.weight_decay,
+    optimizer = torch.optim.Adam(
+        model.parameters(), lr=args.lr, weight_decay=args.weight_decay,
     )
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, verbose=True, patience=5
+        optimizer, verbose=True, patience=2, factor=0.5
     )
 
     if args.resume:
@@ -328,9 +266,6 @@ def main(args):
             DrosophilaDataset(
                 data_folder=args.data_folder,
                 train=False,
-                sigma=args.sigma,
-                session_id_train_list=None,
-                folder_train_list=None,
                 img_res=args.img_res,
                 hm_res=args.hm_res,
                 augmentation=False,
@@ -339,6 +274,7 @@ def main(args):
                 num_classes=args.num_classes,
                 max_img_id=min(get_max_img_id(args.unlabeled), args.max_img_id),
                 output_folder=args.output_folder,
+                front=args.front,
             ),
             batch_size=args.test_batch,
             shuffle=False,
@@ -354,6 +290,7 @@ def main(args):
             args.overwrite,
             num_classes=args.num_classes,
             acc_joints=args.acc_joints,
+            front=args.front,
         )
         return pred, heatmap
     else:
@@ -372,6 +309,7 @@ def main(args):
                 epoch=epoch,
                 num_classes=args.num_classes,
                 acc_joints=args.acc_joints,
+                unlabeled=False,
             )
             val_pred, _, val_loss, val_acc, val_mse = step(
                 loader=val_loader,
@@ -382,6 +320,7 @@ def main(args):
                 epoch=epoch,
                 num_classes=args.num_classes,
                 acc_joints=args.acc_joints,
+                unlabeled=False,
             )
             scheduler.step(val_loss)
             is_best = val_acc > best_acc
@@ -400,11 +339,12 @@ def main(args):
                 val_pred,
                 is_best,
                 checkpoint=args.checkpoint,
-                snapshot=args.snapshot,
             )
 
 
-def step(loader, model, optimizer, mode, heatmap, epoch, num_classes, acc_joints):
+def step(
+    loader, model, optimizer, mode, heatmap, epoch, num_classes, acc_joints, unlabeled
+):
     keys_am = [
         "batch_time",
         "data_time",
@@ -430,15 +370,18 @@ def step(loader, model, optimizer, mode, heatmap, epoch, num_classes, acc_joints
     )
     bar.start()
 
-    predictions = np.zeros(
-        shape=(
-            config["num_cameras"] + 1,
-            loader.dataset.greatest_image_id() + 1,
-            config["num_predict"],
-            2,
-        ),
-        dtype=np.float32,
-    )  # num_cameras+1 for the mirrored camera 3
+    if unlabeled:
+        predictions = np.zeros(
+            shape=(
+                config["num_cameras"],
+                loader.dataset.greatest_image_id() + 1,
+                config["num_predict"],
+                2,
+            ),
+            dtype=np.float32,
+        )  # num_cameras+1 for the mirrored camera 3
+    else:
+        predictions = None
     for i, (inputs, target, meta) in enumerate(loader):
         np.random.seed()
         am["data_time"].update(time.time() - start)
@@ -448,29 +391,59 @@ def step(loader, model, optimizer, mode, heatmap, epoch, num_classes, acc_joints
         output = model(input_var)
         heatmap_batch = output[-1].data.cpu()
 
-        for n, cam_read_id, img_id in zip(
-            range(heatmap_batch.size(0)), meta["cam_read_id"], meta["pid"]
-        ):
-            smap = to_numpy(heatmap_batch[n, :, :, :])
-            pr = Camera.hm_to_pred(smap, threshold_abs=0.0)
-            predictions[cam_read_id, img_id, :] = pr
-            #if heatmap is not None:
-            #    heatmap[cam_read_id, img_id, :] = smap
+        if unlabeled:
+            for n, cam_read_id, img_id in zip(
+                range(heatmap_batch.size(0)), meta["cam_read_id"], meta["pid"]
+            ):
+                smap = to_numpy(heatmap_batch[n, :, :, :])
+                pr = Camera.hm_to_pred(smap, threshold_abs=0.0)
+                predictions[cam_read_id, img_id, :] = pr
 
-        # loss = df3dLoss(output, target_var, meta["joint_exists"], num_classes)
-        if mode == mode.train:
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+        if not unlabeled:
+            # loss = df3dLoss(output, target_var, meta["joint_exists"].cuda().float())
+            loss = torch.nn.functional.mse_loss(output[0], target_var)
+            for o_idx in range(1, len(output)):
+                loss += torch.nn.functional.mse_loss(output[o_idx], target_var)
+            am["losses"].update(loss.item())
+            if mode == mode.train:
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+        ## PLOT
+        if i < 10 and not unlabeled:
+            drosophila_img = drosophila_image_overlay(
+                inputs, target_var.detach(), args.hm_res, 3, args.train_joints
+            )
+
+            folder_name = (
+                meta["folder_name"][0].replace("/", "-")
+                + meta["folder_name"][1].replace("/", "-")
+                + meta["folder_name"][2].replace("/", "-")
+            )
+            # image_name = meta["image_name"][0]
+            template = "./test_gt_{}_{}_{:06d}_{}_joint_{}.jpg"
+
+            save_image(
+                img_path=os.path.join(
+                    args.checkpoint_image_dir,
+                    template.format(
+                        epoch, folder_name, meta["pid"][0], meta["cid"][0], []
+                    ),
+                ),
+                img=drosophila_img,
+            )
+        ## PLOT
 
         acc = accuracy(heatmap_batch, target, acc_joints)
         # am["acces"].add(acc)
-        mse_err = mse_acc(target_var.data.cpu(), heatmap_batch)
-        # am["mse"].add(mse_err)
+        if not unlabeled:
+            mse_err = mse_acc(target_var.data.cpu(), heatmap_batch)
+            am["mse"].update(mse_err.mean().item())
         am["batch_time"].update(time.time() - start)
         start = time.time()
 
-        bar.suffix = "{epoch} | ({batch}/{size}) D:{data:.6f}s|B:{bt:.3f}s|L:{loss:.8f}|Acc:{acc: .4f}|Mse:{mse: .3f} F-T:{mse_femur: .3f} T-Tar:{mse_tibia: .3f} Tar-tip:{mse_tarsus: .3f}".format(
+        bar.suffix = "{epoch} | ({batch}/{size}) D:{data:.6f}s|B:{bt:.3f}s|L:{loss:.8f}|Acc:{acc: .4f}|Mse:{mse: .3f}".format(
             epoch=epoch,
             batch=i + 1,
             size=len(loader),
@@ -481,10 +454,6 @@ def step(loader, model, optimizer, mode, heatmap, epoch, num_classes, acc_joints
             loss=am["losses"].avg,
             acc=am["acces"].avg,
             mse=am["mse"].avg,
-            mse_hip=am["body_coxa"].avg,
-            mse_femur=am["coxa_femur"].avg,
-            mse_tibia=am["femur_tibia"].avg,
-            mse_tarsus=am["tarsus_tip"].avg,
         )
         bar.next()
 
@@ -494,6 +463,14 @@ def step(loader, model, optimizer, mode, heatmap, epoch, num_classes, acc_joints
 
 if __name__ == "__main__":
     # prepare
+    import logging
+
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.DEBUG)
+    l = logger.getLogger()
+    l.addHandler(handler)
+    l.setLevel(logging.DEBUG)
+
     parser = create_parser()
     args = parser.parse_args()
 

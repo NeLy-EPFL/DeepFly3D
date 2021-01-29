@@ -41,6 +41,7 @@ def find_default_camera_ordering(input_folder):
         (r"Laura", [0, 6, 5, 4, 3, 2, 1]),
         (r"AYMANNS_Florian", [6, 5, 4, 3, 2, 1, 0]),
         (r"data/test", [0, 1, 2, 3, 4, 5, 6]),
+        (r"/paper/", [0, 1, 2, 3, 4, 5, 6]),
     ]
     #
     input_folder = str(input_folder)  # use `str` in case pathlib.Path instance
@@ -54,7 +55,9 @@ def find_default_camera_ordering(input_folder):
         logger.debug(f"Default camera ordering found: {order}")
         return np.array(order)
     else:
-        raise NotImplementedError('Cannot find camera ordering ')
+        raise NotImplementedError(
+            "Cannot find camera ordering, please put it down under core.py"
+        )
 
 
 class Core:
@@ -146,7 +149,7 @@ class Core:
         print("Camera order {}".format(cidread2cid))
         write_camera_order(self.output_folder, cidread2cid)
         self.cidread2cid, self.cid2cidread = read_camera_order(self.output_folder)
-        #self.camNetAll.set_cid2cidread(self.cid2cidread)
+        # self.camNetAll.set_cid2cidread(self.cid2cidread)
         raise NotImplementedError
         return True
 
@@ -156,7 +159,7 @@ class Core:
         Parameters:
         overwrite: whether to overwrite existing pose estimation results (default: True)
         """
-
+        logger.debug("Running pose estimation for the side cameras")
         parser = ArgParse.create_parser()
         args, _ = parser.parse_known_args()
         args.checkpoint = False
@@ -170,9 +173,37 @@ class Core:
         args.num_classes = config["num_predict"]
         args.max_img_id = self.max_img_id
         args.overwrite = overwrite
-
+        args.front = False
         pose2d_main(args)  # will write output files in output directory
+
+        logger.debug("Running pose estimation for the front camera")
+        args.resume = config["resume_front"]
+        args.front = True
+        pose2d_main(args)  # will write output files in output directory
+
+        # self.merge_pred()  # merge pred and front_pred files into a single file
         self.set_cameras()  # makes sure cameras use the latest heatmaps and predictions
+
+    def merge_pred(self):
+        import glob
+
+        df3d_folder = os.path.join(self.input_folder, self.output_subfolder)
+        print(df3d_folder)
+        pred_path = glob.glob(df3d_folder + "/preds*")[0]
+        pred = pickle.load(open(pred_path, "rb"))
+        pred_front = pickle.load(
+            open(glob.glob(df3d_folder + "/front_preds*")[0], "rb",)
+        )
+
+        l = np.array([0, 1, 2, 3, 4, 7, 8, 9])
+        m = l.shape[0]
+
+        pred[3, :, l] = pred_front[3, :, np.arange(m)]
+        pred[3, :, l.shape[0] + l] = pred_front[3, :, m + np.arange(m)]
+        pred[3, :, 18] = pred_front[3, :, -2]
+        pred[3, :, 19 + 18] = pred_front[3, :, -1]
+
+        pickle.dump(pred, open(pred_path, "wb"))
 
     def next_error(self, img_id):
         """Finds the next image with an error in prediction after img_id.
@@ -205,43 +236,10 @@ class Core:
         """
 
         print(f"Calibration considering frames between {min_img_id}:{max_img_id}")
-        #calib = read_calib(config["calib_fine"])
-        #assert calib is not None
-        #self.camNetAll.load_network(calib)
-        self.camNetAll.set_default_camera_parameters
+        self.camNetAll.set_default_camera_parameters()
 
-        # print(self.camNetAll.cam_list[0].points2d.shape, "awawd")
-
-        # take a copy of the current points2d
-        pts2d = np.zeros(
-            (config["num_cameras"], self.num_images, config["skeleton"].num_joints, 2),
-            dtype=float,
-        )
-        for cam_id in range(config["num_cameras"]):
-            pts2d[cam_id, :] = self.camNetAll.cam_list[cam_id].points2d.copy()
-
-        # ugly hack to temporarly incorporate manual corrections to calibration
-        c = 0
-        for cam_id in range(config["num_cameras"]):
-            for img_id in range(self.num_images):
-                if self.db.has_key(cam_id, img_id):
-                    pt = self.corrected_points2d(cam_id, img_id)
-                    self.camNetAll.cam_list[cam_id].points2d[img_id, :] = pt
-                    c += 1
-        print(f"Calibration: replaced {c} with manual corrections")
-
-        # keep the pts only in the range
-        for cam in self.camNetAll.cam_list:
-            cam.points2d = cam.points2d[min_img_id:max_img_id, :]
-
-        self.camNetLeft.triangulate()
-        self.camNetLeft.calibrate(cam_id_list=(0, 1, 2))
-        self.camNetRight.triangulate()
-        self.camNetRight.calibrate(cam_id_list=(0, 1, 2))
-
-        # put old values back
-        for cam_id in range(config["num_cameras"]):
-            self.camNetAll.cam_list[cam_id].points2d = pts2d[cam_id, :].copy()
+        self.camNetAll.triangulate()
+        self.camNetAll.calibrate()
 
         self.save_calibration()
         self.set_cameras()
@@ -488,22 +486,22 @@ class Core:
 
     def set_cameras(self):
         """Creates the camera network instances using the latest calibration files."""
-        #calib = read_calib(self.output_folder)
+        # calib = read_calib(self.output_folder)
         self.camNetAll = CameraNetwork(
             image_folder=self.input_folder,
             output_folder=self.output_folder,
             cam_id_list=range(config["num_cameras"]),
             cid2cidread=self.cid2cidread,
             num_images=self.num_images,
-            #calibration=calib,
+            # calibration=calib,
         )
-        #print(len(self.camNetAll.cam_list))
+        # print(len(self.camNetAll.cam_list))
         self.camNetLeft = CameraNetwork(
             image_folder=self.input_folder,
             output_folder=self.output_folder,
             cam_id_list=config["left_cameras"],
             num_images=self.num_images,
-            #calibration=calib,
+            # calibration=calib,
             cid2cidread=[self.cid2cidread[cid] for cid in config["left_cameras"]],
             cam_list=[
                 cam
@@ -516,7 +514,7 @@ class Core:
             output_folder=self.output_folder,
             cam_id_list=config["right_cameras"],
             num_images=self.num_images,
-            #calibration=calib,
+            # calibration=calib,
             cid2cidread=[self.cid2cidread[cid] for cid in config["right_cameras"]],
             cam_list=[
                 self.camNetAll.cam_list[cam_id] for cam_id in config["right_cameras"]
@@ -526,7 +524,7 @@ class Core:
         if not self.camNetAll.has_calibration():
             self.camNetLeft.bone_param = config["bone_param"]
             self.camNetRight.bone_param = config["bone_param"]
-            #calib = read_calib(config["calib_fine"])
+            # calib = read_calib(config["calib_fine"])
             self.camNetAll.set_default_camera_parameters()
 
     def check_cameras(self):

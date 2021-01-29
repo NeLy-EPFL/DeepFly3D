@@ -6,13 +6,14 @@ import math
 from .misc import *
 import numpy as np
 
-__all__ = ['accuracy', 'AverageMeter', 'mse_acc']
+__all__ = ["accuracy", "AverageMeter", "mse_acc"]
+
 
 def get_preds(scores):
-    ''' get predictions from score maps in torch Tensor
+    """ get predictions from score maps in torch Tensor
         return type: torch.LongTensor
-    '''
-    assert scores.dim() == 4, 'Score maps should be 4-dim'
+    """
+    assert scores.dim() == 4, "Score maps should be 4-dim"
     maxval, idx = torch.max(scores.view(scores.size(0), scores.size(1), -1), 2)
 
     maxval = maxval.view(scores.size(0), scores.size(1), 1)
@@ -29,13 +30,20 @@ def get_preds(scores):
 
 
 def get_local_maxima(scores, min_distance=2, threshold_rel=0.05, num_peaks=10):
-    assert scores.dim() == 4, 'Score maps should be 4-dim'
+    assert scores.dim() == 4, "Score maps should be 4-dim"
     scores_np = to_numpy(scores)
-    maxima_list = [[[] for j in range(scores_np.shape[1])] for i in range(scores_np.shape[0])]
+    maxima_list = [
+        [[] for j in range(scores_np.shape[1])] for i in range(scores_np.shape[0])
+    ]
 
     for i in range(scores_np.shape[0]):
         for j in range(scores_np.shape[1]):
-            maxima_list[i][j] = peak_local_max(scores_np[i, j, :, :], min_distance=2, threshold_rel=0.05, num_peaks=num_peaks)
+            maxima_list[i][j] = peak_local_max(
+                scores_np[i, j, :, :],
+                min_distance=2,
+                threshold_rel=0.05,
+                num_peaks=num_peaks,
+            )
 
     return maxima_list
 
@@ -54,15 +62,15 @@ def calc_dists(preds, target, normalize):
     dists = torch.zeros(preds.size(1), preds.size(0))
     for n in range(preds.size(0)):
         for c in range(preds.size(1)):
-            if target[n, c, 0] > 1 and target[n, c, 1] > 1:
-                dists[c, n] = torch.dist(preds[n, c, :], target[n, c, :]) / normalize[n]
-            else:
-                dists[c, n] = -1
+            # if target[n, c, 0] > 1 and target[n, c, 1] > 1:
+            dists[c, n] = torch.dist(preds[n, c, :], target[n, c, :]) / normalize[n]
+            # else:
+            #    dists[c, n] = -1
     return dists
 
 
 def dist_acc(dists, thr=0.5):
-    ''' Return percentage below threshold while ignoring values with a -1 '''
+    """ Return percentage below threshold while ignoring values with a -1 """
     if dists.ne(-1).sum() > 0:
         return dists.le(thr).eq(dists.ne(-1)).sum() * 1.0 / dists.ne(-1).sum()
     else:
@@ -70,9 +78,9 @@ def dist_acc(dists, thr=0.5):
 
 
 def accuracy(output, target, idxs, thr=0.5):
-    ''' Calculate accuracy according to PCK, but uses ground truth heatmap rather than x,y locations
+    """ Calculate accuracy according to PCK, but uses ground truth heatmap rather than x,y locations
         First value to be returned is average accuracy across 'idxs', followed by individual accuracies
-    '''
+    """
     preds = get_preds(output)
     gts = get_preds(target)
     norm = torch.ones(preds.size(0)) * output.size(3) / 10
@@ -103,8 +111,13 @@ def final_preds(output, center, scale, res):
             px = int(math.floor(coords[n][p][0]))
             py = int(math.floor(coords[n][p][1]))
             if px > 1 and px < res[0] and py > 1 and py < res[1]:
-                diff = torch.Tensor([hm[py - 1][px] - hm[py - 1][px - 2], hm[py][px - 1] - hm[py - 2][px - 1]])
-                coords[n][p] += diff.sign() * .25
+                diff = torch.Tensor(
+                    [
+                        hm[py - 1][px] - hm[py - 1][px - 2],
+                        hm[py][px - 1] - hm[py - 2][px - 1],
+                    ]
+                )
+                coords[n][p] += diff.sign() * 0.25
     coords += 0.5
     preds = coords.clone()
 

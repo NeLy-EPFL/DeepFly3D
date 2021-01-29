@@ -37,7 +37,7 @@ def add_arguments(parser):
     )
     parser.add_argument(
         "--test-batch",
-        default=96,
+        default=6,
         type=int,
         metavar="N",
         dest="test_batch",
@@ -46,7 +46,7 @@ def add_arguments(parser):
     parser.add_argument(
         "--lr",
         "--learning-rate",
-        default=2.5e-4,
+        default=1e-4,
         type=float,
         metavar="LR",
         help="initial learning rate",

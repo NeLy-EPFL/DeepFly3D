@@ -93,7 +93,7 @@ def gaussian(shape=(7, 7), sigma=1):
 
 
 def draw_labelmap(img, pt, sigma, type="Gaussian"):
-    # Draw a 2D gaussian
+    ## Draw a 2D gaussian
     # Adopted from https://github.com/anewell/pose-hg-train/blob/master/src/pypose/draw.py
     img = to_numpy(img)
 
@@ -132,7 +132,7 @@ def draw_labelmap(img, pt, sigma, type="Gaussian"):
 
 
 def gauss(x, a, b, c, d=0):
-    return a * np.exp(-(x - b) ** 2 / (2 * c ** 2)) + d
+    return a * np.exp(-((x - b) ** 2) / (2 * c ** 2)) + d
 
 
 def color_heatmap(x):
@@ -249,9 +249,14 @@ def image_overlay_pose(inp, pts, pts_max_value, joint_idx=None, joint_draw=None)
             r = 5
             # if not (pts[joint_id, 0] < 5 and pts[joint_id, 1] < 5):
             cv2.circle(inp, (pts[joint_id, 0], pts[joint_id, 1]), r, color, -1)
-        
+
     for bone in config["skeleton"].bones:
-        if bone[0] < pts.shape[0] and bone[1] < pts.shape[0] and bone[0] in joint_draw and bone[1] in joint_draw:  # \
+        if (
+            bone[0] < pts.shape[0]
+            and bone[1] < pts.shape[0]
+            and bone[0] in joint_draw
+            and bone[1] in joint_draw
+        ):  # \
             # and not ((pts[bone[0], 0] < 5 and pts[bone[0], 1] < 5 and pts[bone[1], 0] < 5 and pts[bone[1], 1] < 5)):
             color = colors[int(bone[0] / 5)]
             cv2.line(
