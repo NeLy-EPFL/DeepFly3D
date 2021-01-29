@@ -489,6 +489,9 @@ def residuals(
     for cam_id in cam_indices_list:
         cam_list[cam_id].set_rvec(camera_params[cam_id][0:3])
         cam_list[cam_id].set_tvec(camera_params[cam_id][3:6])
+        #cam_list[cam_id].set_focal_length(
+        #    camera_params[cam_id][6], camera_params[cam_id][7]
+        #)
 
         points2d_mask = camera_indices == cam_id
         points3d_where = point_indices[points2d_mask]

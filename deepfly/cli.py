@@ -139,6 +139,12 @@ def parse_cli_args():
         help="Skip 2D and 3D pose estimation",
         action="store_true",
     )
+    parser.add_argument(
+        "-skip-2d",
+        "--skip-2d",
+        help="Skip 2D and 3D pose estimation",
+        action="store_true",
+    )
     return parser.parse_args()
 
 
@@ -272,7 +278,8 @@ def run(args):
         core.update_camera_ordering(args.camera_ids)
 
     if not args.skip_estimation:
-        core.pose2d_estimation(core.overwrite)
+        if not args.skip_2d:
+            core.pose2d_estimation(core.overwrite)
         core.calibrate_calc(0, core.max_img_id)
         core.save_pose()
     else:
