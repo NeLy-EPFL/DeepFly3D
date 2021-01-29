@@ -119,6 +119,7 @@ def parse_cli_args():
         default=math.inf,
         type=int,
     )
+
     parser.add_argument(
         "-i",
         "--camera-ids",
@@ -134,15 +135,15 @@ def parse_cli_args():
         "-3d", "--video-3d", help="Generate pose3d videos", action="store_true"
     )
     parser.add_argument(
-        "-skip",
-        "--skip-estimation",
+        "-skip-2d",
+        "--skip-2d",
         help="Skip 2D and 3D pose estimation",
         action="store_true",
     )
     parser.add_argument(
-        "-skip-2d",
-        "--skip-2d",
-        help="Skip 2D and 3D pose estimation",
+        "-skip-calibration",
+        "--skip-calib",
+        help="Skip calibration",
         action="store_true",
     )
     return parser.parse_args()
@@ -261,7 +262,7 @@ def run(args):
     Parameters:
     args: the parsed command-line arguments (see: parse_cli_args())
     """
-    nothing_to_do = args.skip_estimation and (not args.video_2d) and (not args.video_3d)
+    nothing_to_do = args.skip_2d and (not args.video_2d) and (not args.video_3d)
 
     if nothing_to_do:
         logger.info(
@@ -277,13 +278,11 @@ def run(args):
     if args.camera_ids is not None:
         core.update_camera_ordering(args.camera_ids)
 
-    if not args.skip_estimation:
-        if not args.skip_2d:
-            core.pose2d_estimation(core.overwrite)
+    if not args.skip_2d:
+        core.pose2d_estimation(core.overwrite)
+    if not args.skip_calib:
         core.calibrate_calc(0, core.max_img_id)
-        core.save_pose()
-    else:
-        core.calibrate_calc(0, core.max_img_id)
+    core.save_pose()
 
     if args.video_2d:
         video.make_pose2d_video(

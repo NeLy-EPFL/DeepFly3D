@@ -11,10 +11,10 @@ from deepfly.plot_util import plot_drosophila_3d
 import deepfly.logger as logger
 
 
-img3d_dpi = 100  # this is the dpi for one image on the 3d video's grid
+img3d_dpi = 200  # this is the dpi for one image on the 3d video's grid
 img3d_aspect = (2, 2)  # this is the aspect ration for one image on the 3d video's grid
 img2d_aspect = (2, 1)  # this is the aspect ration for one image on the 3d video's grid
-video_width = 500  # total width of the 2d and 3d videos
+video_width = 1000  # total width of the 2d and 3d videos
 
 
 def make_pose2d_video(plot_2d, num_images, input_folder, output_folder):
@@ -34,7 +34,7 @@ def make_pose2d_video(plot_2d, num_images, input_folder, output_folder):
             row2 = np.hstack([plot(cam_id, img_id) for cam_id in [3, 4, 5, 6]])
             return np.vstack([row1, row2])
 
-        for img_id in range(0, num_images, 3):
+        for img_id in range(0, num_images, 2):
             yield stack(img_id)
 
     # We can call next(generator) on this instance to get the images,
