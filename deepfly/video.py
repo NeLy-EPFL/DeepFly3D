@@ -30,18 +30,18 @@ def make_pose2d_video(plot_2d, num_images, input_folder, output_folder):
     def imgs_generator():
         def stack(img_id):
             plot = lambda c, i: plot_2d(c, i, smooth=True)
-            row1 = np.hstack([plot(cam_id, img_id) for cam_id in [0, 1, 2]])
-            row2 = np.hstack([plot(cam_id, img_id) for cam_id in [4, 5, 6]])
+            row1 = np.hstack([plot(cam_id, img_id) for cam_id in [0, 1, 2, 3]])
+            row2 = np.hstack([plot(cam_id, img_id) for cam_id in [3, 4, 5, 6]])
             return np.vstack([row1, row2])
 
-        for img_id in range(num_images):
+        for img_id in range(0, num_images, 3):
             yield stack(img_id)
 
     # We can call next(generator) on this instance to get the images,
     # just like for an iterator
     generator = imgs_generator()
 
-    video_name = 'video_pose2d_' + input_folder.replace('/', '_') + '.mp4'
+    video_name = "video_pose2d_" + input_folder.replace("/", "_") + ".mp4"
     video_path = os.path.join(input_folder, output_folder, video_name)
     _make_video(video_path, generator)
 
@@ -56,21 +56,27 @@ def make_pose3d_video(points3d, plot_2d, num_images, input_folder, output_folder
     input_folder: input folder containing the images
     output_folder: output folder where to write the video.
     """
-    
+
     def imgs_generator():
         def stack(img_id):
-            row1 = np.hstack([_compute_2d_img(plot_2d, img_id, cam_id) for cam_id in (0, 1, 2)])
-            row2 = np.hstack([_compute_2d_img(plot_2d, img_id, cam_id) for cam_id in (4, 5, 6)])
-            row3 = np.hstack([_compute_3d_img(points3d, img_id, cam_id) for cam_id in (4, 5, 6)])
+            row1 = np.hstack(
+                [_compute_2d_img(plot_2d, img_id, cam_id) for cam_id in (0, 1, 2)]
+            )
+            row2 = np.hstack(
+                [_compute_2d_img(plot_2d, img_id, cam_id) for cam_id in (4, 5, 6)]
+            )
+            row3 = np.hstack(
+                [_compute_3d_img(points3d, img_id, cam_id) for cam_id in (4, 5, 6)]
+            )
             img = np.vstack([row1, row2, row3])
             return img
 
-        for img_id in range(num_images):
+        for img_id in range(0, num_images, 3):
             yield stack(img_id)
 
     # We can call next(generator) on this instance to get the images, just like for an iterator
     generator = imgs_generator()
-    video_name = 'video_pose3d_' + input_folder.replace('/', '_') + '.mp4'
+    video_name = "video_pose3d_" + input_folder.replace("/", "_") + ".mp4"
     video_path = os.path.join(input_folder, output_folder, video_name)
     _make_video(video_path, generator)
 
@@ -87,11 +93,11 @@ def _make_video(video_path, imgs):
     imgs = itertools.chain([first_frame], imgs)
 
     shape = int(first_frame.shape[1]), int(first_frame.shape[0])
-    logger.debug('Saving video to: ' + video_path)
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    logger.debug("Saving video to: " + video_path)
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     fps = 30
     output_shape = _resize(current_shape=shape, new_width=video_width)
-    logger.debug('Video size is: {}'.format(output_shape))
+    logger.debug("Video size is: {}".format(output_shape))
     video_writer = cv2.VideoWriter(video_path, fourcc, fps, output_shape)
 
     progress_bar = tqdm if logger.info_enabled() else lambda x: x
@@ -101,12 +107,12 @@ def _make_video(video_path, imgs):
         video_writer.write(rgb)
 
     video_writer.release()
-    logger.info('Video created at {}\n'.format(video_path))
+    logger.info("Video created at {}\n".format(video_path))
 
 
 def _resize(current_shape, new_width):
     width, height = current_shape
-    ratio = new_width / width;
+    ratio = new_width / width
     return (int(width * ratio), int(height * ratio))
 
 
@@ -117,7 +123,7 @@ def _compute_2d_img(plot_2d, img_id, cam_id):
     A numpy array containing the resized image.
     """
     img = plot_2d(cam_id, img_id, smooth=True)
-    img = cv2.resize(img, (img2d_aspect[0]*img3d_dpi, img2d_aspect[1]*img3d_dpi))
+    img = cv2.resize(img, (img2d_aspect[0] * img3d_dpi, img2d_aspect[1] * img3d_dpi))
     return img
 
 
@@ -127,10 +133,10 @@ def _compute_3d_img(points3d, img_id, cam_id):
     Returns:
     A numpy array containing the resulting 3D image projected on 2D.
     """
-    
+
     import numpy as np
 
-    plt.style.use('dark_background')
+    plt.style.use("dark_background")
     fig = plt.figure(figsize=img3d_aspect, dpi=img3d_dpi)
     fig.tight_layout(pad=0)
 
@@ -141,13 +147,14 @@ def _compute_3d_img(points3d, img_id, cam_id):
     ax3d.set_xticks([])
     ax3d.set_yticks([])
     ax3d.set_zticks([])
-    
+
     plot_drosophila_3d(
-        ax3d, 
-        points3d[img_id].copy(), 
-        cam_id=cam_id, 
-        lim=2, 
-        thickness=np.ones((points3d.shape[1])) * 1.5)
+        ax3d,
+        points3d[img_id].copy(),
+        cam_id=cam_id,
+        lim=2,
+        thickness=np.ones((points3d.shape[1])) * 1.5,
+    )
 
     fig.canvas.draw()
     data = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)

@@ -60,10 +60,11 @@ def json2points2d(json, image_shape, num_images):
     return pred
 
 
-def pred2points2d(pred, cam_id, cam_id_read, image_shape):
+def pred2points2d(pred, cam_id, cam_id_read, image_shape, num_images):
     """convert sh output to df3d format
     """
-
+    if pred is None:
+        return np.zeros((num_images, 38, 2))
     if cam_id == 3:
         return pred_front2points2d(pred, cam_id, cam_id_read, image_shape)
     else:
@@ -183,24 +184,23 @@ class CameraNetwork:
         if pred_path is not None:
             pred = np.load(file=pred_path, mmap_mode="r", allow_pickle=True)
             pred = pred[:, : self.num_images]
-
+        else:
+            pred = None
+        if pred_front_path is not None:
             pred_front = np.load(file=pred_front_path, mmap_mode="r", allow_pickle=True)
             pred_front = pred_front[:, : self.num_images]
         else:
-            pred = None
             pred_front = None
 
         for cam_id in cam_id_list:
             cam_id_read = self.cid2cidread[cam_id]
-            if pred is not None:
-                pred_cam = pred2points2d(
-                    pred if cam_id != 3 else pred_front,
-                    cam_id,
-                    cam_id_read,
-                    config["image_shape"],
-                )
-            else:
-                pred_cam = None
+            pred_cam = pred2points2d(
+                pred if cam_id != 3 else pred_front,
+                cam_id,
+                cam_id_read,
+                config["image_shape"],
+                self.num_images,
+            )
             self.cam_list.append(
                 Camera(
                     cid=cam_id,
@@ -489,9 +489,9 @@ def residuals(
     for cam_id in cam_indices_list:
         cam_list[cam_id].set_rvec(camera_params[cam_id][0:3])
         cam_list[cam_id].set_tvec(camera_params[cam_id][3:6])
-        #cam_list[cam_id].set_focal_length(
+        # cam_list[cam_id].set_focal_length(
         #    camera_params[cam_id][6], camera_params[cam_id][7]
-        #)
+        # )
 
         points2d_mask = camera_indices == cam_id
         points3d_where = point_indices[points2d_mask]
