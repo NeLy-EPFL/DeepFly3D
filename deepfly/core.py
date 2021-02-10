@@ -338,6 +338,7 @@ class Core:
         return cam.plot_2d(
             img_id,
             pts2d,
+            #img=np.zeros((480, 960,)),
             circle_color=circle_color,
             draw_joints=visible_joints,
             zorder=zorder,

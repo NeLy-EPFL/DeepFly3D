@@ -95,7 +95,7 @@ def _make_video(video_path, imgs):
     shape = int(first_frame.shape[1]), int(first_frame.shape[0])
     logger.debug("Saving video to: " + video_path)
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    fps = 30
+    fps = 15
     output_shape = _resize(current_shape=shape, new_width=video_width)
     logger.debug("Video size is: {}".format(output_shape))
     video_writer = cv2.VideoWriter(video_path, fourcc, fps, output_shape)

@@ -52,20 +52,18 @@ def mse_acc(gt_heatmap, score_heatmap):
     gt_annot = get_preds(gt_heatmap)
     pred_annot = get_preds(score_heatmap)
 
-    dists = calc_dists(pred_annot, gt_annot, torch.ones(pred_annot.size(0)))
+    dists = calc_dists(pred_annot, gt_annot)
     return dists
 
 
-def calc_dists(preds, target, normalize):
+def calc_dists(preds, target):
     preds = preds.float()
     target = target.float()
-    dists = torch.zeros(preds.size(1), preds.size(0))
+    dists = torch.zeros(preds.size(0), preds.size(1))
     for n in range(preds.size(0)):
         for c in range(preds.size(1)):
-            # if target[n, c, 0] > 1 and target[n, c, 1] > 1:
-            dists[c, n] = torch.dist(preds[n, c, :], target[n, c, :]) / normalize[n]
-            # else:
-            #    dists[c, n] = -1
+            if target[n, c, 0] > 1 and target[n, c, 1] > 1:
+                dists[n, c] = torch.dist(preds[n, c, :], target[n, c, :])
     return dists
 
 
@@ -84,7 +82,7 @@ def accuracy(output, target, idxs, thr=0.5):
     preds = get_preds(output)
     gts = get_preds(target)
     norm = torch.ones(preds.size(0)) * output.size(3) / 10
-    dists = calc_dists(preds, gts, norm)
+    dists = calc_dists(preds, gts)
 
     acc = torch.zeros(len(idxs) + 1)
     avg_acc = 0

@@ -24,6 +24,9 @@ from deepfly.pose2d.utils.evaluation import AverageMeter, accuracy, mse_acc
 from deepfly.pose2d.utils.misc import get_time, save_checkpoint, save_dict, to_numpy
 from deepfly.pose2d.utils.imutils import save_image, drosophila_image_overlay
 
+from torch.utils.tensorboard import SummaryWriter
+
+writer = SummaryWriter()
 import numpy as np
 
 
@@ -77,11 +80,14 @@ def load_weights(model, resume: str):
 
 
 def df3dLoss(output, target, joint_exists):
-    # joint_exists = joint_exists.data.numpy()
-    loss = joint_exists * ((output[0] - target) ** 2).sum(dim=(-1, -2)).sum()
-    for j in range(1, len(output)):
-        loss += joint_exists * ((output[j] - target) ** 2).sum(dim=(-1, -2)).sum()
-    return loss.sum()
+    joint_exists = joint_exists.view(joint_exists.size(0), joint_exists.size(1), 1, 1)
+    loss = (((output[0] - target) ** 2) * joint_exists).mean()
+    for idx in range(1, len(output)):
+        loss += (
+            ((output[idx] - target) ** 2) * joint_exists
+        ).mean()  # torch.nn.functional.mse_loss(output[o_idx], target)
+
+    return loss
 
 
 def weighted_mse_loss(inp, target, weights):
@@ -160,8 +166,6 @@ def process_folder(
         mode=Mode.test,
         heatmap=heatmap,
         epoch=0,
-        num_classes=num_classes,
-        acc_joints=acc_joints,
         unlabeled=True,
     )
 
@@ -218,7 +222,6 @@ def create_dataloader():
             img_res=args.img_res,
             hm_res=args.hm_res,
             augmentation=False,
-            evaluation=True,
             num_classes=args.num_classes,
             output_folder=args.output_folder,
             front=True,
@@ -251,7 +254,7 @@ def main(args):
         model.parameters(), lr=args.lr, weight_decay=args.weight_decay,
     )
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, verbose=True, patience=2, factor=0.5
+        optimizer, verbose=True, patience=5, factor=0.5
     )
 
     if args.resume:
@@ -269,7 +272,6 @@ def main(args):
                 img_res=args.img_res,
                 hm_res=args.hm_res,
                 augmentation=False,
-                evaluation=True,
                 unlabeled=args.unlabeled,
                 num_classes=args.num_classes,
                 max_img_id=min(get_max_img_id(args.unlabeled), args.max_img_id),
@@ -300,29 +302,26 @@ def main(args):
         for epoch in range(args.start_epoch, args.epochs):
             logger.debug("\nEpoch: %d | LR: %.8f" % (epoch + 1, lr))
 
-            _, _, _, _, _ = step(
+            _, _, train_loss, _, _ = step(
                 loader=train_loader,
                 model=model,
                 optimizer=optimizer,
                 mode=Mode.train,
                 heatmap=False,
                 epoch=epoch,
-                num_classes=args.num_classes,
-                acc_joints=args.acc_joints,
                 unlabeled=False,
             )
+
             val_pred, _, val_loss, val_acc, val_mse = step(
                 loader=val_loader,
                 model=model,
-                optimizer=optimizer,
+                optimizer=None,
                 mode=Mode.test,
                 heatmap=False,
                 epoch=epoch,
-                num_classes=args.num_classes,
-                acc_joints=args.acc_joints,
                 unlabeled=False,
             )
-            scheduler.step(val_loss)
+            scheduler.step(train_loss)
             is_best = val_acc > best_acc
             best_acc = max(val_acc, best_acc)
             save_checkpoint(
@@ -342,9 +341,7 @@ def main(args):
             )
 
 
-def step(
-    loader, model, optimizer, mode, heatmap, epoch, num_classes, acc_joints, unlabeled
-):
+def step(loader, model, optimizer, mode, heatmap, epoch, unlabeled):
     keys_am = [
         "batch_time",
         "data_time",
@@ -384,6 +381,7 @@ def step(
         predictions = None
     for i, (inputs, target, meta) in enumerate(loader):
         np.random.seed()
+        joint_exists = meta["joint_exists"].cuda().float()
         am["data_time"].update(time.time() - start)
         input_var = torch.autograd.Variable(on_cuda(inputs))
         target_var = torch.autograd.Variable(on_cuda(target, non_blocking=True))
@@ -400,10 +398,7 @@ def step(
                 predictions[cam_read_id, img_id, :] = pr
 
         if not unlabeled:
-            # loss = df3dLoss(output, target_var, meta["joint_exists"].cuda().float())
-            loss = torch.nn.functional.mse_loss(output[0], target_var)
-            for o_idx in range(1, len(output)):
-                loss += torch.nn.functional.mse_loss(output[o_idx], target_var)
+            loss = df3dLoss(output, target_var, joint_exists)
             am["losses"].update(loss.item())
             if mode == mode.train:
                 optimizer.zero_grad()
@@ -413,33 +408,36 @@ def step(
         ## PLOT
         if i < 10 and not unlabeled:
             drosophila_img = drosophila_image_overlay(
-                inputs, target_var.detach(), args.hm_res, 3, args.train_joints
+                inputs,
+                target_var.detach()
+                if mode == mode.train
+                else output[-1].detach().cpu(),
+                args.hm_res,
+                3,
+                args.train_joints,
             )
 
-            folder_name = (
-                meta["folder_name"][0].replace("/", "-")
-                + meta["folder_name"][1].replace("/", "-")
-                + meta["folder_name"][2].replace("/", "-")
+            writer.add_image(
+                "{}/heatmap".format("train" if mode == mode.train else "test"),
+                np.clip(drosophila_img.astype(float), a_min=0, a_max=255) / 255,
+                (epoch * len(loader)) + i,
+                dataformats="HWC",
             )
-            # image_name = meta["image_name"][0]
-            template = "./test_gt_{}_{}_{:06d}_{}_joint_{}.jpg"
 
-            save_image(
-                img_path=os.path.join(
-                    args.checkpoint_image_dir,
-                    template.format(
-                        epoch, folder_name, meta["pid"][0], meta["cid"][0], []
-                    ),
-                ),
-                img=drosophila_img,
-            )
-        ## PLOT
-
-        acc = accuracy(heatmap_batch, target, acc_joints)
-        # am["acces"].add(acc)
         if not unlabeled:
             mse_err = mse_acc(target_var.data.cpu(), heatmap_batch)
+            mse_err = mse_err[joint_exists != 0]
             am["mse"].update(mse_err.mean().item())
+            writer.add_scalar(
+                "{}/mse".format("train" if mode == mode.train else "test"),
+                mse_err.mean(),
+                (epoch * len(loader)) + i,
+            )
+            writer.add_scalar(
+                "{}/loss".format("train" if mode == mode.train else "test"),
+                loss.mean(),
+                (epoch * len(loader)) + i,
+            )
         am["batch_time"].update(time.time() - start)
         start = time.time()
 

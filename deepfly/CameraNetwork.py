@@ -322,7 +322,9 @@ class CameraNetwork:
                 ):
                     points2d_ba.extend(cam[img_id, j_id])
                     point_indices.append(
-                        d[(img_id, j_id)] if not is_stripe else d[(img_id, j_id % 19)]
+                        d[
+                            (img_id, j_id)
+                        ]  # if not is_stripe else d[(img_id, j_id % 19)]
                     )
                     camera_indices.append(cam_idx)
 

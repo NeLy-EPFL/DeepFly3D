@@ -46,7 +46,6 @@ def read_unlabeled_folder(
 
     for image_name_jpg in os.listdir(unlabeled):
         if image_name_jpg.endswith(".jpg"):
-            # image_name = image_name_jpg.replace(".jpg", "")
             key = unlabeled + "/" + image_name_jpg
             cid_read, img_id = parse_img_name(image_name_jpg.replace(".jpg", ""))
             if not front:
@@ -68,7 +67,6 @@ class DrosophilaDataset(data.Dataset):
         hm_res=None,
         train=True,
         augmentation=False,
-        evaluation=False,
         unlabeled=None,
         num_classes=config["num_predict"],
         max_img_id=None,
@@ -82,7 +80,6 @@ class DrosophilaDataset(data.Dataset):
         self.hm_res = hm_res
         self.sigma = 1
         self.augmentation = augmentation
-        self.evaluation = evaluation
         self.unlabeled = unlabeled
         self.num_classes = num_classes
         self.max_img_id = max_img_id
@@ -94,12 +91,6 @@ class DrosophilaDataset(data.Dataset):
             raise ValueError(
                 "Please provide an output_folder relative to images folder"
             )
-
-        assert (
-            not self.evaluation or not self.augmentation
-        )  # self eval then not augmentation
-        assert not self.unlabeled or evaluation  # if unlabeled then evaluation
-
         self.annotation_dict = dict()
 
         if self.unlabeled:
@@ -178,7 +169,11 @@ class DrosophilaDataset(data.Dataset):
                 can_see = config["skeleton"].camera_see_joint(cid, i) or config[
                     "skeleton"
                 ].camera_see_joint(cid, (i + config["num_predict"]))
-                joint_exists[i] = int(torch.all(pts[i] != 0) and can_see)
+                can_see = int(can_see)
+                joint_exists[i] = int(torch.all(pts[i] != 0)) * can_see
+        else:
+            for i in range(nparts):
+                joint_exists[i] = int(torch.all(pts[i] != 0))
 
         if flip:
             img_orig = torch.from_numpy(fliplr(img_orig.numpy())).float()
@@ -203,7 +198,7 @@ class DrosophilaDataset(data.Dataset):
             img_norm = random_jitter(
                 img_norm, brightness=0.5, contrast=0.5, saturation=0.5, hue=0.2
             )
-            # img_norm, target = random_rotation(img_norm, target, degrees=10)
+            img_norm, target = random_rotation(img_norm, target, degrees=15)
 
         img_norm = color_normalize(img_norm, self.mean, self.std)
 
@@ -229,3 +224,4 @@ class DrosophilaDataset(data.Dataset):
 
     def __len__(self):
         return len(self.annotation_key)
+

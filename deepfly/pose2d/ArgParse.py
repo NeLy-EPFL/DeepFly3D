@@ -2,6 +2,7 @@ import argparse
 import os
 from deepfly.Config import config
 
+
 def add_arguments(parser):
     parser.add_argument("--arch", "-a", metavar="ARCH", default="hg")
     parser.add_argument(
@@ -14,7 +15,7 @@ def add_arguments(parser):
     )
     parser.add_argument(
         "--epochs",
-        default=200,
+        default=1000,
         type=int,
         metavar="N",
         help="number of total epochs to run",
@@ -37,7 +38,7 @@ def add_arguments(parser):
     )
     parser.add_argument(
         "--test-batch",
-        default=6,
+        default=4,
         type=int,
         metavar="N",
         dest="test_batch",
@@ -57,7 +58,7 @@ def add_arguments(parser):
     parser.add_argument(
         "--weight-decay",
         "--wd",
-        default=0,
+        default=1e-5,
         type=float,
         metavar="W",
         help="weight decay (default: 0)",
@@ -211,16 +212,13 @@ def add_arguments(parser):
         dest="hm_res",
     )
     parser.add_argument(
-        "--multiview",
-        action="store_true",
+        "--multiview", action="store_true",
     )
     parser.add_argument(
-        "--name",
-        default="",
+        "--name", default="",
     )
     parser.add_argument(
-        "--carry",
-        action="store_true",
+        "--carry", action="store_true",
     )
     parser.add_argument("--inplanes", default=64, type=int, metavar="N")
     parser.add_argument("--stride", default=2, type=int, metavar="N")

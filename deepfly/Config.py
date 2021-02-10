@@ -29,7 +29,7 @@ config_fly = {
     "scatter_r": 6,
     # pose estimation
     "resume": os.path.join(
-        os.path.abspath(os.path.dirname(__file__)), "../weights/sh8_deepfly.tar"
+        os.path.abspath(os.path.dirname(__file__)), "../weights/sh8_deepfly.tar",
     ),
     "resume_front": os.path.join(
         os.path.abspath(os.path.dirname(__file__)), "../weights/sh8_deepfly_front.tar"
