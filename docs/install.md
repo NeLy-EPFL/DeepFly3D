@@ -11,7 +11,7 @@ conda create -n deepfly python=3.6
 ```
 which will create a new python environment. Then, activate the environment, and install jupyter notebook.
 ```
-source activate deepfly
+conda activate deepfly
 conda install jupyter
 ```
 Once this is done  you can install the **deepfly** package with the following command,
