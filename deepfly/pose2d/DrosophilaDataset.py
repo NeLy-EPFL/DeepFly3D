@@ -6,6 +6,7 @@ import os
 import pickle
 import re
 import warnings
+import pims
 from os.path import isfile
 
 import cv2
@@ -179,26 +180,19 @@ class DrosophilaVideoDataset(data.Dataset):
         self.cidread2cid, _ = read_camera_order(calib_folder)
 
         # Detect videos and their associated cameras
-        self.camera_capture_obj = {}
+        self.video_obj = {}
         for filename in os.listdir(unlabeled):
             match = re.search("camera_(\d*).mp4", filename.lower())
             if match:
                 cid_read = int(match[1])
                 if self.cidread2cid.tolist().index(cid_read) == 3:
                     continue
-                capture = cv2.VideoCapture(os.path.join(unlabeled, filename))
-                self.camera_capture_obj[cid_read] = capture
-        self.cam_keys = sorted(self.camera_capture_obj.keys())
-        #for cam_id in self.camera_ids:
-        #    path = os.path.join(unlabeled, "camera_%d.mp4" % cam_id)
-        #    if not os.path.isfile(path):
-        #        raise FileNotFoundError("Video %s not found." % path)
-        #    capture = cv2.VideoCapture(path)
-        #    self.camera_capture_obj[cam_id] = capture
+                video = pims.Video(os.path.join(unlabeled, filename))
+                self.video_obj[cid_read] = video
+        self.cam_keys = sorted(self.video_obj.keys())
 
         # See if all videos have the same number of frames
-        nframes_set = {int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
-                       for capture in self.camera_capture_obj.values()}
+        nframes_set = {len(video) for video in self.video_obj.values()}
         self.num_frames = min(nframes_set)
         if len(nframes_set) != 1:
             warnings.warn("Input videos have different lengths! Taking the "
@@ -219,25 +213,19 @@ class DrosophilaVideoDataset(data.Dataset):
 
     def __getitem__(self, idx):
         # Get cam id and frame id
-        cid_read = self.cam_keys[idx % len(self.camera_capture_obj)]
+        cid_read = self.cam_keys[idx % len(self.cam_keys)]
         cam_id = self.cidread2cid[cid_read]
-        frame_id = idx // len(self.camera_capture_obj)
+        frame_id = idx // len(self.cam_keys)
 
         # Read frame from MP4
-        capture = self.camera_capture_obj[cid_read]
-        capture.set(cv2.CAP_PROP_POS_FRAMES, frame_id)
-        is_success, img = capture.read()    # frame: <H, W, 3> array
-        if not is_success:
-            raise RuntimeError(
-                "Error reading idx %d: failed to grab cam %d, frame %d"
-                % (idx, cid_read, frame_id))
-        img = im_to_torch(img)
+        img = np.array(self.video_obj[cid_read][frame_id])
 
         # Transform image
-        # Note: this part can be optimized to avoid redundant copying
         if cam_id in config["flip_cameras"]:
-            img = torch.from_numpy(fliplr(img.numpy())).float()
-        img = im_to_torch(scipy.misc.imresize(img, self.img_res))
+            img = np.fliplr(img)
+        img = scipy.misc.imresize(img, self.img_res)
+        img = np.transpose(img, (2, 0, 1)) / 255
+        img = torch.from_numpy(img).float()
         img = color_normalize(img, self.mean, self.std)
 
         target = np.nan

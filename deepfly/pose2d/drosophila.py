@@ -158,9 +158,8 @@ def get_output_path(path, output_folder):
     return save_path
 
 
-def process_folder(
-    model, loader, unlabeled, output_folder, overwrite, num_classes, acc_joints
-):
+def process_folder(model, loader, unlabeled, output_folder, overwrite,
+                   num_classes, acc_joints, no_eval=False):
     save_path_pred, save_path_heatmap = (
         get_save_path_pred(unlabeled, output_folder),
         get_save_path_heatmap(unlabeled, output_folder),
@@ -200,7 +199,7 @@ def process_folder(
         epoch=0,
         num_classes=num_classes,
         acc_joints=acc_joints,
-        no_eval=bool(unlabeled)
+        no_eval=no_eval
     )
 
     _, cid2cidread = read_camera_order(get_output_path(unlabeled, output_folder))
@@ -333,7 +332,7 @@ def main(args):
                 num_classes=args.num_classes,
                 output_folder=args.output_folder
             )
-            num_workers = 0    # multiple workers don't work with opencv loader
+            num_workers = 0    # multiple workers don't work with video loader
         else:
             dataset = DrosophilaDataset(
                 data_folder=args.data_folder,
@@ -367,6 +366,7 @@ def main(args):
             args.overwrite,
             num_classes=args.num_classes,
             acc_joints=args.acc_joints,
+            no_eval=bool(args.unlabeled)
         )
         return pred, heatmap
     else:
