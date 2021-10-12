@@ -60,13 +60,15 @@ def find_default_camera_ordering(input_folder):
 class Core:
     """Main interface to interact and use the 2d and 3d pose estimation network."""
 
-    def __init__(self, input_folder, output_subfolder, num_images_max):
+    def __init__(self, input_folder, output_subfolder, num_images_max,
+                 from_video):
         self.input_folder = input_folder
         self.output_subfolder = output_subfolder
         self.output_folder = os.path.join(input_folder, output_subfolder)
+        self.from_video = from_video
 
         self.num_images_max = num_images_max or math.inf
-        max_img_id = get_max_img_id(self.input_folder)
+        max_img_id = get_max_img_id(self.input_folder, from_video)
         self.num_images = min(self.num_images_max, max_img_id + 1)
         self.max_img_id = self.num_images - 1
 
@@ -496,6 +498,7 @@ class Core:
             cid2cidread=self.cid2cidread,
             num_images=self.num_images,
             #calibration=calib,
+            from_video=self.from_video,
         )
         #print(len(self.camNetAll.cam_list))
         self.camNetLeft = CameraNetwork(
@@ -510,6 +513,7 @@ class Core:
                 for cam in self.camNetAll.cam_list
                 if cam.cam_id in config["left_cameras"]
             ],
+            from_video=self.from_video,
         )
         self.camNetRight = CameraNetwork(
             image_folder=self.input_folder,
@@ -521,6 +525,7 @@ class Core:
             cam_list=[
                 self.camNetAll.cam_list[cam_id] for cam_id in config["right_cameras"]
             ],
+            from_video=self.from_video,
         )
 
         if not self.camNetAll.has_calibration():

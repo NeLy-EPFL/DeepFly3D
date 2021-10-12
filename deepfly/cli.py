@@ -270,7 +270,8 @@ def run(args):
 
     logger.info(f"{Style.BRIGHT}\nWorking in {args.input_folder}{Style.RESET_ALL}")
 
-    core = Core(args.input_folder, args.output_folder, args.num_images_max)
+    core = Core(args.input_folder, args.output_folder, args.num_images_max,
+                from_video=args.from_video)
     core.overwrite = args.overwrite  # monkey-patch: save it for later
 
     if args.camera_ids is not None:

@@ -2,6 +2,7 @@ import math
 import os
 
 import cv2
+import pims
 import numpy as np
 import skimage
 import skimage.feature
@@ -11,7 +12,8 @@ from deepfly.plot_util import plot_drosophila_2d, plot_drosophila_heatmap
 
 
 class Camera:
-    def __init__(self, cid, image_folder, hm=None, points2d=None, cid_read=None):
+    def __init__(self, cid, image_folder, hm=None, points2d=None, cid_read=None,
+                 from_video=False):
         self.cam_id = cid
         self.cam_id_read = cid_read if cid_read is not None else cid
         self.image_folder = image_folder
@@ -36,6 +38,11 @@ class Camera:
         )
         self.distort = np.zeros(5, dtype=np.float)
         self.P = None
+        self.from_video = from_video
+        if from_video:
+            video_path = os.path.join(image_folder,
+                                      'camera_%d.mp4' % self.cam_id_read)
+            self.video_obj = pims.Video(video_path)
 
     def set_intrinsic(self, intrinsic):
         self.intr = intrinsic
@@ -129,26 +136,29 @@ class Camera:
 
     def get_image(self, img_id, flip=False):
 
-        from deepfly.os_util import constr_img_name
-
-        img_name, img_name_pad = (
-            constr_img_name(self.cam_id_read, img_id, pad=False),
-            constr_img_name(self.cam_id_read, img_id, pad=True),
-        )
-
-        image_path = os.path.join(self.image_folder, "{}.jpg".format(img_name))
-        image_pad_path = os.path.join(self.image_folder, "{}.jpg".format(img_name_pad))
-
-        if os.path.isfile(image_path):
-            img = cv2.imread(image_path)
-        elif os.path.isfile(image_pad_path):
-            img = cv2.imread(image_pad_path)
+        if self.from_video:
+            img = self.video_obj[img_id]
         else:
-            raise FileNotFoundError
+            from deepfly.os_util import constr_img_name
 
-        if img is None:
-            print("Cannot find", self.cam_id, img_id)
-            raise FileNotFoundError
+            img_name, img_name_pad = (
+                constr_img_name(self.cam_id_read, img_id, pad=False),
+                constr_img_name(self.cam_id_read, img_id, pad=True),
+            )
+
+            image_path = os.path.join(self.image_folder, "{}.jpg".format(img_name))
+            image_pad_path = os.path.join(self.image_folder, "{}.jpg".format(img_name_pad))
+
+            if os.path.isfile(image_path):
+                img = cv2.imread(image_path)
+            elif os.path.isfile(image_pad_path):
+                img = cv2.imread(image_pad_path)
+            else:
+                raise FileNotFoundError
+
+            if img is None:
+                print("Cannot find", self.cam_id, img_id)
+                raise FileNotFoundError
 
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         if img.ndim == 2:

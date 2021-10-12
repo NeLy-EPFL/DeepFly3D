@@ -439,6 +439,7 @@ def step(loader, model, optimizer, mode, heatmap, epoch, num_classes, acc_joints
         model.eval()
 
     start = time.time()
+    gstart = start  #####
     bar = (
         Bar("Processing", max=len(loader)) if logger.debug_enabled() else NoOutputBar()
     )
@@ -506,6 +507,7 @@ def step(loader, model, optimizer, mode, heatmap, epoch, num_classes, acc_joints
             mse_tarsus=am["tarsus_tip"].avg,
         )
         bar.next()
+        print('iteration %d at time %.2f' % (i, time.time() - gstart))    #####
 
     bar.finish()
     return (predictions, heatmap, am["losses"].avg, am["acces"].avg, am["mse"].avg)

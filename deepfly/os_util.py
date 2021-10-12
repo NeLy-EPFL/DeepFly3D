@@ -1,5 +1,6 @@
 import glob
 import os
+import pims
 
 import numpy as np
 from deepfly.Config import config
@@ -7,25 +8,31 @@ from deepfly.Config import config
 
 import deepfly.logger as logger
 
+def get_max_img_id(path, from_video):
+    if from_video:
+        video_path = os.path.join(path, 'camera_0.mp4')
+        if not os.path.isfile(video_path):
+            raise FileNotFoundError('No video found at ' + video_path)
+        video = pims.Video(video_path)
+        return len(video)
+    else:
+        print(path)
+        bound_low = 0
+        bound_high = 100000
 
-def get_max_img_id(path):
-    print(path)
-    bound_low = 0
-    bound_high = 100000
+        curr = (bound_high + bound_low) // 2
+        while bound_high - bound_low > 1:
+            if image_exists_img_id(path, curr):
+                bound_low = curr
+            else:
+                bound_high = curr
+            curr = (bound_low + bound_high) // 2
 
-    curr = (bound_high + bound_low) // 2
-    while bound_high - bound_low > 1:
-        if image_exists_img_id(path, curr):
-            bound_low = curr
-        else:
-            bound_high = curr
-        curr = (bound_low + bound_high) // 2
+        if not image_exists_img_id(path, curr):
+            logger.debug("Cannot find image at {} with img_id {}".format(path, curr))
+            raise FileNotFoundError("No image found.")
 
-    if not image_exists_img_id(path, curr):
-        logger.debug("Cannot find image at {} with img_id {}".format(path, curr))
-        raise FileNotFoundError("No image found.")
-
-    return curr
+        return curr
 
 
 def image_exists_img_id(path, img_id):

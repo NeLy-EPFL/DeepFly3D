@@ -134,12 +134,14 @@ class CameraNetwork:
         cam_id_list=range(config["num_cameras"]),
         cid2cidread=None,
         pred=None,
+        from_video=False,
     ):
         self.image_folder = image_folder
         self.output_folder = output_folder
         self.points3d = None
         self.num_images = num_images
         self.num_cameras = len(cam_id_list)
+        self.from_video = from_video
 
         self.cid2cidread = (
             cid2cidread
@@ -174,6 +176,7 @@ class CameraNetwork:
                     if pred is not None
                     else pred,
                     hm=None,
+                    from_video=from_video
                 )
             )
 
