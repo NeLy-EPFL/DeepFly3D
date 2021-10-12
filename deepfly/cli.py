@@ -139,6 +139,11 @@ def parse_cli_args():
         help="Skip 2D and 3D pose estimation",
         action="store_true",
     )
+    parser.add_argument(
+        "-fv", "--from-video",
+        help="Read images from MP4 files instead of individual frame images",
+        action="store_true"
+    )
     return parser.parse_args()
 
 

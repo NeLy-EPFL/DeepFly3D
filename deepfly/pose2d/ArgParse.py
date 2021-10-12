@@ -225,6 +225,11 @@ def add_arguments(parser):
     parser.add_argument("--inplanes", default=64, type=int, metavar="N")
     parser.add_argument("--stride", default=2, type=int, metavar="N")
     parser.add_argument("--sigma", default=1, type=int)
+    parser.add_argument(
+        "-fv", "--from-video",
+        help="Read images from MP4 files instead of individual frame images",
+        action="store_true"
+    )
     return parser
 
 

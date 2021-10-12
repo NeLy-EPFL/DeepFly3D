@@ -4,8 +4,11 @@ import glob
 import json
 import os
 import pickle
+import re
+import warnings
 from os.path import isfile
 
+import cv2
 import numpy as np
 import scipy
 import torch
@@ -144,6 +147,108 @@ def normalize_annotations(d, num_classes, cidread2cid_global):
 
         d[k] = v
 
+
+class DrosophilaVideoDataset(data.Dataset):
+    """
+    A Drosophila class for videos collected from the SeptaCam setup.
+    FOR PREDICTIONS ONLY - USE ``DrosophilaDataset`` FOR TRAINING.
+        
+    Notes
+    -----
+    - To keep consistent with ``DrosophilaDataset``, ``unlabeled`` is a
+      path, not a boolean.
+    - ``cid_read`` is the camera ID shown in the file name. ``cam_id``
+      is the canonical camera ID. This is made consistent with
+      ``DrosophilaDataset``.
+    """
+    def __init__(self, data_folder, img_res=None, unlabeled=None,
+                 num_classes=config["num_predict"], output_folder=None):
+        """Simplified from ``DrosophilaDataset``, with training-related
+        arguments and setups removed.
+
+        """
+        self.data_folder = data_folder
+        self.img_res = img_res
+        self.unlabeled = unlabeled
+        self.num_classes = num_classes
+        self.output_folder = output_folder
+
+        # The following path name manipulation is to keep consistent
+        # with ``DrosophilaDataset``.
+        calib_folder = os.path.join(unlabeled, output_folder)
+        self.cidread2cid, _ = read_camera_order(calib_folder)
+
+        # Detect videos and their associated cameras
+        self.camera_capture_obj = {}
+        for filename in os.listdir(unlabeled):
+            match = re.search("camera_(\d*).mp4", filename.lower())
+            if match:
+                cid_read = int(match[1])
+                if self.cidread2cid.tolist().index(cid_read) == 3:
+                    continue
+                capture = cv2.VideoCapture(os.path.join(unlabeled, filename))
+                self.camera_capture_obj[cid_read] = capture
+        self.cam_keys = sorted(self.camera_capture_obj.keys())
+        #for cam_id in self.camera_ids:
+        #    path = os.path.join(unlabeled, "camera_%d.mp4" % cam_id)
+        #    if not os.path.isfile(path):
+        #        raise FileNotFoundError("Video %s not found." % path)
+        #    capture = cv2.VideoCapture(path)
+        #    self.camera_capture_obj[cam_id] = capture
+
+        # See if all videos have the same number of frames
+        nframes_set = {int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
+                       for capture in self.camera_capture_obj.values()}
+        self.num_frames = min(nframes_set)
+        if len(nframes_set) != 1:
+            warnings.warn("Input videos have different lengths! Taking the "
+                          "minimum (%d)" % self.num_frames)
+
+        # Load mean and std images
+        meanstd_file = config["mean"]
+        if not isfile(meanstd_file):
+            raise FileNotFoundError(
+                "Mean/std file specified at ``config['mean']`` not found: " +
+                meanstd_file)
+        meanstd = torch.load(meanstd_file)
+        self.mean = meanstd["mean"]
+        self.std = meanstd["std"]
+
+    def __len__(self):
+        return self.num_frames * len(self.cam_keys)
+
+    def __getitem__(self, idx):
+        # Get cam id and frame id
+        cid_read = self.cam_keys[idx % len(self.camera_capture_obj)]
+        cam_id = self.cidread2cid[cid_read]
+        frame_id = idx // len(self.camera_capture_obj)
+
+        # Read frame from MP4
+        capture = self.camera_capture_obj[cid_read]
+        capture.set(cv2.CAP_PROP_POS_FRAMES, frame_id)
+        is_success, img = capture.read()    # frame: <H, W, 3> array
+        if not is_success:
+            raise RuntimeError(
+                "Error reading idx %d: failed to grab cam %d, frame %d"
+                % (idx, cid_read, frame_id))
+        img = im_to_torch(img)
+
+        # Transform image
+        # Note: this part can be optimized to avoid redundant copying
+        if cam_id in config["flip_cameras"]:
+            img = torch.from_numpy(fliplr(img.numpy())).float()
+        img = im_to_torch(scipy.misc.imresize(img, self.img_res))
+        img = color_normalize(img, self.mean, self.std)
+
+        target = np.nan
+        meta = {'cid': cam_id,
+                'cam_read_id': cid_read,
+                'pid': frame_id,
+                'frame_id': frame_id}
+        return img, target, meta
+
+    def greatest_image_id(self):
+        return self.__len__()
 
 class DrosophilaDataset(data.Dataset):
     def __init__(

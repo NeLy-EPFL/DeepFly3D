@@ -18,7 +18,7 @@ from deepfly.Config import config
 
 from deepfly.os_util import get_max_img_id, read_camera_order
 from deepfly.pose2d.ArgParse import create_parser
-from deepfly.pose2d.DrosophilaDataset import DrosophilaDataset
+from deepfly.pose2d.DrosophilaDataset import DrosophilaDataset, DrosophilaVideoDataset
 from deepfly.pose2d.models.hourglass import hg
 from deepfly.pose2d.utils.evaluation import AverageMeter, accuracy, mse_acc
 from deepfly.pose2d.utils.misc import get_time, save_checkpoint, save_dict, to_numpy
@@ -200,6 +200,7 @@ def process_folder(
         epoch=0,
         num_classes=num_classes,
         acc_joints=acc_joints,
+        no_eval=bool(unlabeled)
     )
 
     _, cid2cidread = read_camera_order(get_output_path(unlabeled, output_folder))
@@ -324,8 +325,17 @@ def main(args):
     )
 
     if args.unlabeled:
-        loader = DataLoader(
-            DrosophilaDataset(
+        if args.from_video:
+            dataset = DrosophilaVideoDataset(
+                data_folder=args.data_folder,
+                img_res=args.img_res,
+                unlabeled=args.unlabeled,
+                num_classes=args.num_classes,
+                output_folder=args.output_folder
+            )
+            num_workers = 0    # multiple workers don't work with opencv loader
+        else:
+            dataset = DrosophilaDataset(
                 data_folder=args.data_folder,
                 train=False,
                 sigma=args.sigma,
@@ -339,10 +349,13 @@ def main(args):
                 num_classes=args.num_classes,
                 max_img_id=min(get_max_img_id(args.unlabeled), args.max_img_id),
                 output_folder=args.output_folder,
-            ),
+            )
+            num_workers = args.workers
+        loader = DataLoader(
+            dataset,
             batch_size=args.test_batch,
             shuffle=False,
-            num_workers=args.workers,
+            num_workers=num_workers,
             pin_memory=False,
             drop_last=False,
         )
@@ -404,7 +417,8 @@ def main(args):
             )
 
 
-def step(loader, model, optimizer, mode, heatmap, epoch, num_classes, acc_joints):
+def step(loader, model, optimizer, mode, heatmap, epoch, num_classes, acc_joints,
+         no_eval=False):
     keys_am = [
         "batch_time",
         "data_time",
@@ -462,11 +476,16 @@ def step(loader, model, optimizer, mode, heatmap, epoch, num_classes, acc_joints
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-
-        acc = accuracy(heatmap_batch, target, acc_joints)
-        # am["acces"].add(acc)
-        mse_err = mse_acc(target_var.data.cpu(), heatmap_batch)
-        # am["mse"].add(mse_err)
+        
+        if no_eval:
+            acc = np.nan
+            mse_err = np.nan
+        else:
+            acc = accuracy(heatmap_batch, target, acc_joints)
+            # am["acces"].add(acc)
+            mse_err = mse_acc(target_var.data.cpu(), heatmap_batch)
+            # am["mse"].add(mse_err)
+        
         am["batch_time"].update(time.time() - start)
         start = time.time()
 
