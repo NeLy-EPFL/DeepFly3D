@@ -346,7 +346,8 @@ def main(args):
                 evaluation=True,
                 unlabeled=args.unlabeled,
                 num_classes=args.num_classes,
-                max_img_id=min(get_max_img_id(args.unlabeled), args.max_img_id),
+                max_img_id=min(get_max_img_id(args.unlabeled, from_video=False),
+                               args.max_img_id),
                 output_folder=args.output_folder,
             )
             num_workers = args.workers
