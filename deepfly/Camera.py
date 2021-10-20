@@ -264,10 +264,6 @@ class Camera:
         return np.squeeze(pred) * scale
 
     @staticmethod
-    def parse_img_name(img_name):
-        return (int(img_name.split("_")[1]), int(img_name.split("_")[3]))
-
-    @staticmethod
     def eulerAngles_to_R(theta):
         R_x = np.array(
             [

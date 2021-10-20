@@ -4,6 +4,7 @@ import glob
 import json
 import os
 import pickle
+import re
 from os.path import isfile
 
 import numpy as np
@@ -99,7 +100,8 @@ def read_unlabeled_folder(d, unlabeled, output_folder, cidread2cid_global, max_i
     cidread2cid_global[unlabeled] = cidread2cid
 
     for image_name_jpg in os.listdir(unlabeled):
-        if image_name_jpg.endswith(".jpg"):
+        match = re.match("camera_(\d+)_img_(\d+)\.jpg", image_name_jpg)
+        if match:
             image_name = image_name_jpg.replace(".jpg", "")
             key = (unlabeled, image_name)
             cid_read, img_id = parse_img_name(image_name)
