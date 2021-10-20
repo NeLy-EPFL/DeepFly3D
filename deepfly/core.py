@@ -41,6 +41,7 @@ def find_default_camera_ordering(input_folder):
         (r"Laura", [0, 6, 5, 4, 3, 2, 1]),
         (r"AYMANNS_Florian", [6, 5, 4, 3, 2, 1, 0]),
         (r"data/test", [0, 1, 2, 3, 4, 5, 6]),
+        (r"/JB/", [6, 5, 4, 3, 2, 1, 0]),
     ]
     #
     input_folder = str(input_folder)  # use `str` in case pathlib.Path instance
