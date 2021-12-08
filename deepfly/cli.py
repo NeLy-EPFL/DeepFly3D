@@ -265,13 +265,10 @@ def run(args):
 
     logger.info(f"{Style.BRIGHT}\nWorking in {args.input_folder}{Style.RESET_ALL}")
 
-    core = Core(args.input_folder, args.output_folder, args.num_images_max, args.camera_ids)
+    core = Core(
+        args.input_folder, args.output_folder, args.num_images_max, args.camera_ids
+    )
     core.overwrite = args.overwrite  # monkey-patch: save it for later
-
-    #if args.camera_ids is not None:
-    #    core.update_camera_ordering(args.camera_ids)
-
-    # if there is no default camera ordering and you haven't set it with -i flag, quit
 
     if not args.skip_estimation:
         core.pose2d_estimation(core.overwrite)

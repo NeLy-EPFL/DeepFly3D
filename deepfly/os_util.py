@@ -81,6 +81,10 @@ def write_camera_order(folder, cidread2cid):
 
 
 def parse_img_name(name):
-    # print('Parsing name: {}'.format(name))
     match = re.match("camera_(\d+)_img_(\d+)", name.replace(".jpg", ""))
     return int(match[1]), int(match[2])
+
+def parse_vid_name(name):
+    match = re.match("camera_(\d+)", name.replace(".mp4", ""))
+    #print(match, name)
+    return int(match[1])

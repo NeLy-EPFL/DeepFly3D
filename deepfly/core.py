@@ -1,7 +1,9 @@
+import glob
 import math  # inf
 import os.path
 import pickle
 import re
+import subprocess
 
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
@@ -14,6 +16,8 @@ from deepfly.DB import PoseDB
 from deepfly.optim_util import energy_drosoph
 from deepfly.os_util import (
     get_max_img_id,
+    parse_img_name,
+    parse_vid_name,
     read_camera_order,
     write_camera_order,
 )
@@ -55,7 +59,7 @@ def find_default_camera_ordering(input_folder):
         logger.debug(f"Default camera ordering found: {order}")
         return np.array(order)
     else:
-        raise NotImplementedError('Cannot find camera ordering ')
+        raise NotImplementedError("Cannot find camera ordering ")
 
 
 class Core:
@@ -66,6 +70,7 @@ class Core:
         self.output_subfolder = output_subfolder
         self.output_folder = os.path.join(input_folder, output_subfolder)
 
+        self.expand_videos()
         self.num_images_max = num_images_max or math.inf
         max_img_id = get_max_img_id(self.input_folder)
         self.num_images = min(self.num_images_max, max_img_id + 1)
@@ -147,7 +152,7 @@ class Core:
         print("Camera order {}".format(cidread2cid))
         write_camera_order(self.output_folder, cidread2cid)
         self.cidread2cid, self.cid2cidread = read_camera_order(self.output_folder)
-        #self.camNetAll.set_cid2cidread(self.cid2cidread)
+        # self.camNetAll.set_cid2cidread(self.cid2cidread)
         raise NotImplementedError
         return True
 
@@ -206,9 +211,9 @@ class Core:
         """
 
         print(f"Calibration considering frames between {min_img_id}:{max_img_id}")
-        #calib = read_calib(config["calib_fine"])
-        #assert calib is not None
-        #self.camNetAll.load_network(calib)
+        # calib = read_calib(config["calib_fine"])
+        # assert calib is not None
+        # self.camNetAll.load_network(calib)
         self.camNetAll.set_default_camera_parameters
 
         # print(self.camNetAll.cam_list[0].points2d.shape, "awawd")
@@ -330,7 +335,7 @@ class Core:
 
         if with_corrections:
             pts2d = self.corrected_points2d(cam_id, img_id)
-            #r_list = compute_r_list(img_id)
+            # r_list = compute_r_list(img_id)
             circle_color = (0, 255, 0) if corrected else (0, 0, 255)
         else:
             pts2d = self.smooth_points2d(cam_id) if smooth else cam.points2d
@@ -484,7 +489,11 @@ class Core:
         """Reads camera ordering from file or attempts to use a default ordering instead."""
 
         # if camera ordering preference is not given, then check the default matching
-        default = find_default_camera_ordering(self.input_folder) if camera_ordering is None else camera_ordering
+        default = (
+            find_default_camera_ordering(self.input_folder)
+            if camera_ordering is None
+            else camera_ordering
+        )
 
         if default is not None:  # np.arrays don't evaluate to bool
             write_camera_order(self.output_folder, default)
@@ -493,24 +502,39 @@ class Core:
 
         self.cidread2cid, self.cid2cidread = read_camera_order(self.output_folder)
 
+    def expand_videos(self):
+        """ expands video camera_x.mp4 into set of images camera_x_img_y.jpg"""
+        for vid in glob.glob(os.path.join(self.input_folder, "camera_*.mp4")):
+            cam_id = parse_vid_name(os.path.basename(vid))
+            if not (
+                os.path.exists(
+                    os.path.join(self.input_folder, f"camera_{cam_id}_img_0.jpg")
+                )
+                or os.path.exists(
+                    os.path.join(self.input_folder, f"camera_{cam_id}_img_000000.jpg")
+                )
+            ):
+                command = f"ffmpeg -i {vid} -qscale:v 2 -start_number 0 {self.input_folder}/camera_{cam_id}_img_%d.jpg  < /dev/null"
+                subprocess.call(command, shell=True)
+
     def set_cameras(self):
         """Creates the camera network instances using the latest calibration files."""
-        #calib = read_calib(self.output_folder)
+        # calib = read_calib(self.output_folder)
         self.camNetAll = CameraNetwork(
             image_folder=self.input_folder,
             output_folder=self.output_folder,
             cam_id_list=range(config["num_cameras"]),
             cid2cidread=self.cid2cidread,
             num_images=self.num_images,
-            #calibration=calib,
+            # calibration=calib,
         )
-        #print(len(self.camNetAll.cam_list))
+        # print(len(self.camNetAll.cam_list))
         self.camNetLeft = CameraNetwork(
             image_folder=self.input_folder,
             output_folder=self.output_folder,
             cam_id_list=config["left_cameras"],
             num_images=self.num_images,
-            #calibration=calib,
+            # calibration=calib,
             cid2cidread=[self.cid2cidread[cid] for cid in config["left_cameras"]],
             cam_list=[
                 cam
@@ -523,7 +547,7 @@ class Core:
             output_folder=self.output_folder,
             cam_id_list=config["right_cameras"],
             num_images=self.num_images,
-            #calibration=calib,
+            # calibration=calib,
             cid2cidread=[self.cid2cidread[cid] for cid in config["right_cameras"]],
             cam_list=[
                 self.camNetAll.cam_list[cam_id] for cam_id in config["right_cameras"]
@@ -533,7 +557,7 @@ class Core:
         if not self.camNetAll.has_calibration():
             self.camNetLeft.bone_param = config["bone_param"]
             self.camNetRight.bone_param = config["bone_param"]
-            #calib = read_calib(config["calib_fine"])
+            # calib = read_calib(config["calib_fine"])
             self.camNetAll.set_default_camera_parameters()
 
     def check_cameras(self):
