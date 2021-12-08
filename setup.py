@@ -22,7 +22,7 @@ setup(
         "scikit-image",
         "matplotlib",
         "torchvision",
-        "opencv-python>=3.4.0.12",
+        "opencv-python==4.1.2.30",
         "tqdm",
         "colorama",
         "progress"
