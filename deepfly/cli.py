@@ -41,7 +41,7 @@ def main():
 
 def setup_logger(args):
     """Configures deepfly's logger to output to console.
-    
+
     The correct verbosity level is parsed from the command-line arguments.
 
     Parameters:
@@ -63,7 +63,7 @@ def setup_logger(args):
 
 def parse_cli_args():
     """Uses ArgParse to parse the command line arguments.
-    
+
     Returns:
     A simple namespace containing parsed arguments values.
     """
@@ -144,7 +144,7 @@ def parse_cli_args():
 
 def print_debug(args):
     """Prints each (key, value) pair in args.
-    
+
     Parameters:
     args: the parsed command-line arguments (see: parse_cli_args())
     """
@@ -162,7 +162,7 @@ def print_debug(args):
 
 def run_from_file(args):
     """Processes every folder listed in the args.input_folder text file.
-    
+
     Parameters:
     args: the parsed command-line arguments (see: parse_cli_args())
     """
@@ -201,7 +201,7 @@ def run_from_file(args):
 
 def run_recursive(args):
     """Processes every subfolder named 'images' in the args.input_folder folder.
-    
+
     Parameters:
     args: the parsed command-line arguments (see: parse_cli_args())
     """
@@ -219,7 +219,7 @@ def run_recursive(args):
 
 def run_in_folders(args, folders):
     """Processes successively each folder in folders.
-    
+
     Parameters:
     args: the parsed command-line arguments (see: parse_cli_args())
     folders: a list of folders to process
@@ -265,11 +265,11 @@ def run(args):
 
     logger.info(f"{Style.BRIGHT}\nWorking in {args.input_folder}{Style.RESET_ALL}")
 
-    core = Core(args.input_folder, args.output_folder, args.num_images_max)
+    core = Core(args.input_folder, args.output_folder, args.num_images_max, args.camera_ids)
     core.overwrite = args.overwrite  # monkey-patch: save it for later
 
-    if args.camera_ids is not None:
-        core.update_camera_ordering(args.camera_ids)
+    #if args.camera_ids is not None:
+    #    core.update_camera_ordering(args.camera_ids)
 
     # if there is no default camera ordering and you haven't set it with -i flag, quit
 
@@ -300,7 +300,7 @@ def run(args):
 def find_subfolders(path, name):
     """
     Implements a Breadth First Search algorithm to find all subfolders named `name`.
-    
+
     Using a BFS allows to stop as soon as we find the target subfolder, without listing its content.
     Which is a performance improvement when target subfolders contain hundreds on thousands of images.
 
