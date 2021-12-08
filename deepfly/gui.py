@@ -60,7 +60,7 @@ class DeepflyGUI(QW.QWidget):
         if not output_subfolder:
             output_subfolder = self.prompt_output_subdirectory_name()
 
-        self.core = Core(input_folder, output_subfolder, num_images_max)
+        self.core = Core(input_folder, output_subfolder, num_images_max, None)
         self.setup_layout()
         self.onclick_image_mode()
 
@@ -160,7 +160,7 @@ class DeepflyGUI(QW.QWidget):
         layout_h_buttons_top.addWidget(self.button_image_mode)
         layout_h_buttons_top.addWidget(self.button_pose_mode)
         layout_h_buttons_top.addWidget(self.button_correction_mode)
-        layout_h_buttons_top.addWidget(self.button_heatmap_mode)
+        #layout_h_buttons_top.addWidget(self.button_heatmap_mode)
 
         layout_h_buttons = QW.QHBoxLayout()
         layout_h_buttons.setSpacing(1)
@@ -448,8 +448,8 @@ class DeepflyGUI(QW.QWidget):
 
 
     def update_frame(self):
-        if self.belief_propagation_enabled():
-            self.core.solve_bp(self.img_id)
+        #if self.belief_propagation_enabled():
+        #    self.core.solve_bp(self.img_id)
 
         for iv in self.image_views:
             self.update_image_view(iv)

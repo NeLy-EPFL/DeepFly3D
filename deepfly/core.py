@@ -330,7 +330,7 @@ class Core:
 
         if with_corrections:
             pts2d = self.corrected_points2d(cam_id, img_id)
-            r_list = compute_r_list(img_id)
+            #r_list = compute_r_list(img_id)
             circle_color = (0, 255, 0) if corrected else (0, 0, 255)
         else:
             pts2d = self.smooth_points2d(cam_id) if smooth else cam.points2d
@@ -344,7 +344,7 @@ class Core:
             circle_color=circle_color,
             draw_joints=visible_joints,
             zorder=zorder,
-            r_list=r_list,
+            r_list=None,
         )
 
     def plot_heatmap(self, cam_id, img_id, joints=[]):
