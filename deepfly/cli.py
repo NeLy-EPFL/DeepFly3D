@@ -271,6 +271,8 @@ def run(args):
     if args.camera_ids is not None:
         core.update_camera_ordering(args.camera_ids)
 
+    # if there is no default camera ordering and you haven't set it with -i flag, quit
+
     if not args.skip_estimation:
         core.pose2d_estimation(core.overwrite)
         core.calibrate_calc(0, core.max_img_id)

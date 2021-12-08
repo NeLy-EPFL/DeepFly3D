@@ -61,7 +61,7 @@ def find_default_camera_ordering(input_folder):
 class Core:
     """Main interface to interact and use the 2d and 3d pose estimation network."""
 
-    def __init__(self, input_folder, output_subfolder, num_images_max):
+    def __init__(self, input_folder, output_subfolder, num_images_max, camera_ordering):
         self.input_folder = input_folder
         self.output_subfolder = output_subfolder
         self.output_folder = os.path.join(input_folder, output_subfolder)
@@ -72,7 +72,7 @@ class Core:
         self.max_img_id = self.num_images - 1
 
         self.db = PoseDB(self.output_folder)
-        self.setup_camera_ordering()
+        self.setup_camera_ordering(camera_ordering)
         self.set_cameras()
         self.check_cameras()
 
@@ -480,11 +480,17 @@ class Core:
                     pts2d[cam_id, img_id, :] = manual_corrections[cam_id][img_id]
         return pts2d
 
-    def setup_camera_ordering(self):
+    def setup_camera_ordering(self, camera_ordering):
         """Reads camera ordering from file or attempts to use a default ordering instead."""
-        default = find_default_camera_ordering(self.input_folder)
+
+        # if camera ordering preference is not given, then check the default matching
+        default = find_default_camera_ordering(self.input_folder) if camera_ordering is None else camera_ordering
+
         if default is not None:  # np.arrays don't evaluate to bool
             write_camera_order(self.output_folder, default)
+        else:
+            raise NotImplementedError
+
         self.cidread2cid, self.cid2cidread = read_camera_order(self.output_folder)
 
     def set_cameras(self):
