@@ -211,12 +211,7 @@ class Core:
         """
 
         print(f"Calibration considering frames between {min_img_id}:{max_img_id}")
-        # calib = read_calib(config["calib_fine"])
-        # assert calib is not None
-        # self.camNetAll.load_network(calib)
-        self.camNetAll.set_default_camera_parameters
-
-        # print(self.camNetAll.cam_list[0].points2d.shape, "awawd")
+        self.camNetAll.set_default_camera_parameters()
 
         # take a copy of the current points2d
         pts2d = np.zeros(
