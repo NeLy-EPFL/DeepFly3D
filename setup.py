@@ -4,12 +4,14 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name="deepfly",
-    version='0.2',
-    packages=["deepfly"],
-    entry_points={"console_scripts": ["df3d = deepfly.gui:main", "df3d-cli = deepfly.cli:main"]},
+    name="df3d",
+    version="0.5",
+    packages=["df3d"],
+    entry_points={
+        "console_scripts": ["df3d = deepfly.gui:main", "df3d-cli = deepfly.cli:main"]
+    },
     author="Semih Gunel",
-    author_email="semih.gunel@epfl.ch",
+    author_email="gunelsemih@gmail.com",
     description="GUI and 3D pose estimation pipeline for tethered Drosophila.",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -25,6 +27,10 @@ setup(
         "opencv-python==4.1.2.30",
         "tqdm",
         "colorama",
-        "progress"
+        "progress",
+        "einops",
+        "kornia==0.3.0",
+        "pytorch_lightning",
+        "numba"
     ],
 )
