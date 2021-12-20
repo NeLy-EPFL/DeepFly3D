@@ -90,7 +90,8 @@ class Core:
                 self.input_folder, "camera_{cam_id}_img_{img_id}.jpg"
             )
             self.points2d = df3d_result["points2d"]
-            self.points3d = df3d_result["points3d"]
+            if 'points3d' in df3d_result:
+                self.points3d = df3d_result["points3d"]
             self.camNet = CameraNetwork(
                 df3d_result["points2d"],
                 calib=df3d_result,
@@ -233,7 +234,7 @@ class Core:
         Uses the images between min_img_id and max_img_id for the calibration.
         """
         calib_path = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)), "../weights/calib.pkl"
+            os.path.abspath(os.path.dirname(__file__)), "../data/calib.pkl"
         )
 
         calib = pickle.load(open(calib_path, "rb"))

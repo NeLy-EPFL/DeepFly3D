@@ -23,14 +23,12 @@ setup(
         "scikit-video",
         "scikit-image",
         "matplotlib",
-        "torchvision",
         "opencv-python==4.1.2.30",
         "tqdm",
         "colorama",
         "progress",
-        "einops",
-        "kornia==0.3.0",
         "pytorch_lightning",
-        "numba"
+        "pyba",
+        "df2d",
     ],
 )
