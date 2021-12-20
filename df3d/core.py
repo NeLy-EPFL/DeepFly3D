@@ -378,7 +378,6 @@ class Core:
         if self.camNet is not None and self.camNet.has_calibration():
             self.camNet.triangulate()
             pts3d = self.camNet.points3d
-            print(pts3d.shape)
             dict_merge["points3d_wo_procrustes"] = pts3d
             pts3d = procrustes_seperate(pts3d)
             dict_merge["points3d"] = pts3d
@@ -423,7 +422,7 @@ class Core:
                     pts2d[cam_id, img_id, :] = manual_corrections[cam_id][img_id]
         return pts2d
 
-    def setup_camera_ordering(self, camera_ordering):
+    def setup_camera_ordering(self, camera_ordering) -> np.ndarray:
         """Reads camera ordering from file or attempts to use a default ordering instead."""
 
         # if camera ordering preference is not given, then check the default matching
@@ -434,7 +433,7 @@ class Core:
         )
 
         # self.cidread2cid, self.cid2cidread = read_camera_order(self.output_folder)
-        return camera_ordering
+        return np.array(camera_ordering)
 
     def expand_videos(self):
         """ expands video camera_x.mp4 into set of images camera_x_img_y.jpg"""

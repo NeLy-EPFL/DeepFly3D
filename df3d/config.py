@@ -62,7 +62,7 @@ config_fly = {
     # procrustes
     "procrustes_apply": True,
     "procrustes_template": os.path.join(
-        os.path.abspath(os.path.dirname(__file__)), "../data/template/"
+        os.path.abspath(os.path.dirname(__file__)), "../data/"
     ),
 }
 
