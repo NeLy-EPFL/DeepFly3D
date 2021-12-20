@@ -1,15 +1,10 @@
-# -*- coding: utf-8 -*-
-#
-# OneEuroFilter.py -
-#
-# Author: Nicolas Roussel (nicolas.roussel@inria.fr)
-
 import math
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.ticker import FuncFormatter, MultipleLocator
-from deepfly.Config import config
+
+from df3d.config import config
 
 
 class LowPassFilter(object):
@@ -77,7 +72,7 @@ class OneEuroFilter(object):
 
 
 def filter_batch(pts, filter_indices=None, config_oneuro=None, freq=None):
-    from deepfly.Config import config
+    from df3d.config import config
     assert pts.shape[-1] == 2 or pts.shape[-1] == 3
     if filter_indices is None:
         filter_indices = np.arange(config["skeleton"].num_joints)

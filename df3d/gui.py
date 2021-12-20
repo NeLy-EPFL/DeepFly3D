@@ -5,7 +5,7 @@ from PyQt5 import QtWidgets as QW
 from PyQt5.QtCore import Qt, QEvent
 from PyQt5.QtGui import QImage, QPixmap
 
-from deepfly.core import Core
+from df3d.core import Core
 
 
 def main():

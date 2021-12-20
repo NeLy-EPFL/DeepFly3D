@@ -4,31 +4,24 @@ import os.path
 import pickle
 import re
 import subprocess
+from typing import *
 
+import matplotlib.pyplot as plt
 import numpy as np
+from df2d.inference import inference_folder
+from pyba.CameraNetwork import CameraNetwork
 from sklearn.neighbors import NearestNeighbors
 
-from deepfly import logger
-from deepfly.belief_propagation import solve_belief_propagation
-from deepfly.CameraNetwork import CameraNetwork
-from deepfly.Config import config
-from deepfly.DB import PoseDB
-from deepfly.optim_util import energy_drosoph
-from deepfly.os_util import (
-    get_max_img_id,
-    parse_img_name,
-    parse_vid_name,
-    read_camera_order,
-    write_camera_order,
-)
-from deepfly.plot_util import normalize_pose_3d
-from deepfly.pose2d import ArgParse
-from deepfly.pose2d.drosophila import main as pose2d_main
-from deepfly.procrustes import procrustes_seperate
-from deepfly.signal_util import filter_batch, smooth_pose2d
+from df3d import logger
+from df3d.config import config
+from df3d.db import PoseDB
+from df3d.os_util import get_max_img_id, parse_vid_name
+from df3d.plot_util import normalize_pose_3d
+from df3d.procrustes import procrustes_seperate
+from df3d.signal_util import filter_batch, smooth_pose2d
 
 
-def find_default_camera_ordering(input_folder):
+def find_default_camera_ordering(input_folder: str):
     """Uses regexes to infer the correct camera ordering based on folder path.
 
     This is useful for Ramdya's Lab as a given data acquisition agent (say CLC)
@@ -65,21 +58,47 @@ def find_default_camera_ordering(input_folder):
 class Core:
     """Main interface to interact and use the 2d and 3d pose estimation network."""
 
-    def __init__(self, input_folder, output_subfolder, num_images_max, camera_ordering):
+    def __init__(
+        self,
+        input_folder: str,
+        output_subfolder: str,
+        num_images_max: int,
+        camera_ordering: List[int],
+    ):
         self.input_folder = input_folder
         self.output_subfolder = output_subfolder
         self.output_folder = os.path.join(input_folder, output_subfolder)
 
-        self.expand_videos()
+        self.expand_videos()  # turn .mp4 into .jpg
         self.num_images_max = num_images_max or math.inf
         max_img_id = get_max_img_id(self.input_folder)
         self.num_images = min(self.num_images_max, max_img_id + 1)
         self.max_img_id = self.num_images - 1
 
         self.db = PoseDB(self.output_folder)
-        self.setup_camera_ordering(camera_ordering)
-        self.set_cameras()
-        self.check_cameras()
+        self.camera_ordering = self.setup_camera_ordering(camera_ordering)
+
+        self.camNet = None
+        self.points2d = None
+        self.points3d = None
+        # if already ran before, initiliaze with df3d_result file
+        if os.path.exists(self.save_path):
+            from pyba.config import df3d_bones, df3d_colors
+
+            df3d_result = pickle.load(open(self.save_path, "rb"))
+            image_path = image_path = os.path.join(
+                self.input_folder, "camera_{cam_id}_img_{img_id}.jpg"
+            )
+            self.points2d = df3d_result["points2d"]
+            self.points3d = df3d_result["points3d"]
+            self.camNet = CameraNetwork(
+                df3d_result["points2d"],
+                calib=df3d_result,
+                num_images=self.num_images,
+                image_path=image_path,
+                colors=df3d_colors,
+                bones=df3d_bones,
+            )
 
     # -------------------------------------------------------------------------
     # properties
@@ -89,7 +108,7 @@ class Core:
         return self._input_folder
 
     @input_folder.setter
-    def input_folder(self, value):
+    def input_folder(self, value: str):
         value = os.path.abspath(value)
         value = value.rstrip("/")
         assert os.path.isdir(value), f"Not a directory {value}"
@@ -130,32 +149,6 @@ class Core:
     # -------------------------------------------------------------------------
     # public methods
 
-    def update_camera_ordering(self, cidread2cid):
-        """Writes the new ordering inside the output folder and uses it.
-
-        Parameters:
-        cidread2cid: the new camera ordering to write and use.
-
-        Returns:
-        boolean: whether the ordering was successfuly updated.
-        """
-
-        if cidread2cid is None:
-            return False
-
-        if len(cidread2cid) != config["num_cameras"]:
-            print(
-                f"Cannot rename images as there are no {config['num_cameras']} values"
-            )
-            return False
-
-        print("Camera order {}".format(cidread2cid))
-        write_camera_order(self.output_folder, cidread2cid)
-        self.cidread2cid, self.cid2cidread = read_camera_order(self.output_folder)
-        # self.camNetAll.set_cid2cidread(self.cid2cidread)
-        raise NotImplementedError
-        return True
-
     def pose2d_estimation(self, overwrite=True):
         """Runs the pose2d estimation on self.input_folder.
 
@@ -163,22 +156,52 @@ class Core:
         overwrite: whether to overwrite existing pose estimation results (default: True)
         """
 
-        parser = ArgParse.create_parser()
-        args, _ = parser.parse_known_args()
-        args.checkpoint = False
-        args.unlabeled = self.input_folder
-        args.output_folder = self.output_subfolder
-        args.resume = config["resume"]
-        args.stacks = config["num_stacks"]
-        args.test_batch = config["batch_size"]
-        args.img_res = [config["heatmap_shape"][0] * 4, config["heatmap_shape"][1] * 4]
-        args.hm_res = config["heatmap_shape"]
-        args.num_classes = config["num_predict"]
-        args.max_img_id = self.max_img_id
-        args.overwrite = overwrite
+        # to make sure we rotate the necessary cameras
+        class load_f:
+            def __init__(self, cam_order):
+                self.cam_order = cam_order.tolist()
 
-        pose2d_main(args)  # will write output files in output directory
-        self.set_cameras()  # makes sure cameras use the latest heatmaps and predictions
+            def parse_img_path(self, name: str) -> Tuple[int, int]:
+                """returns cid and img_id """
+                name = os.path.basename(name)
+                match = re.match(r"camera_(\d+)_img_(\d+)", name.replace(".jpg", ""))
+                return int(match[1]), int(match[2])
+
+            def __call__(self, x):
+                img = plt.imread(x)
+                cam_id, _ = self.parse_img_path(x)
+                if self.cam_order.index(cam_id) > 3:
+                    img = img[:, ::-1]
+                return img
+
+        self.points2d = inference_folder(
+            folder=self.input_folder,
+            load_f=load_f(self.camera_ordering),
+            return_heatmap=False,
+            max_img_id=self.max_img_id,
+        )
+
+        # fmt: off
+        # 2d pose estimation outputs 19 points, which is what a single camera sees,
+        #     however there are 38 joints in total
+        points2d_cp = np.zeros((self.points2d.shape[0], self.points2d.shape[1], self.points2d.shape[2]*2, 2))
+        points2d_cp[self.camera_ordering[:3], :, :19] = self.points2d[self.camera_ordering[:3]]
+        points2d_cp[self.camera_ordering[4:], :, 19:] = self.points2d[self.camera_ordering[4:]]
+
+        # (x,y) are switched in pyba coordinate system, so we need to swap last two axes
+        tmp = np.copy(points2d_cp[..., 0])
+        points2d_cp[..., 0] = points2d_cp[..., 1]
+        points2d_cp[..., 1] = tmp
+
+        # cameras 2 and 4 cannot see the stripes
+        points2d_cp[self.camera_ordering[2], :, 15:] = 0 
+        points2d_cp[self.camera_ordering[4], :, 19+15:] = 0
+
+        # flip lr back left-hand-side cameras
+        for cidx in [4,5,6]:
+            points2d_cp[self.camera_ordering[cidx], ..., 0] = 1 - points2d_cp[self.camera_ordering[cidx], ..., 0]
+        #fmt:off
+        self.points2d = points2d_cp
 
     def next_error(self, img_id):
         """Finds the next image with an error in prediction after img_id.
@@ -209,43 +232,20 @@ class Core:
 
         Uses the images between min_img_id and max_img_id for the calibration.
         """
-
-        print(f"Calibration considering frames between {min_img_id}:{max_img_id}")
-        self.camNetAll.set_default_camera_parameters()
-
-        # take a copy of the current points2d
-        pts2d = np.zeros(
-            (config["num_cameras"], self.num_images, config["skeleton"].num_joints, 2),
-            dtype=float,
+        calib_path = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)), "../weights/calib.pkl"
         )
-        for cam_id in range(config["num_cameras"]):
-            pts2d[cam_id, :] = self.camNetAll.cam_list[cam_id].points2d.copy()
 
-        # ugly hack to temporarly incorporate manual corrections to calibration
-        c = 0
-        for cam_id in range(config["num_cameras"]):
-            for img_id in range(self.num_images):
-                if self.db.has_key(cam_id, img_id):
-                    pt = self.corrected_points2d(cam_id, img_id)
-                    self.camNetAll.cam_list[cam_id].points2d[img_id, :] = pt
-                    c += 1
-        print(f"Calibration: replaced {c} with manual corrections")
+        calib = pickle.load(open(calib_path, "rb"))
+        calib_reordered = {
+            cidx: calib[idx] for (idx, cidx) in enumerate(self.camera_ordering)
+        }
 
-        # keep the pts only in the range
-        for cam in self.camNetAll.cam_list:
-            cam.points2d = cam.points2d[min_img_id:max_img_id, :]
-
-        self.camNetLeft.triangulate()
-        self.camNetLeft.calibrate(cam_id_list=(0, 1, 2))
-        self.camNetRight.triangulate()
-        self.camNetRight.calibrate(cam_id_list=(0, 1, 2))
-
-        # put old values back
-        for cam_id in range(config["num_cameras"]):
-            self.camNetAll.cam_list[cam_id].points2d = pts2d[cam_id, :].copy()
-
-        self.save_calibration()
-        self.set_cameras()
+        image_path = os.path.join(self.input_folder, "camera_{cam_id}_img_{img_id}.jpg")
+        self.camNet = CameraNetwork(
+            self.points2d * [960, 480], calib=calib_reordered, image_path=image_path
+        )
+        self.camNet.bundle_adjust(update_intrinsic=False, update_distort=False)
 
     def nearest_joint(self, cam_id, img_id, x, y):
         """Finds the joint nearest to (x,y) coordinates on the img_id of cam_id.
@@ -280,12 +280,6 @@ class Core:
         points[joint_id] = np.array([x, y])
         self.write_corrections(cam_id, img_id, modified_joints, points)
 
-    def solve_bp(self, img_id):
-        """Solves the belief propagation on image specified by img_id."""
-        if self.has_calibration and self.has_pose:
-            self.solve_bp_for_camnet(img_id, self.camNetLeft)
-            self.solve_bp_for_camnet(img_id, self.camNetRight)
-
     def smooth_points2d(self, cam_id, private_cache=dict()):
         """Gets the smoothened points2d of cam_id.
 
@@ -294,7 +288,7 @@ class Core:
         private_cache: private argument used as a singleton instance to store a cache.
         """
         if cam_id not in private_cache:
-            cam = self.camNetAll.cam_list[cam_id]
+            cam = self.camNet.cam_list[cam_id]
             private_cache[cam_id] = smooth_pose2d(cam.points2d)
         return private_cache[cam_id]
 
@@ -312,63 +306,22 @@ class Core:
         an image as an np.array with the plot.
         """
 
-        cam = self.camNetAll.cam_list[cam_id]
-        joints = joints if joints else range(config["skeleton"].num_joints)
-        visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
-        visible_joints = [j_id for j_id in joints if visible(j_id)]
-        zorder = config["skeleton"].get_zorder(cam_id)
-        corrected = self.db.has_key(cam_id, img_id)
+        cam = self.camNet[cam_id]
 
-        def compute_r_list(img_id):
-            r_list = [config["scatter_r"]] * config["num_joints"]
-            for joint_id in range(config["skeleton"].num_joints):
-                if joint_id not in config["skeleton"].pictorial_joint_list:
-                    continue
-                if self.joint_has_error(img_id, joint_id):
-                    r_list[joint_id] = config["scatter_r"] * 2
-            return r_list
+        from pyba.config import df3d_bones, df3d_colors
 
-        if with_corrections:
-            pts2d = self.corrected_points2d(cam_id, img_id)
-            # r_list = compute_r_list(img_id)
-            circle_color = (0, 255, 0) if corrected else (0, 0, 255)
-        else:
-            pts2d = self.smooth_points2d(cam_id) if smooth else cam.points2d
-            pts2d = pts2d[img_id]
-            r_list = None
-            circle_color = None
-
-        return cam.plot_2d(
-            img_id,
-            pts2d,
-            circle_color=circle_color,
-            draw_joints=visible_joints,
-            zorder=zorder,
-            r_list=None,
-        )
-
-    def plot_heatmap(self, cam_id, img_id, joints=[]):
-        """Plots the probability map for joint positions.
-
-        Parameters:
-        cam_id: id of the camera from which to take the image
-        img_id: id of the image to plot
-        joints: ids of the joints to plot, use empty list for all joints (default: [])
-
-        Returns:
-        an image as an np.array with the probability map represented as heatmap.
-        """
-        cam = self.camNetAll.cam_list[cam_id]
-        joints = joints if joints else range(config["skeleton"].num_joints)
-        visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
-        visible_joints = [j_id for j_id in joints if visible(j_id)]
-        return cam.plot_heatmap(
-            img_id, concat=False, scale=2, draw_joints=visible_joints
-        )
+        return cam.plot_2d(img_id, bones=df3d_bones, colors=df3d_colors)
 
     def get_image(self, cam_id, img_id):
         """Returns the img_id image from cam_id camera."""
-        return self.camNetAll.cam_list[cam_id].get_image(img_id)
+        return self.camNet.cam_list[cam_id].get_image(img_id)
+
+    @property
+    def save_path(self):
+        return os.path.join(
+            self.output_folder,
+            "df3d_result_{}.pkl".format(self.input_folder.replace("/", "_")),
+        )
 
     def get_points3d(self):
         """Returns a numpy array with 3d positions of the joints.
@@ -385,8 +338,8 @@ class Core:
         camNetR.triangulate()
         camNetR.calibrate(cam_id_list=(0, 1, 2))
 
-        self.camNetAll.triangulate()
-        points3d = self.camNetAll.points3d.copy()
+        self.camNet.triangulate()
+        points3d = np.copy(self.camNet.points3d)
         points3d = procrustes_seperate(points3d)
         points3d = normalize_pose_3d(points3d, rotate=True)
         points3d = filter_batch(points3d)
@@ -396,60 +349,49 @@ class Core:
         """Writes the manual corrections to a file in the output folder."""
         self.db.dump()
 
+    '''
     def post_process(self, points2d_matrix):
         """Runs some hardcoded post-processing on the pose estimation results."""
         pts2d = points2d_matrix
         if "fly" in config["name"]:
             # some post-processing for body-coxa
-            for cam_id in range(len(self.camNetAll.cam_list)):
+            for cam_id in range(pts2d.shape[0]):
                 for j in range(config["skeleton"].num_joints):
                     if config["skeleton"].camera_see_joint(cam_id, j) and config[
                         "skeleton"
                     ].is_tracked_point(j, config["skeleton"].Tracked.BODY_COXA):
                         pts2d[cam_id, :, j, 0] = np.median(pts2d[cam_id, :, j, 0])
                         pts2d[cam_id, :, j, 1] = np.median(pts2d[cam_id, :, j, 1])
+    '''
 
-    def save_pose(self):
+    def save(self):
         """Saves the pose estimation results to a file in the output folder."""
-        pts2d = self.corrected_points2d_matrix()
-        dict_merge = self.camNetAll.save_network(path=None)
-        pts2d_orig = self.camNetAll.get_points2d_matrix()
+        dict_merge = dict()
+        dict_merge["points2d"] = np.copy(self.points2d)
 
         # temporarily incorporate corrected values
-        self.camNetAll.set_points2d_matrix(pts2d)
-        self.post_process(pts2d)
-        dict_merge["points2d"] = pts2d
+        # points2d = np.copy(self.points2d)
+        # self.post_process(points2d)
+        # dict_merge["points2d_processed"] = points2d
 
-        if self.camNetLeft.has_calibration() and self.camNetLeft.has_pose():
-            self.camNetAll.triangulate()
-            pts3d = self.camNetAll.points3d
+        if self.camNet is not None and self.camNet.has_calibration():
+            self.camNet.triangulate()
+            pts3d = self.camNet.points3d
+            print(pts3d.shape)
             dict_merge["points3d_wo_procrustes"] = pts3d
-            if config["procrustes_apply"]:
-                print("Applying Procrustes on 3D Points")
-                pts3d = procrustes_seperate(pts3d)
+            pts3d = procrustes_seperate(pts3d)
             dict_merge["points3d"] = pts3d
+            dict_merge = {**self.camNet.summarize(), **dict_merge}
         else:
             logger.debug("Triangulation skipped.")
 
-        # put uncorrected values back
-        self.camNetAll.set_points2d_matrix(pts2d_orig)
+        dict_merge["camera_ordering"] = self.camera_ordering
 
-        save_path = os.path.join(
-            self.output_folder,
-            "pose_result_{}.pkl".format(self.input_folder.replace("/", "_")),
-        )
-        pickle.dump(dict_merge, open(save_path, "wb"))
-        print(f"Saved the pose at: {save_path}")
+        pickle.dump(dict_merge, open(self.save_path, "wb"))
+        print(f"Saved results at: {self.save_path}")
 
     # -------------------------------------------------------------------------
     # private helper methods
-
-    def save_calibration(self):
-        """Saves the calibration results to a file in the output folder."""
-        filename = "calib.pkl"  # f"calib_{self.input_folder.replace('/', '_')}.pkl"
-        calib_path = os.path.join(self.output_folder, filename)
-        print("Saving calibration {}".format(calib_path))
-        self.camNetAll.save_network(calib_path)
 
     def corrected_points2d(self, cam_id, img_id):
         """Gets the estimated or manually corrected 2d position of the joints.
@@ -484,18 +426,14 @@ class Core:
         """Reads camera ordering from file or attempts to use a default ordering instead."""
 
         # if camera ordering preference is not given, then check the default matching
-        default = (
+        camera_ordering = (
             find_default_camera_ordering(self.input_folder)
             if camera_ordering is None
             else camera_ordering
         )
 
-        if default is not None:  # np.arrays don't evaluate to bool
-            write_camera_order(self.output_folder, default)
-        else:
-            raise NotImplementedError
-
-        self.cidread2cid, self.cid2cidread = read_camera_order(self.output_folder)
+        # self.cidread2cid, self.cid2cidread = read_camera_order(self.output_folder)
+        return camera_ordering
 
     def expand_videos(self):
         """ expands video camera_x.mp4 into set of images camera_x_img_y.jpg"""
@@ -511,49 +449,6 @@ class Core:
             ):
                 command = f"ffmpeg -i {vid} -qscale:v 2 -start_number 0 {self.input_folder}/camera_{cam_id}_img_%d.jpg  < /dev/null"
                 subprocess.call(command, shell=True)
-
-    def set_cameras(self):
-        """Creates the camera network instances using the latest calibration files."""
-        # calib = read_calib(self.output_folder)
-        self.camNetAll = CameraNetwork(
-            image_folder=self.input_folder,
-            output_folder=self.output_folder,
-            cam_id_list=range(config["num_cameras"]),
-            cid2cidread=self.cid2cidread,
-            num_images=self.num_images,
-            # calibration=calib,
-        )
-        # print(len(self.camNetAll.cam_list))
-        self.camNetLeft = CameraNetwork(
-            image_folder=self.input_folder,
-            output_folder=self.output_folder,
-            cam_id_list=config["left_cameras"],
-            num_images=self.num_images,
-            # calibration=calib,
-            cid2cidread=[self.cid2cidread[cid] for cid in config["left_cameras"]],
-            cam_list=[
-                cam
-                for cam in self.camNetAll.cam_list
-                if cam.cam_id in config["left_cameras"]
-            ],
-        )
-        self.camNetRight = CameraNetwork(
-            image_folder=self.input_folder,
-            output_folder=self.output_folder,
-            cam_id_list=config["right_cameras"],
-            num_images=self.num_images,
-            # calibration=calib,
-            cid2cidread=[self.cid2cidread[cid] for cid in config["right_cameras"]],
-            cam_list=[
-                self.camNetAll.cam_list[cam_id] for cam_id in config["right_cameras"]
-            ],
-        )
-
-        if not self.camNetAll.has_calibration():
-            self.camNetLeft.bone_param = config["bone_param"]
-            self.camNetRight.bone_param = config["bone_param"]
-            # calib = read_calib(config["calib_fine"])
-            self.camNetAll.set_default_camera_parameters()
 
     def check_cameras(self):
         cam_missing = [cam.cam_id for cam in self.camNetAll.cam_list if cam.is_empty()]
@@ -574,25 +469,6 @@ class Core:
                     return img_id
         return None
 
-    def get_joint_reprojection_error(self, img_id, joint_id, camNet):
-        """Computes the joint_reprojection_error for joint_id on img_id"""
-
-        visible_cameras = [
-            cam
-            for cam in camNet.cam_list
-            if config["skeleton"].camera_see_joint(cam.cam_id, joint_id)
-        ]
-        if len(visible_cameras) < 2:
-            err_proj = 0
-        else:
-            pts = np.array(
-                [cam.points2d[img_id, joint_id, :] for cam in visible_cameras]
-            )
-            _, err_proj, _, _ = energy_drosoph(
-                visible_cameras, img_id, joint_id, pts / [960, 480]
-            )
-        return err_proj
-
     def joint_has_error(self, img_id, joint_id):
         """Indicates whether joint_id was estimated with error or not.
 
@@ -605,39 +481,6 @@ class Core:
         err_right = get_error(img_id, joint_id, self.camNetRight)
         err = max(err_left, err_right)
         return err > config["reproj_thr"][joint_id]
-
-    def solve_bp_for_camnet(self, img_id, camNet):
-        """Solves the belief propagation on the provided camera network."""
-        # Compute prior
-        prior = []
-        manual_corrections = self.db.manual_corrections()
-        for cam in camNet.cam_list:
-            if img_id in manual_corrections.get(cam.cam_id, {}):
-                for joint_id in range(manual_corrections[cam.cam_id][img_id].shape[0]):
-                    pt2d = manual_corrections[cam.cam_id][img_id][joint_id]
-                    prior.append((cam.cam_id, joint_id, pt2d / config["image_shape"]))
-
-        pts_bp = solve_belief_propagation(
-            camNet.cam_list, img_id, config["bone_param"], prior=prior
-        )
-        pts_bp = np.array(pts_bp)
-
-        for idx, cam in enumerate(camNet.cam_list):
-            # set points which are not estimated by bp
-            pts_bp_rep = self.db.read(cam.cam_id, img_id)
-            if pts_bp_rep is not None:
-                pts_bp_rep *= self.image_shape
-            else:
-                pts_bp_rep = cam.points2d[img_id, :]
-
-            pts_bp_ip = pts_bp[idx] * self.image_shape
-            pts_bp_ip[pts_bp_ip == 0] = pts_bp_rep[pts_bp_ip == 0]
-
-            # save corrections
-            modified_joints = self.db.read_modified_joints(cam.cam_id, img_id)
-            self.write_corrections(cam.cam_id, img_id, modified_joints, pts_bp_ip)
-
-        print("Finished Belief Propagation")
 
     def write_corrections(self, cam_id, img_id, modified_joints, points2d):
         """Saves the provided manual corrections to a file in the output_folder.

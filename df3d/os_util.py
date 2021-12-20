@@ -3,10 +3,10 @@ import os
 import re
 
 import numpy as np
-from deepfly.Config import config
+from df3d.config import config
 
 
-import deepfly.logger as logger
+import df3d.logger as logger
 
 
 def get_max_img_id(path):

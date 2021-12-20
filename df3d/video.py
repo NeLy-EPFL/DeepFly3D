@@ -7,8 +7,8 @@ from mpl_toolkits.mplot3d import axes3d, Axes3D
 import cv2
 from tqdm import tqdm
 
-from deepfly.plot_util import plot_drosophila_3d
-import deepfly.logger as logger
+from df3d.plot_util import plot_drosophila_3d
+import df3d.logger as logger
 
 
 img3d_dpi = 100  # this is the dpi for one image on the 3d video's grid

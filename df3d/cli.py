@@ -7,11 +7,9 @@ from pathlib import Path
 from colorama import Style
 from colorama import init as colorama_init
 
-import deepfly
-from deepfly import video
-from deepfly.core import Core
-
-import deepfly.logger as logger
+import df3d.logger as logger
+from df3d import video
+from df3d.core import Core
 
 
 def main():
@@ -128,15 +126,15 @@ def parse_cli_args():
         nargs="*",
     )
     parser.add_argument(
-        "-2d", "--video-2d", help="Generate pose2d videos", action="store_true"
+        "--video-2d", help="Generate pose2d videos", action="store_true"
     )
     parser.add_argument(
-        "-3d", "--video-3d", help="Generate pose3d videos", action="store_true"
+        "--video-3d", help="Generate pose3d videos", action="store_true"
     )
     parser.add_argument(
-        "-skip",
-        "--skip-estimation",
+        "--skip-pose-estimation",
         help="Skip 2D and 3D pose estimation",
+        dest='skip_estimation',
         action="store_true",
     )
     return parser.parse_args()
@@ -272,10 +270,12 @@ def run(args):
 
     if not args.skip_estimation:
         core.pose2d_estimation(core.overwrite)
+        core.save()
         core.calibrate_calc(0, core.max_img_id)
-        core.save_pose()
+        core.save()
     else:
         core.calibrate_calc(0, core.max_img_id)
+        core.save()
 
     if args.video_2d:
         video.make_pose2d_video(

@@ -8,7 +8,7 @@ setup(
     version="0.5",
     packages=["df3d"],
     entry_points={
-        "console_scripts": ["df3d = deepfly.gui:main", "df3d-cli = deepfly.cli:main"]
+        "console_scripts": ["df3d = df3d.gui:main", "df3d-cli = df3d.cli:main"]
     },
     author="Semih Gunel",
     author_email="gunelsemih@gmail.com",

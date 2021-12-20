@@ -5,7 +5,7 @@ import numpy as np
 import scipy
 from PIL import Image
 
-from deepfly.Config import config
+from df3d.config import config
 
 
 def plot_drosophila_2d(

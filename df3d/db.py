@@ -5,7 +5,7 @@ import pickle
 import numpy as np
 import copy
 
-from deepfly.Config import config
+from df3d.config import config
 
 
 class PoseDB:
