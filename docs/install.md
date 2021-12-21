@@ -14,6 +14,11 @@ additionally you might need to install cudatoolkit before pip installing df3d:
 conda install pytorch==1.8.1 torchvision==0.8.2 torchaudio==0.7.2 cudatoolkit=9.2 -c pytorch
 ```
 
+also you might need to install ffmpeg using:
+```bash
+conda install ffmpeg -c conda-forge
+```
+
 ## Installing from the source
 DeepFly3D requires Python3, Anaconda environment and CUDA drivers for installation. It is __only tested on Ubuntu__. First, clone the repository:
 
