@@ -118,7 +118,7 @@ def parse_cli_args():
         type=int,
     )
     parser.add_argument(
-        "-i",
+        "-order",
         "--camera-ids",
         help="Ordering of the cameras provided as an ordered list of ids. Example: 0 1 4 3 2 5 6.",
         default=None,

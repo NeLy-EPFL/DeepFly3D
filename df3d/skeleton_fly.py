@@ -227,13 +227,13 @@ def camera_see_joint(camera_id, joint_id):
         camera_id = 3
     if camera_id in [2, 4]:  # they cannot see the stripes
         return camera_see_limb(camera_id, limb_id[joint_id]) and not (
-                tracked_points[joint_id] == Tracked.STRIPE
+            tracked_points[joint_id] == Tracked.STRIPE
         )
     elif camera_id == 3:
         return (
-                camera_see_limb(camera_id, limb_id[joint_id])
-                and tracked_points[joint_id] != Tracked.BODY_COXA
-                and tracked_points[joint_id] != Tracked.COXA_FEMUR
+            camera_see_limb(camera_id, limb_id[joint_id])
+            and tracked_points[joint_id] != Tracked.BODY_COXA
+            and tracked_points[joint_id] != Tracked.COXA_FEMUR
         )
     elif camera_id in [0, 1, 5, 6]:
         return camera_see_limb(camera_id, limb_id[joint_id])
@@ -245,26 +245,29 @@ bone_param = np.ones((num_joints, 2), dtype=float)
 bone_param[:, 0] = 0.9
 bone_param[:, 1] = 0.3
 for joint_id in range(num_joints):
-    if is_tracked_point(joint_id, Tracked.BODY_COXA) or is_tracked_point(joint_id, Tracked.STRIPE) or is_tracked_point(
-            joint_id, Tracked.ANTENNA):
+    if (
+        is_tracked_point(joint_id, Tracked.BODY_COXA)
+        or is_tracked_point(joint_id, Tracked.STRIPE)
+        or is_tracked_point(joint_id, Tracked.ANTENNA)
+    ):
         bone_param[joint_id, 1] = 10000  # no bone
 
 # joints to be ignored during calibration
 ignore_joint_id = [
     joint_id
     for joint_id in range(num_joints)
-    if
-    is_tracked_point(joint_id, Tracked.BODY_COXA) or is_tracked_point(joint_id, Tracked.COXA_FEMUR) or is_tracked_point(
-        joint_id, Tracked.ANTENNA)
+    if is_tracked_point(joint_id, Tracked.BODY_COXA)
+    or is_tracked_point(joint_id, Tracked.COXA_FEMUR)
+    or is_tracked_point(joint_id, Tracked.ANTENNA)
 ]
 
 # joints to be ignored during calibration
 ignore_joint_id_wo_stripe = [
     joint_id
     for joint_id in range(num_joints)
-    if
-    is_tracked_point(joint_id, Tracked.BODY_COXA) or is_tracked_point(joint_id, Tracked.COXA_FEMUR) or is_tracked_point(
-        joint_id, Tracked.ANTENNA)
+    if is_tracked_point(joint_id, Tracked.BODY_COXA)
+    or is_tracked_point(joint_id, Tracked.COXA_FEMUR)
+    or is_tracked_point(joint_id, Tracked.ANTENNA)
 ]
 pictorial_joint_list = [j for j in range(num_joints)]
 

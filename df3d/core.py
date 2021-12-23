@@ -306,12 +306,9 @@ class Core:
         Returns:
         an image as an np.array with the plot.
         """
-
-        cam = self.camNet[cam_id]
-
         from pyba.config import df3d_bones, df3d_colors
 
-        return cam.plot_2d(img_id, bones=df3d_bones, colors=df3d_colors)
+        return self.camNet[cam_id].plot_2d(img_id, bones=df3d_bones, colors=df3d_colors)
 
     def get_image(self, cam_id, img_id):
         """Returns the img_id image from cam_id camera."""
@@ -330,16 +327,7 @@ class Core:
         Indexing is as follows:
         array[image_id][joint_id] = (x, y, z)
         """
-        camNetL = self.camNetLeft
-        camNetR = self.camNetRight
 
-        camNetL.triangulate()
-        camNetL.calibrate(cam_id_list=(0, 1, 2))
-
-        camNetR.triangulate()
-        camNetR.calibrate(cam_id_list=(0, 1, 2))
-
-        self.camNet.triangulate()
         points3d = np.copy(self.camNet.points3d)
         points3d = procrustes_seperate(points3d)
         points3d = normalize_pose_3d(points3d, rotate=True)

@@ -8,6 +8,7 @@ import numpy as np
 from df3d import skeleton_fly as skeleton
 from df3d.os_util import *
 from df3d.plot_util import normalize_pose_3d
+from df3d.config import config
 
 
 def apply_transformation(pts, R=None, t=None, s=None, tform=None):
