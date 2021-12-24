@@ -1,5 +1,6 @@
 import numpy as np
 import re
+import os
 
 from PyQt5 import QtWidgets as QW
 from PyQt5.QtCore import Qt, QEvent
@@ -20,7 +21,7 @@ def main():
     window.show()
     app.exec_()
 
-    
+
 def parse_cli_args(argv):
     """Parses the argument string argv.
 
@@ -32,7 +33,7 @@ def parse_cli_args(argv):
     try:
         args['input_folder'] = argv[1]
         args['num_images_max'] = int(argv[2])
-        args['output_subfolder'] = argv[3]
+        args['output_subfolder'] = argv[2]
     except (IndexError, ValueError):
         pass
     return args
@@ -77,9 +78,9 @@ class DeepflyGUI(QW.QWidget):
         """Creates the GUI layout (buttons and stuff.)"""
 
         # --- Create checkboxes ---
-        self.checkbox_solve_bp = QW.QCheckBox("Auto-correct", self)
-        self.checkbox_solve_bp.setChecked(True)
-        self.checkbox_solve_bp.stateChanged.connect(self.update_frame)
+        #self.checkbox_solve_bp = QW.QCheckBox("Auto-correct", self)
+        #self.checkbox_solve_bp.setChecked(True)
+        #self.checkbox_solve_bp.stateChanged.connect(self.update_frame)
 
         # --- Create buttons ---
         def mb(text, onClick):
@@ -97,7 +98,7 @@ class DeepflyGUI(QW.QWidget):
         self.button_pose_save = mb("Save", self.onclick_save_pose)
         self.button_pose_mode = mb("Pose", self.onclick_pose_mode)
         self.button_image_mode = mb("Image", self.onclick_image_mode)
-        self.button_heatmap_mode = mb("Prob. Map", self.onclick_heatmap_mode)
+        #self.button_heatmap_mode = mb("Prob. Map", self.onclick_heatmap_mode)
         button_textbox_img_id_go = mb("Go",  self.onclick_goto_img)
         self.button_calibrate_calc = mb("Calibration", self.onclick_calibrate)
 
@@ -111,7 +112,7 @@ class DeepflyGUI(QW.QWidget):
         self.button_image_mode.setCheckable(True)
         self.button_correction_mode.setCheckable(True)
         self.button_pose_mode.setCheckable(True)
-        self.button_heatmap_mode.setCheckable(True)
+        #self.button_heatmap_mode.setCheckable(True)
 
         self.textbox_img_id = QW.QLineEdit(str(self.img_id), self)
         self.textbox_img_id.setFixedWidth(100)
@@ -174,7 +175,7 @@ class DeepflyGUI(QW.QWidget):
         layout_h_buttons.addWidget(self.button_prev_err)
         layout_h_buttons.addWidget(self.button_next_err)
         layout_h_buttons.addStretch()
-        layout_h_buttons.addWidget(self.checkbox_solve_bp)
+        #layout_h_buttons.addWidget(self.checkbox_solve_bp)
         layout_h_buttons.addStretch()
         layout_h_buttons.addWidget(self.combo_joint_id)
 
@@ -309,27 +310,11 @@ class DeepflyGUI(QW.QWidget):
         self.combo_joint_id.setEnabled(True)
         self.correction_controls_enabled(True)
 
-        self.belief_propagation_enabled = lambda: \
-            self.checkbox_solve_bp.isChecked()
+        #self.belief_propagation_enabled = lambda: \
+        #    self.checkbox_solve_bp.isChecked()
 
         self.display_method = lambda c,i,j: \
             self.core.plot_2d(c, i, with_corrections=True, joints=j)
-
-        self.update_frame()
-
-
-    def onclick_heatmap_mode(self):
-        """Switches the GUI to heatmap mode if heatmaps are available."""
-        if not self.core.has_heatmap:
-            return False
-        self.uncheck_mode_buttons()
-        self.button_heatmap_mode.setChecked(True)
-        self.combo_joint_id.setEnabled(True)
-        self.correction_controls_enabled(False)
-        self.belief_propagation_enabled = lambda: False
-
-        self.display_method = lambda c,i,j: \
-            self.core.plot_heatmap(c, i, joints=j)
 
         self.update_frame()
 
@@ -339,7 +324,7 @@ class DeepflyGUI(QW.QWidget):
             Qt.Key_Return: self.onclick_goto_img,
             Qt.Key_A: self.onclick_prev_image,
             Qt.Key_D: self.onclick_next_image,
-            Qt.Key_H: self.onclick_heatmap_mode,
+            #Qt.Key_H: self.onclick_heatmap_mode,
             Qt.Key_I: self.onclick_image_mode,
             Qt.Key_X: self.onclick_pose_mode,
             Qt.Key_C: self.onclick_correction_mode,
@@ -430,7 +415,7 @@ class DeepflyGUI(QW.QWidget):
 
     def uncheck_mode_buttons(self):
         self.button_correction_mode.setChecked(False)
-        self.button_heatmap_mode.setChecked(False)
+        #self.button_heatmap_mode.setChecked(False)
         self.button_image_mode.setChecked(False)
         self.button_pose_mode.setChecked(False)
 
@@ -438,19 +423,17 @@ class DeepflyGUI(QW.QWidget):
     def correction_controls_enabled(self, enabled):
         self.button_next_err.setEnabled(enabled)
         self.button_prev_err.setEnabled(enabled)
-        self.checkbox_solve_bp.setEnabled(enabled)
+        #self.checkbox_solve_bp.setEnabled(enabled)
 
 
     def display_img(self, img_id):
         self.img_id = img_id
+        #print('wtf')
         self.textbox_img_id.setText(str(self.img_id))
         self.update_frame()
 
 
     def update_frame(self):
-        #if self.belief_propagation_enabled():
-        #    self.core.solve_bp(self.img_id)
-
         for iv in self.image_views:
             self.update_image_view(iv)
 
