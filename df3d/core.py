@@ -37,10 +37,9 @@ def find_default_camera_ordering(input_folder: str):
         (r"/SG/", [6, 5, 4, 3, 2, 1, 0]),
         (r"Laura", [0, 6, 5, 4, 3, 2, 1]),
         (r"AYMANNS_Florian", [6, 5, 4, 3, 2, 1, 0]),
-        (r"data/test", [0, 1, 2, 3, 4, 5, 6]),
         (r"/JB/", [6, 5, 4, 3, 2, 1, 0]),
     ]
-    #
+
     input_folder = str(input_folder)  # use `str` in case pathlib.Path instance
 
     def match(regex):
@@ -92,6 +91,7 @@ class Core:
             self.points2d = df3d_result["points2d"]
             if 'points3d' in df3d_result:
                 self.points3d = df3d_result["points3d"]
+
             self.camNet = CameraNetwork(
                 df3d_result["points2d"],
                 calib=df3d_result,
@@ -189,18 +189,13 @@ class Core:
         points2d_cp[self.camera_ordering[:3], :, :19] = self.points2d[self.camera_ordering[:3]]
         points2d_cp[self.camera_ordering[4:], :, 19:] = self.points2d[self.camera_ordering[4:]]
 
-        # (x,y) are switched in pyba coordinate system, so we need to swap last two axes
-        tmp = np.copy(points2d_cp[..., 0])
-        points2d_cp[..., 0] = points2d_cp[..., 1]
-        points2d_cp[..., 1] = tmp
-
         # cameras 2 and 4 cannot see the stripes
         points2d_cp[self.camera_ordering[2], :, 15:] = 0 
         points2d_cp[self.camera_ordering[4], :, 19+15:] = 0
 
         # flip lr back left-hand-side cameras
         for cidx in [4,5,6]:
-            points2d_cp[self.camera_ordering[cidx], ..., 0] = 1 - points2d_cp[self.camera_ordering[cidx], ..., 0]
+            points2d_cp[self.camera_ordering[cidx], ..., 1] = 1 - points2d_cp[self.camera_ordering[cidx], ..., 1]
         #fmt:off
         self.points2d = points2d_cp
 
@@ -243,8 +238,9 @@ class Core:
         }
 
         image_path = os.path.join(self.input_folder, "camera_{cam_id}_img_{img_id}.jpg")
+
         self.camNet = CameraNetwork(
-            self.points2d * [960, 480], calib=calib_reordered, image_path=image_path
+            self.points2d * [480, 960], calib=calib_reordered, image_path=image_path
         )
         self.camNet.bundle_adjust(update_intrinsic=False, update_distort=False)
 
@@ -338,30 +334,11 @@ class Core:
         """Writes the manual corrections to a file in the output folder."""
         self.db.dump()
 
-    '''
-    def post_process(self, points2d_matrix):
-        """Runs some hardcoded post-processing on the pose estimation results."""
-        pts2d = points2d_matrix
-        if "fly" in config["name"]:
-            # some post-processing for body-coxa
-            for cam_id in range(pts2d.shape[0]):
-                for j in range(config["skeleton"].num_joints):
-                    if config["skeleton"].camera_see_joint(cam_id, j) and config[
-                        "skeleton"
-                    ].is_tracked_point(j, config["skeleton"].Tracked.BODY_COXA):
-                        pts2d[cam_id, :, j, 0] = np.median(pts2d[cam_id, :, j, 0])
-                        pts2d[cam_id, :, j, 1] = np.median(pts2d[cam_id, :, j, 1])
-    '''
 
     def save(self):
         """Saves the pose estimation results to a file in the output folder."""
         dict_merge = dict()
         dict_merge["points2d"] = np.copy(self.points2d)
-
-        # temporarily incorporate corrected values
-        # points2d = np.copy(self.points2d)
-        # self.post_process(points2d)
-        # dict_merge["points2d_processed"] = points2d
 
         if self.camNet is not None and self.camNet.has_calibration():
             self.camNet.triangulate()
