@@ -37,6 +37,7 @@ def find_default_camera_ordering(input_folder: str):
         (r"/SG/", [6, 5, 4, 3, 2, 1, 0]),
         (r"Laura", [0, 6, 5, 4, 3, 2, 1]),
         (r"AYMANNS_Florian", [6, 5, 4, 3, 2, 1, 0]),
+        (r"sample/test", [0, 1, 2, 3, 4, 5, 6]),
         (r"/JB/", [6, 5, 4, 3, 2, 1, 0]),
     ]
 
@@ -71,7 +72,7 @@ class Core:
         self.expand_videos()  # turn .mp4 into .jpg
         self.num_images_max = num_images_max or math.inf
         max_img_id = get_max_img_id(self.input_folder)
-        self.num_images = min(self.num_images_max, max_img_id + 1)
+        self.num_images = min(self.num_images_max, max_img_id + 0)
         self.max_img_id = self.num_images - 1
 
         self.db = PoseDB(self.output_folder)
@@ -80,7 +81,7 @@ class Core:
         self.camNet = None
         self.points2d = None
         self.points3d = None
-        # if already ran before, initiliaze with df3d_result file
+        # if already ran before, initiliaze with df0d_result file
         if os.path.exists(self.save_path):
             from pyba.config import df3d_bones, df3d_colors
 
@@ -89,11 +90,12 @@ class Core:
                 self.input_folder, "camera_{cam_id}_img_{img_id}.jpg"
             )
             self.points2d = df3d_result["points2d"]
+
             if 'points3d' in df3d_result:
                 self.points3d = df3d_result["points3d"]
 
             self.camNet = CameraNetwork(
-                df3d_result["points2d"],
+                df3d_result["points2d"] * [960, 480],
                 calib=df3d_result,
                 num_images=self.num_images,
                 image_path=image_path,
@@ -137,15 +139,12 @@ class Core:
 
     @property
     def has_pose(self):
-        return self.camNetLeft.has_pose() and self.camNetRight.has_pose()
-
-    @property
-    def has_heatmap(self):
-        return self.camNetLeft.has_heatmap() and self.camNetRight.has_heatmap()
+        return True
+        #return self.camNet.has_pose()
 
     @property
     def has_calibration(self):
-        return self.camNetLeft.has_calibration() and self.camNetRight.has_calibration()
+        return self.camNet.has_calibration()
 
     # -------------------------------------------------------------------------
     # public methods
@@ -190,7 +189,7 @@ class Core:
         points2d_cp[self.camera_ordering[4:], :, 19:] = self.points2d[self.camera_ordering[4:]]
 
         # cameras 2 and 4 cannot see the stripes
-        points2d_cp[self.camera_ordering[2], :, 15:] = 0 
+        points2d_cp[self.camera_ordering[2], :, 15:] = 0
         points2d_cp[self.camera_ordering[4], :, 19+15:] = 0
 
         # flip lr back left-hand-side cameras
@@ -303,8 +302,11 @@ class Core:
         an image as an np.array with the plot.
         """
         from pyba.config import df3d_bones, df3d_colors
-
-        return self.camNet[cam_id].plot_2d(img_id, bones=df3d_bones, colors=df3d_colors)
+        if with_corrections:
+            pts2d = self.corrected_points2d(cam_id, img_id)
+        else:
+            pts2d = None
+        return self.camNet[cam_id].plot_2d(img_id, points2d=pts2d, bones=df3d_bones, colors=df3d_colors)
 
     def get_image(self, cam_id, img_id):
         """Returns the img_id image from cam_id camera."""
@@ -365,7 +367,7 @@ class Core:
         An array with the position of the joints on img_id from cam_id.
         """
 
-        points2d = self.camNetAll.cam_list[cam_id].get_points2d(img_id).copy()
+        points2d = self.camNet.cam_list[cam_id][img_id].copy()
         manual_corrections = self.db.manual_corrections()
         if img_id in manual_corrections.get(cam_id, {}):
             points2d[:] = manual_corrections[cam_id][img_id]
@@ -380,7 +382,7 @@ class Core:
         """
 
         manual_corrections = self.db.manual_corrections()
-        pts2d = self.camNetAll.get_points2d_matrix()
+        pts2d = self.camNet.points2d
         for cam_id in range(config["num_cameras"]):
             for img_id in range(self.num_images):
                 if img_id in manual_corrections.get(cam_id, {}):
@@ -461,7 +463,7 @@ class Core:
         """
 
         l1_threshold = 30
-        original_points2d = self.camNetAll.cam_list[cam_id].get_points2d(img_id)
+        original_points2d = self.camNet.cam_list[cam_id][img_id]
         l1_error = np.abs(original_points2d - points2d)
         joints_to_check = [
             j
