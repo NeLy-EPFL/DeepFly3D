@@ -5,7 +5,7 @@ After installing the dependencies we can initialize the GUI using the command li
 ![Alt text](../images/gui.gif?raw=true "Title")
 
 ```
-deepfly3d ./data/test/ 15
+df3d ./data/test/ 15
 ```
 The second argument sets the image folder, while the third argument sets the upper bound for the images, in case you only want to process the subset of images.
 
