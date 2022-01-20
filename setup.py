@@ -31,7 +31,7 @@ setup(
         "progress",
         "pytorch_lightning",
         "torchvision",
-        "pyba",
-        "df2d",
+        "pyba==0.12",
+        "df2d==0.13",
     ],
 )

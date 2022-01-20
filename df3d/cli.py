@@ -282,7 +282,6 @@ def run(args):
             core.plot_2d, core.num_images, core.input_folder, core.output_folder
         )
     
-    print(args.video_3d)
     if args.video_3d:
         video.make_pose3d_video(
             core.get_points3d(),

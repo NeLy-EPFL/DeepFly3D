@@ -97,7 +97,6 @@ class Core:
             self.camNet = CameraNetwork(
                 df3d_result["points2d"] * [960, 480],
                 calib=df3d_result,
-                num_images=self.num_images,
                 image_path=image_path,
                 colors=df3d_colors,
                 bones=df3d_bones,
@@ -174,10 +173,11 @@ class Core:
                     img = img[:, ::-1]
                 return img
 
-        self.points2d = inference_folder(
+        self.points2d, self.conf = inference_folder(
             folder=self.input_folder,
             load_f=load_f(self.camera_ordering),
             return_heatmap=False,
+            return_confidence=True, 
             max_img_id=self.max_img_id,
         )
 
@@ -188,14 +188,14 @@ class Core:
         points2d_cp[self.camera_ordering[:3], :, :19] = self.points2d[self.camera_ordering[:3]]
         points2d_cp[self.camera_ordering[4:], :, 19:] = self.points2d[self.camera_ordering[4:]]
 
-        # cameras 2 and 4 cannot see the stripes
+        # cameras 0 and 6 cannot see the stripes and antenna
         points2d_cp[self.camera_ordering[2], :, 15:] = 0
         points2d_cp[self.camera_ordering[4], :, 19+15:] = 0
 
         # flip lr back left-hand-side cameras
         for cidx in [4,5,6]:
             points2d_cp[self.camera_ordering[cidx], ..., 1] = 1 - points2d_cp[self.camera_ordering[cidx], ..., 1]
-        #fmt:off
+        #fmt:on
         self.points2d = points2d_cp
 
     def next_error(self, img_id):
@@ -353,6 +353,7 @@ class Core:
             logger.debug("Triangulation skipped.")
 
         dict_merge["camera_ordering"] = self.camera_ordering
+        dict_merge["heatmap_confidence"] = self.conf
 
         pickle.dump(dict_merge, open(self.save_path, "wb"))
         print(f"Saved results at: {self.save_path}")
