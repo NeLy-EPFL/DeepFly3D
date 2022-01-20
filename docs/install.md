@@ -1,26 +1,22 @@
 ## Installing
 
 ## Installing with pip
-
+Create a new anaconda environment, and pip install df3d package.
 ```bash
 conda create -n df3d python=3.6
 conda activate df3d
 pip install df3d
 ```
 
-additionally you might need to install cudatoolkit before pip installing df3d:
+## Old CUDA Drivers
+**Only in case your cuda driver is not up-to-date**, additionally you might need to explicitly install cudatoolkit before pip installing df3d:
 
 ```bash
-conda install pytorch==1.8.1 torchvision==0.8.2 torchaudio==0.7.2 cudatoolkit=9.2 -c pytorch
-```
-
-also you might need to install ffmpeg using:
-```bash
-conda install ffmpeg -c conda-forge
+conda install pytorch torchvision torchaudio cudatoolkit="YOUR_CUDA_VERSION" -c pytorch
 ```
 
 ## Installing from the source
-DeepFly3D requires Python3, Anaconda environment and CUDA drivers for installation. It is __only tested on Ubuntu__. First, clone the repository:
+DeepFly3D requires Python3, Anaconda environment and CUDA drivers for installation. It is __only tested on Ubuntu and MacOS__. First, clone the repository:
 
 ```
 git clone https://github.com/NeLy-EPFL/DeepFly3D
@@ -30,17 +26,16 @@ Then, run create a conda environment with
 ```
 conda create -n df3d python=3.6
 ```
-which will create a new python environment. Then, activate the environment, and install jupyter notebook.
+which will create a new python environment. Then, activate the environment.
 ```
 conda activate df3d
-conda install jupyter
 ```
-Once this is done  you can install the **deepfly** package with the following command,
+Once this is done  you can install the **df3d** package with the following command,
 
 ```
 pip install -e .
 ```
 
-which uses the setup.py function to create the package. For the last step you need to install the 2d pose estimation weights for stacked hourglass (approximately 200MB.)
+which uses the setup.py function to create the package.
 
 Make sure you also have installed the CUDA drivers compatible with your GPU, otherwise it is not possible to make 2D predictions. You can check how to install CUDA drivers here: https://developer.nvidia.com/cuda-downloads
