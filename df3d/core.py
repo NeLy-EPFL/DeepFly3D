@@ -81,7 +81,7 @@ class Core:
         self.camNet = None
         self.points2d = None
         self.points3d = None
-        # if already ran before, initiliaze with df0d_result file
+        # if already ran before, initiliaze with df3d_result file
         if os.path.exists(self.save_path):
             from pyba.config import df3d_bones, df3d_colors
 
@@ -90,6 +90,7 @@ class Core:
                 self.input_folder, "camera_{cam_id}_img_{img_id}.jpg"
             )
             self.points2d = df3d_result["points2d"]
+            self.conf = df3d_result["heatmap_confidence"]
 
             if 'points3d' in df3d_result:
                 self.points3d = df3d_result["points3d"]
