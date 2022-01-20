@@ -30,7 +30,7 @@ setup(
         "colorama",
         "progress",
         "pytorch_lightning",
-        "pyba",
-        "df2d",
+        "pyba==0.11",
+        "df2d==0.12",
     ],
 )
