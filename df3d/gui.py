@@ -18,7 +18,7 @@ def main():
 
     assert len(
         glob.glob(
-            os.path.join(cli_args["input_folder"], cli_args["output_subfolder"]) 
+            os.path.join(cli_args["input_folder"], cli_args["output_subfolder"])
             + "/df3d_result*.pkl"
         )
     ), f"Before running the GUI, run df3d-cli on folder {cli_args['input_folder']} first and generate df3d_result file"
