@@ -7,12 +7,21 @@ from PyQt5.QtCore import Qt, QEvent
 from PyQt5.QtGui import QImage, QPixmap
 
 from df3d.core import Core
+import glob
 
 
 def main():
     """Main entry point to run the GUI."""
     import sys
+
     cli_args = parse_cli_args(sys.argv)
+
+    assert len(
+        glob.glob(
+            os.path.join(cli_args["input_folder"], cli_args["output_subfolder"]) 
+            + "/df3d_result*.pkl"
+        )
+    ), f"Before running the GUI, run df3d-cli on folder {cli_args['input_folder']} first and generate df3d_result file"
 
     app = QW.QApplication([])
     window = DeepflyGUI()
@@ -29,11 +38,11 @@ def parse_cli_args(argv):
     A simple namespace with the parsed arguments values.
     """
     args = {}
-    args['output_subfolder'] = 'df3d'
+    args["output_subfolder"] = "df3d"
     try:
-        args['input_folder'] = argv[1]
-        args['num_images_max'] = int(argv[2])
-        args['output_subfolder'] = argv[2]
+        args["input_folder"] = argv[1]
+        args["num_images_max"] = int(argv[2])
+        args["output_subfolder"] = argv[2]
     except (IndexError, ValueError):
         pass
     return args
@@ -47,12 +56,7 @@ class DeepflyGUI(QW.QWidget):
         self.img_id = 0
         self.core = None
 
-
-    def setup(
-        self,
-        input_folder=None,
-        output_subfolder=None,
-        num_images_max=None):
+    def setup(self, input_folder=None, output_subfolder=None, num_images_max=None):
         """Configures the interface and prompts user for missing data."""
 
         if not input_folder:
@@ -65,7 +69,6 @@ class DeepflyGUI(QW.QWidget):
         self.setup_layout()
         self.onclick_image_mode()
 
-
     def set_width(self, width):
         """Sets the GUI's window's width and resizes its height accordingly."""
 
@@ -73,14 +76,13 @@ class DeepflyGUI(QW.QWidget):
         height = int(width / hw_ratio)
         self.resize(width, height)
 
-
     def setup_layout(self):
         """Creates the GUI layout (buttons and stuff.)"""
 
         # --- Create checkboxes ---
-        #self.checkbox_solve_bp = QW.QCheckBox("Auto-correct", self)
-        #self.checkbox_solve_bp.setChecked(True)
-        #self.checkbox_solve_bp.stateChanged.connect(self.update_frame)
+        # self.checkbox_solve_bp = QW.QCheckBox("Auto-correct", self)
+        # self.checkbox_solve_bp.setChecked(True)
+        # self.checkbox_solve_bp.stateChanged.connect(self.update_frame)
 
         # --- Create buttons ---
         def mb(text, onClick):
@@ -98,21 +100,20 @@ class DeepflyGUI(QW.QWidget):
         self.button_pose_save = mb("Save", self.onclick_save_pose)
         self.button_pose_mode = mb("Pose", self.onclick_pose_mode)
         self.button_image_mode = mb("Image", self.onclick_image_mode)
-        #self.button_heatmap_mode = mb("Prob. Map", self.onclick_heatmap_mode)
-        button_textbox_img_id_go = mb("Go",  self.onclick_goto_img)
+        # self.button_heatmap_mode = mb("Prob. Map", self.onclick_heatmap_mode)
+        button_textbox_img_id_go = mb("Go", self.onclick_goto_img)
         self.button_calibrate_calc = mb("Calibration", self.onclick_calibrate)
 
-        self.button_correction_mode = \
-            mb("Correction", self.onclick_correction_mode)
-        self.button_camera_order = \
-            mb("Camera ordering", self.onclick_camera_order)
-        self.button_pose_estimate = \
-            mb("2D Pose Estimation", self.onclick_pose2d_estimation)
+        self.button_correction_mode = mb("Correction", self.onclick_correction_mode)
+        self.button_camera_order = mb("Camera ordering", self.onclick_camera_order)
+        self.button_pose_estimate = mb(
+            "2D Pose Estimation", self.onclick_pose2d_estimation
+        )
 
         self.button_image_mode.setCheckable(True)
         self.button_correction_mode.setCheckable(True)
         self.button_pose_mode.setCheckable(True)
-        #self.button_heatmap_mode.setCheckable(True)
+        # self.button_heatmap_mode.setCheckable(True)
 
         self.textbox_img_id = QW.QLineEdit(str(self.img_id), self)
         self.textbox_img_id.setFixedWidth(100)
@@ -120,7 +121,7 @@ class DeepflyGUI(QW.QWidget):
         self.combo_joint_id = QW.QComboBox(self)
         self.combo_joint_id.addItem("View all joints", [])
         for i in range(self.core.number_of_joints):
-            self.combo_joint_id.addItem(f'View joint {i}', [i])
+            self.combo_joint_id.addItem(f"View joint {i}", [i])
         self.combo_joint_id.activated[str].connect(self.update_frame)
 
         # --- Create widgets to display images and pose results ---
@@ -130,7 +131,7 @@ class DeepflyGUI(QW.QWidget):
             iv.cam_id = cam_id
             return iv
 
-        top_row    = [make_image_view(cam_id) for cam_id in [0, 1, 2]]
+        top_row = [make_image_view(cam_id) for cam_id in [0, 1, 2]]
         bottom_row = [make_image_view(cam_id) for cam_id in [4, 5, 6]]
         self.image_views = top_row + bottom_row
 
@@ -161,7 +162,7 @@ class DeepflyGUI(QW.QWidget):
         layout_h_buttons_top.addWidget(self.button_image_mode)
         layout_h_buttons_top.addWidget(self.button_pose_mode)
         layout_h_buttons_top.addWidget(self.button_correction_mode)
-        #layout_h_buttons_top.addWidget(self.button_heatmap_mode)
+        # layout_h_buttons_top.addWidget(self.button_heatmap_mode)
 
         layout_h_buttons = QW.QHBoxLayout()
         layout_h_buttons.setSpacing(1)
@@ -175,7 +176,7 @@ class DeepflyGUI(QW.QWidget):
         layout_h_buttons.addWidget(self.button_prev_err)
         layout_h_buttons.addWidget(self.button_next_err)
         layout_h_buttons.addStretch()
-        #layout_h_buttons.addWidget(self.checkbox_solve_bp)
+        # layout_h_buttons.addWidget(self.checkbox_solve_bp)
         layout_h_buttons.addStretch()
         layout_h_buttons.addWidget(self.combo_joint_id)
 
@@ -189,10 +190,8 @@ class DeepflyGUI(QW.QWidget):
         self.setLayout(layout_v)
         self.setWindowTitle(self.core.input_folder)
 
-
     # ------------------------------------------------------------------
     # user input
-
 
     def onclick_camera_order(self):
         """Prompts for a new camera ordering."""
@@ -205,32 +204,26 @@ class DeepflyGUI(QW.QWidget):
         else:
             self.display_error_message("Ordering not changed (wrong format).")
 
-
     def onclick_pose2d_estimation(self):
         """Runs the core's pose2d_estimation routine and switches to correction mode."""
         self.core.pose2d_estimation()
         self.onclick_correction_mode()
 
-
     def onclick_first_image(self):
         """Displays the first image."""
         self.display_img(0)
-
 
     def onclick_last_image(self):
         """Displays the last image."""
         self.display_img(self.core.max_img_id)
 
-
     def onclick_prev_image(self):
         """Displays the previous image if is exists."""
         self.display_img(max(self.img_id - 1, 0))
 
-
     def onclick_next_image(self):
         """Displays the next image if it exists."""
         self.display_img(min(self.core.max_img_id, self.img_id + 1))
-
 
     def onclick_prev_error(self):
         """Among previous images, displays the last one with an error, if it exists."""
@@ -238,9 +231,8 @@ class DeepflyGUI(QW.QWidget):
         if prev_img is not None:
             self.display_img(prev_img)
         else:
-            msg = 'No error remaining among previous images'
+            msg = "No error remaining among previous images"
             self.display_error_message(msg)
-
 
     def onclick_next_error(self):
         """Among next images, displays the first one with an error, if it exists."""
@@ -248,9 +240,8 @@ class DeepflyGUI(QW.QWidget):
         if next_img is not None:
             self.display_img(next_img)
         else:
-            msg = 'No error remaining among next images'
+            msg = "No error remaining among next images"
             self.display_error_message(msg)
-
 
     def onclick_calibrate(self):
         """Prompts for a calibration range and calibrates."""
@@ -258,12 +249,10 @@ class DeepflyGUI(QW.QWidget):
         if rng is not None:  # not canceled
             self.core.calibrate_calc(*rng)
 
-
     def onclick_save_pose(self):
         """Saves the pose estimation results and manual corrections."""
         self.core.save_pose()
         self.core.save_corrections()
-
 
     def onclick_goto_img(self):
         """Displays the image whose id is in the textbox, if valid id."""
@@ -276,7 +265,6 @@ class DeepflyGUI(QW.QWidget):
             self.display_error_message(msg)
             self.textbox_img_id.setText(str(self.img_id))
 
-
     def onclick_image_mode(self):
         """Switches the GUI to image mode."""
         self.uncheck_mode_buttons()
@@ -284,9 +272,8 @@ class DeepflyGUI(QW.QWidget):
         self.combo_joint_id.setEnabled(False)
         self.correction_controls_enabled(False)
         self.belief_propagation_enabled = lambda: False
-        self.display_method = lambda c,i,j: self.core.get_image(c, i)
+        self.display_method = lambda c, i, j: self.core.get_image(c, i)
         self.update_frame()
-
 
     def onclick_pose_mode(self):
         """Switches the GUI to pose estimation results mode."""
@@ -297,9 +284,8 @@ class DeepflyGUI(QW.QWidget):
         self.combo_joint_id.setEnabled(True)
         self.correction_controls_enabled(False)
         self.belief_propagation_enabled = lambda: False
-        self.display_method = lambda c,i,j: self.core.plot_2d(c, i, joints=j)
+        self.display_method = lambda c, i, j: self.core.plot_2d(c, i, joints=j)
         self.update_frame()
-
 
     def onclick_correction_mode(self):
         """Switches the GUI to manual corrections mode."""
@@ -310,21 +296,21 @@ class DeepflyGUI(QW.QWidget):
         self.combo_joint_id.setEnabled(True)
         self.correction_controls_enabled(True)
 
-        #self.belief_propagation_enabled = lambda: \
+        # self.belief_propagation_enabled = lambda: \
         #    self.checkbox_solve_bp.isChecked()
 
-        self.display_method = lambda c,i,j: \
-            self.core.plot_2d(c, i, with_corrections=True, joints=j)
+        self.display_method = lambda c, i, j: self.core.plot_2d(
+            c, i, with_corrections=True, joints=j
+        )
 
         self.update_frame()
-
 
     def keyPressEvent(self, event):
         switch = {
             Qt.Key_Return: self.onclick_goto_img,
             Qt.Key_A: self.onclick_prev_image,
             Qt.Key_D: self.onclick_next_image,
-            #Qt.Key_H: self.onclick_heatmap_mode,
+            # Qt.Key_H: self.onclick_heatmap_mode,
             Qt.Key_I: self.onclick_image_mode,
             Qt.Key_X: self.onclick_pose_mode,
             Qt.Key_C: self.onclick_correction_mode,
@@ -334,10 +320,8 @@ class DeepflyGUI(QW.QWidget):
         action = switch.get(event.key(), default_action)
         action()
 
-
     # ------------------------------------------------------------------
     # user feedback and prompt
-
 
     def prompt_for_directory(self):
         """Prompts for a directory and returns its path.
@@ -345,13 +329,14 @@ class DeepflyGUI(QW.QWidget):
         Returns:
         String: path to a directory.
         """
-        return str(QW.QFileDialog.getExistingDirectory(
+        return str(
+            QW.QFileDialog.getExistingDirectory(
                 self,
                 directory="./",
                 caption="Select Directory",
                 options=QW.QFileDialog.DontUseNativeDialog,
-            ))
-
+            )
+        )
 
     def prompt_output_subdirectory_name(self):
         """Prompts for the ouput subdirectory name.
@@ -362,11 +347,13 @@ class DeepflyGUI(QW.QWidget):
         ok_pressed = False
         while not ok_pressed:
             text, ok_pressed = QW.QInputDialog.getText(
-                self, "Name of output sub-directory", "Name:",
-                QW.QLineEdit.Normal, "df3d"
+                self,
+                "Name of output sub-directory",
+                "Name:",
+                QW.QLineEdit.Normal,
+                "df3d",
             )
         return str(text)
-
 
     def prompt_for_camera_ordering(self):
         """Prompts for a camera ordering.
@@ -378,10 +365,9 @@ class DeepflyGUI(QW.QWidget):
             self, "Rename Images", "Camera order:", QW.QLineEdit.Normal, ""
         )
         if ok_pressed:
-            cidread2cid = re.findall(r'[0-9]+', text)
+            cidread2cid = re.findall(r"[0-9]+", text)
             cidread2cid = [int(x) for x in cidread2cid]
             return cidread2cid
-
 
     def prompt_for_calibration_range(self):
         """Prompts for a range of ids to use for calibration.
@@ -390,18 +376,20 @@ class DeepflyGUI(QW.QWidget):
         pair[int, int]: (min_id, max_id)
         """
         text, okPressed = QW.QInputDialog.getText(
-            self, "Calibration", "Range of images:", QW.QLineEdit.Normal,
-            f"0-{self.core.max_img_id}"
+            self,
+            "Calibration",
+            "Range of images:",
+            QW.QLineEdit.Normal,
+            f"0-{self.core.max_img_id}",
         )
         if okPressed:
-            numbers = re.findall(r'[0-9]+', text)
+            numbers = re.findall(r"[0-9]+", text)
             numbers = [int(x) for x in numbers]
             if len(numbers) == 2:
                 return numbers[0], numbers[1]
             else:
-                msg = 'Please provide a range such as: 0-10'
+                msg = "Please provide a range such as: 0-10"
                 self.display_error_message(msg)
-
 
     def display_error_message(self, message):
         """Displays an error message to user."""
@@ -409,29 +397,24 @@ class DeepflyGUI(QW.QWidget):
         msgBox.setText(message)
         msgBox.exec()
 
-
     # ------------------------------------------------------------------
-
 
     def uncheck_mode_buttons(self):
         self.button_correction_mode.setChecked(False)
-        #self.button_heatmap_mode.setChecked(False)
+        # self.button_heatmap_mode.setChecked(False)
         self.button_image_mode.setChecked(False)
         self.button_pose_mode.setChecked(False)
-
 
     def correction_controls_enabled(self, enabled):
         self.button_next_err.setEnabled(enabled)
         self.button_prev_err.setEnabled(enabled)
-        #self.checkbox_solve_bp.setEnabled(enabled)
-
+        # self.checkbox_solve_bp.setEnabled(enabled)
 
     def display_img(self, img_id):
         self.img_id = img_id
-        #print('wtf')
+        # print('wtf')
         self.textbox_img_id.setText(str(self.img_id))
         self.update_frame()
-
 
     def update_frame(self):
         for iv in self.image_views:
@@ -448,10 +431,9 @@ class DeepflyGUI(QW.QWidget):
         pixmap = pixmap.scaledToWidth(400)
         iv.setPixmap(pixmap)
 
-
     def eventFilter(self, iv, e):
-        """ Event filter listening to the image views mouse events
-            to handle manual corrections
+        """Event filter listening to the image views mouse events
+        to handle manual corrections
         """
         MousePress = QEvent.MouseButtonPress
         MouseMove = QEvent.MouseMove

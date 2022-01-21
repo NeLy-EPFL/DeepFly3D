@@ -130,6 +130,13 @@ class TestDf3d(unittest.TestCase):
         )
         self.assertTrue(check_df3d_result(path_result))
 
+    '''
+    def test_gui(self):
+        _ = subprocess.check_output(
+            ["df3d ./sample/test/"], shell=True
+        )
+    '''
+
 
 if __name__ == "__main__":
     unittest.main()
