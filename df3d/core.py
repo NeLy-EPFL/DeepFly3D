@@ -98,7 +98,7 @@ class Core:
                 self.points3d = df3d_result["points3d"]
 
             self.camNet = CameraNetwork(
-                df3d_result["points2d"] * [960, 480],
+                df3d_result["points2d"] * [480, 960],
                 calib=df3d_result,
                 image_path=image_path,
                 colors=df3d_colors,
