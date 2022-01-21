@@ -407,17 +407,11 @@ class DeepflyGUI(QW.QWidget):
         self.button_pose_mode.setChecked(False)
 
     def correction_controls_enabled(self, enabled):
-<<<<<<< HEAD
-        self.button_next_err.setEnabled(enabled)
-        self.button_prev_err.setEnabled(enabled)
-        # self.checkbox_solve_bp.setEnabled(enabled)
-=======
         pass
         #self.button_next_err.setEnabled(enabled)
         #self.button_prev_err.setEnabled(enabled)
         #self.checkbox_solve_bp.setEnabled(enabled)
 
->>>>>>> b550bac (removing old buttons from gui)
 
     def display_img(self, img_id):
         self.img_id = img_id
