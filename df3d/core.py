@@ -95,7 +95,7 @@ class Core:
                 self.points3d = df3d_result["points3d"]
 
             self.camNet = CameraNetwork(
-                df3d_result["points2d"] * [960, 480],
+                df3d_result["points2d"] * [480, 960],
                 calib=df3d_result,
                 image_path=image_path,
                 colors=df3d_colors,
@@ -177,7 +177,7 @@ class Core:
             folder=self.input_folder,
             load_f=load_f(self.camera_ordering),
             return_heatmap=False,
-            return_confidence=True, 
+            return_confidence=True,
             max_img_id=self.max_img_id,
         )
 

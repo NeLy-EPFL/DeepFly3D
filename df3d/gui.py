@@ -93,21 +93,21 @@ class DeepflyGUI(QW.QWidget):
         self.button_next = mb(">", self.onclick_next_image)
         self.button_last = mb(">>", self.onclick_last_image)
         self.button_first = mb("<<", self.onclick_first_image)
-        self.button_prev_err = mb("< previous error", self.onclick_prev_error)
-        self.button_next_err = mb("next error >", self.onclick_next_error)
-        self.button_pose_save = mb("Save", self.onclick_save_pose)
+        #self.button_prev_err = mb("< previous error", self.onclick_prev_error)
+        #self.button_next_err = mb("next error >", self.onclick_next_error)
+        #self.button_pose_save = mb("Save", self.onclick_save_pose)
         self.button_pose_mode = mb("Pose", self.onclick_pose_mode)
         self.button_image_mode = mb("Image", self.onclick_image_mode)
         #self.button_heatmap_mode = mb("Prob. Map", self.onclick_heatmap_mode)
         button_textbox_img_id_go = mb("Go",  self.onclick_goto_img)
-        self.button_calibrate_calc = mb("Calibration", self.onclick_calibrate)
+        #self.button_calibrate_calc = mb("Calibration", self.onclick_calibrate)
 
         self.button_correction_mode = \
             mb("Correction", self.onclick_correction_mode)
-        self.button_camera_order = \
-            mb("Camera ordering", self.onclick_camera_order)
-        self.button_pose_estimate = \
-            mb("2D Pose Estimation", self.onclick_pose2d_estimation)
+        #self.button_camera_order = \
+        #    mb("Camera ordering", self.onclick_camera_order)
+        #self.button_pose_estimate = \
+        #    mb("2D Pose Estimation", self.onclick_pose2d_estimation)
 
         self.button_image_mode.setCheckable(True)
         self.button_correction_mode.setCheckable(True)
@@ -153,10 +153,10 @@ class DeepflyGUI(QW.QWidget):
         layout_h_buttons_top = QW.QHBoxLayout()
         layout_h_buttons_top.setSpacing(3)
         layout_h_buttons_top.setAlignment(Qt.AlignRight)
-        layout_h_buttons_top.addWidget(self.button_pose_estimate)
-        layout_h_buttons_top.addWidget(self.button_calibrate_calc)
-        layout_h_buttons_top.addWidget(self.button_camera_order)
-        layout_h_buttons_top.addWidget(self.button_pose_save)
+        #layout_h_buttons_top.addWidget(self.button_pose_estimate)
+        #layout_h_buttons_top.addWidget(self.button_calibrate_calc)
+        #layout_h_buttons_top.addWidget(self.button_camera_order)
+        #layout_h_buttons_top.addWidget(self.button_pose_save)
         layout_h_buttons_top.addStretch()
         layout_h_buttons_top.addWidget(self.button_image_mode)
         layout_h_buttons_top.addWidget(self.button_pose_mode)
@@ -172,8 +172,8 @@ class DeepflyGUI(QW.QWidget):
         layout_h_buttons.addWidget(self.textbox_img_id)
         layout_h_buttons.addWidget(button_textbox_img_id_go)
         layout_h_buttons.addStretch()
-        layout_h_buttons.addWidget(self.button_prev_err)
-        layout_h_buttons.addWidget(self.button_next_err)
+        #layout_h_buttons.addWidget(self.button_prev_err)
+        #layout_h_buttons.addWidget(self.button_next_err)
         layout_h_buttons.addStretch()
         #layout_h_buttons.addWidget(self.checkbox_solve_bp)
         layout_h_buttons.addStretch()
@@ -421,8 +421,9 @@ class DeepflyGUI(QW.QWidget):
 
 
     def correction_controls_enabled(self, enabled):
-        self.button_next_err.setEnabled(enabled)
-        self.button_prev_err.setEnabled(enabled)
+        pass
+        #self.button_next_err.setEnabled(enabled)
+        #self.button_prev_err.setEnabled(enabled)
         #self.checkbox_solve_bp.setEnabled(enabled)
 
 
