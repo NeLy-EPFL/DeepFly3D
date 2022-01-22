@@ -196,8 +196,10 @@ class Core:
         points2d_cp[self.camera_ordering[4], :, 19+15:] = 0
 
         # flip lr back left-hand-side cameras
-        for cidx in [4,5,6]:
+        for cidx in [4,5,6]:            
             points2d_cp[self.camera_ordering[cidx], ..., 1] = 1 - points2d_cp[self.camera_ordering[cidx], ..., 1]
+            # points2d_cp[points2d_cp==1] == 0 # ugly hack
+
         # fmt:on
         self.points2d = points2d_cp
 
@@ -208,7 +210,7 @@ class Core:
         img_id: a valid image id after which to search for an error.
 
         Returns:
-        int: None or the id of an image with an error in prediction.
+        int: None or the id of an image with an error in prediction.,
         """
 
         return self.next_error_in_range(range(img_id + 1, self.max_img_id + 1))
