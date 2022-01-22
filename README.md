@@ -60,49 +60,10 @@ And you can perform:
 ![Alt text](images/gui_finderror.gif?raw=true "Title")
 DeepFly3D can automatically detect when 2D pose estimation is failed. 
 
-### Auto-correction
-![Alt text](images/gui_correct.gif?raw=true "Title")
-DeepFly3D will try to fix these mistaked using multi-view geometry and pictorial structures. In the next iteration of training, you can also use these examples to train the 2D estimation network! Auto-correction is perfomed if 2D pose estimation and calibration are complete.
-
 ### Assisting manual correction
  In the 'Correction' mode, the GUI tries to correct errors using pictorial structures. To save these corrections, press ```T```. Please check the associated manuscript (Günel et al. 2019) for implementation details.
 ![Alt text](images/correction.gif?raw=true "Title")
 In the next iteration of training, you can use these examples to train the network!
-
-### Visualization
-And nice visualizations! Check the [Visualization](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/visual.md) doc for details.
-In general, displaying pose estimation results should be as easy as:
-
-```python
-import matplotlib.pyplot as plt
-from deepfly.CameraNetwork import CameraNetwork
-camNet = CameraNetwork(image_folder=image_folder)
-image_folder = './data/test'
-
-plt.imshow(camNet.cam_list[1].plot_2d())
-```
-and to display heatmaps: 
-
-```python
-plt.imshow(camNet.cam_list[1].plot_heatmap())
-```
-
-To create more complicated figures, or replicate the figures from the paper, you can use the the pose_result file which is saved in the same folder as the images. The notebook, ```notebook_visualize/visualize.ipynb```, shows you the steps to create the following figure:
-
-<img src="images/pose3D.png" width="960">
-
-To visualize the time series instead, use the notebook ```notebook_visualize/time_series.ipynb```. It should output 2D/3D pose, along with a few selected time series.
-
-<p align="center">
-<img src="images/time_series.png" width="640">
-</p>
-
-### Using different datasets
-It is possible to use DeepFly3D on other animals! Check the [Adaptation](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/docs/adapt.md) text to see an example of [H3.6m](http://vision.imar.ro/human3.6m/description.php) multi-view human dataset.
-
-<p align="center">
-<img src="images/h3.6mcorrect.png" width="640">
-</p>
 
 
 ### References
@@ -119,18 +80,4 @@ It is possible to use DeepFly3D on other animals! Check the [Adaptation](https:/
   doi       = {10.7554/eLife.48571},
   year      = {2019}
 }
-
-@inproceedings{Newell16Stacked,
-  author    = {Alejandro Newell and
-               Kaiyu Yang and
-               Jia Deng},
-  title     = {Stacked Hourglass Networks for Human Pose Estimation},
-  booktitle = {Computer Vision - {ECCV} 2016 - 14th European Conference, Amsterdam,
-               The Netherlands, October 11-14, 2016, Proceedings, Part {VIII}},
-  pages     = {483--499},
-  year      = {2016},
-  doi       = {10.1007/978-3-319-46484-8\_29},
-}
 ```
-
-We want to thank to Florian Aymanns for testing of the software and for his helpful comments.
