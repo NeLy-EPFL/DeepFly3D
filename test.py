@@ -53,7 +53,7 @@ def check_df3d_result(folder):
         and pts2d_s[-1] == 2
     )
 
-    # missing points are marked with zeros
+    # missing points are marked with zeros, make sure there are none
     missing_3d_points = np.any(df3d_res["points3d"] == 0)
 
     # make sure 2d and 3d points are in sensible range
