@@ -52,7 +52,9 @@ def find_default_camera_ordering(input_folder: str):
         logger.debug(f"Default camera ordering found: {order}")
         return np.array(order)
     else:
-        raise NotImplementedError("Cannot find camera ordering ")
+        raise NotImplementedError(
+            f"Cannot find camera ordering for folder {input_folder}. Please set your camera ordering using the -order flag. Example usage is df3d-cli /your/path/images/ -order 0 1 2 3 4 5 6"
+        )
 
 
 class Core:
@@ -81,7 +83,7 @@ class Core:
         self.camNet = None
         self.points2d = None
         self.points3d = None
-        # if already ran before, initiliaze with df0d_result file
+        # if already ran before, initiliaze with df3d_result file
         if os.path.exists(self.save_path):
             from pyba.config import df3d_bones, df3d_colors
 
@@ -90,8 +92,9 @@ class Core:
                 self.input_folder, "camera_{cam_id}_img_{img_id}.jpg"
             )
             self.points2d = df3d_result["points2d"]
+            self.conf = df3d_result["heatmap_confidence"]
 
-            if 'points3d' in df3d_result:
+            if "points3d" in df3d_result:
                 self.points3d = df3d_result["points3d"]
 
             self.camNet = CameraNetwork(
@@ -139,7 +142,7 @@ class Core:
     @property
     def has_pose(self):
         return True
-        #return self.camNet.has_pose()
+        # return self.camNet.has_pose()
 
     @property
     def has_calibration(self):
@@ -161,7 +164,7 @@ class Core:
                 self.cam_order = cam_order.tolist()
 
             def parse_img_path(self, name: str) -> Tuple[int, int]:
-                """returns cid and img_id """
+                """returns cid and img_id"""
                 name = os.path.basename(name)
                 match = re.match(r"camera_(\d+)_img_(\d+)", name.replace(".jpg", ""))
                 return int(match[1]), int(match[2])
@@ -193,9 +196,11 @@ class Core:
         points2d_cp[self.camera_ordering[4], :, 19+15:] = 0
 
         # flip lr back left-hand-side cameras
-        for cidx in [4,5,6]:
+        for cidx in [4,5,6]:            
             points2d_cp[self.camera_ordering[cidx], ..., 1] = 1 - points2d_cp[self.camera_ordering[cidx], ..., 1]
-        #fmt:on
+            # points2d_cp[points2d_cp==1] == 0 # ugly hack
+
+        # fmt:on
         self.points2d = points2d_cp
 
     def next_error(self, img_id):
@@ -205,7 +210,7 @@ class Core:
         img_id: a valid image id after which to search for an error.
 
         Returns:
-        int: None or the id of an image with an error in prediction.
+        int: None or the id of an image with an error in prediction.,
         """
 
         return self.next_error_in_range(range(img_id + 1, self.max_img_id + 1))
@@ -302,11 +307,14 @@ class Core:
         an image as an np.array with the plot.
         """
         from pyba.config import df3d_bones, df3d_colors
+
         if with_corrections:
             pts2d = self.corrected_points2d(cam_id, img_id)
         else:
             pts2d = None
-        return self.camNet[cam_id].plot_2d(img_id, points2d=pts2d, bones=df3d_bones, colors=df3d_colors)
+        return self.camNet[cam_id].plot_2d(
+            img_id, points2d=pts2d, bones=df3d_bones, colors=df3d_colors
+        )
 
     def get_image(self, cam_id, img_id):
         """Returns the img_id image from cam_id camera."""
@@ -335,7 +343,6 @@ class Core:
     def save_corrections(self):
         """Writes the manual corrections to a file in the output folder."""
         self.db.dump()
-
 
     def save(self):
         """Saves the pose estimation results to a file in the output folder."""
@@ -404,7 +411,7 @@ class Core:
         return np.array(camera_ordering)
 
     def expand_videos(self):
-        """ expands video camera_x.mp4 into set of images camera_x_img_y.jpg"""
+        """expands video camera_x.mp4 into set of images camera_x_img_y.jpg"""
         for vid in glob.glob(os.path.join(self.input_folder, "camera_*.mp4")):
             cam_id = parse_vid_name(os.path.basename(vid))
             if not (

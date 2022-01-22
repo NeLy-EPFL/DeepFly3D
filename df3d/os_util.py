@@ -24,9 +24,22 @@ def get_max_img_id(path):
 
 
 def image_exists_img_id(path, img_id):
-    return os.path.isfile(
-        os.path.join(path, constr_img_name(0, img_id, False)) + ".jpg"
-    ) or os.path.isfile(os.path.join(path, constr_img_name(0, img_id, True)) + ".jpg")
+
+    return any(
+        [
+            os.path.isfile(
+                os.path.join(path, constr_img_name(cid, img_id, False)) + ".jpg"
+            )
+            for cid in range(7)
+        ]
+    ) or any(
+        [
+            os.path.isfile(
+                os.path.join(path, constr_img_name(0, img_id, True)) + ".jpg"
+            )
+            for cid in range(7)
+        ]
+    )
 
 
 def constr_img_name(cid, pid, pad=True):

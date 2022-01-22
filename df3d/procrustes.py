@@ -37,9 +37,12 @@ def calc_bone_length(pts3d, warn=False):
 
 
 def read_template_pose3d(path=config["procrustes_template"]):
-    d = np.load(
-        file=glob.glob(os.path.join(path, "df3d_result.pkl"))[0], allow_pickle=True
-    )
+    if os.path.isfile(path):
+        d = np.load(file=path, allow_pickle=True)
+    else:
+        d = np.load(
+            file=glob.glob(os.path.join(path, "df3d_result*.pkl"))[0], allow_pickle=True
+        )
 
     pts3d = d["points3d"]
     assert pts3d is not None
@@ -56,7 +59,7 @@ def procrustes_seperate(
     Performs procrustes seperately for each three legs seperately
     """
 
-    m_left = np.arange(0, 15)
+    m_left = np.arange(0, 19)
     points3d_gt_left = read_template_pose3d()[:, m_left].copy()
     points3d_pred_left = pts[:, m_left].copy()
     pts_t_left = procrustes(
@@ -68,7 +71,7 @@ def procrustes_seperate(
         return_transf=False,
     )
 
-    m_right = np.arange(skeleton.num_joints // 2, skeleton.num_joints // 2 + 15)
+    m_right = np.arange(skeleton.num_joints // 2, skeleton.num_joints // 2 + 19)
     points3d_gt_right = read_template_pose3d()[:, m_right].copy()
     points3d_pred_right = pts[:, m_right].copy()
     pts_t_right, tform = procrustes(
