@@ -1,3 +1,4 @@
+# DeepFly3D
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![PyPI version](https://badge.fury.io/py/df3d.svg)](https://badge.fury.io/py/df3d)
@@ -8,6 +9,7 @@ DeepFly3D is a PyTorch and PyQT5 implementation of 2D-3D tethered Drosophila pos
 
 DeepFly3D does not require a calibration pattern, it enforces geometric constraints using pictorial structures, which corrects most of the errors, and the remaining errors are automatically detected can be dealt manually with GUI.
 
+# Table of Contents
 - [Installing](#installing)
   * [Installing with pip](#installing-with-pip)
   * [Old CUDA Drivers](#old-cuda-drivers)
@@ -300,6 +302,17 @@ you can optionally remove `/FULL/PATH_FOLDER` and `NUM_IMAGES`, in which case po
 After completing pose estimation in the cli, you can open the pose mode:
 
 ![Alt text](../images/pose.png?raw=true "Title")
+
+
+# Development
+
+DeepFly3D consists of 3 pip packages:
+- DeepFly3D: https://pypi.org/project/df3d/0.56/
+- PyBundleAdjustment: https://pypi.org/project/pyba/
+- Drosophila2D Pose: https://pypi.org/project/df2d/
+
+The master branch of the DeepFly3D package is kept up-to-date with the last version of the pip package. Development is done under dev branch. Before pushing changes to the master branch, make sure all test cases are passing. You can run the tests using python test.py. Unittests make sure several scenarios can be processed using cli without failing.
+
 
 # Version History
 ## Changes
