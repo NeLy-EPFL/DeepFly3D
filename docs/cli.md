@@ -381,6 +381,23 @@ DeepFly3D consists of 3 pip packages:
 The master branch of the DeepFly3D package is kept up-to-date with the last version of the pip package. Development is done under dev branch. Before pushing changes to the master branch, make sure all test cases are passing. You can run the tests using python test.py. Unittests make sure several scenarios can be processed using cli without failing.
 
 
+# References
+
+```
+@inproceedings{Gunel19DeepFly3D,
+  author    = {Semih G{\"u}nel and
+               Helge Rhodin and
+               Daniel Morales and
+               João Compagnolo and
+               Pavan Ramdya and
+               Pascal Fua},
+  title     = {DeepFly3D, a deep learning-based approach for 3D limb and appendage tracking in tethered, adult Drosophila},
+  bookTitle = {eLife},
+  doi       = {10.7554/eLife.48571},
+  year      = {2019}
+}
+```
+
 # Version History
 ### Changes in 0.5
 - Major internal rewrite.
