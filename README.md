@@ -1,4 +1,4 @@
-# DeepFly3D
+# Markerless Multi-view Motion Capture for Tethered Drosophila
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![PyPI version](https://badge.fury.io/py/df3d.svg)](https://badge.fury.io/py/df3d)
