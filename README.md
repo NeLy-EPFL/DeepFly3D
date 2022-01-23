@@ -3,11 +3,13 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![PyPI version](https://badge.fury.io/py/df3d.svg)](https://badge.fury.io/py/df3d)
 
-![Alt text](../images/pose3D.gif?raw=true "Df3d Teaser")
+![Alt text](./images/pose3D.gif?raw=true "Df3d Teaser")
 
 DeepFly3D is a PyTorch and PyQT5 implementation of 2D-3D tethered Drosophila pose estimation. It aims to provide an interface for pose estimation and to permit further correction of 2D pose estimates, which are automatically converted to 3D pose.
 
 DeepFly3D does not require a calibration pattern, it enforces geometric constraints using pictorial structures, which corrects most of the errors, and the remaining errors are automatically detected can be dealt manually with GUI.
+
+We previously published our DeepFly3D work on eLife journal. You can read the publication [here](https://elifesciences.org/articles/48571).
 
 # Table of Contents
 - [Installing](#installing)
@@ -261,10 +263,10 @@ class Core:
     
 # Videos 
 Using the flag --video-2d with df3d-cli will create the following video:
-![Alt text](../images/out.gif?raw=true "Title")
+![Alt text](./images/out.gif?raw=true "Title")
 
 Using the flag --video-3d with df3d-cli will create the following video:
-![Alt text](../images/out3d.gif?raw=true "Title")
+![Alt text](./images/out3d.gif?raw=true "Title")
 
 # Output
 
@@ -296,8 +298,8 @@ for i in range(19):
 
 
 <p align="center">
-  <img width="480" height="240" src="../images/named_keypoints_left.png">
-  <img width="480" height="240" src="../images/named_keypoints_right.png">
+  <img width="480" height="240" src="./images/named_keypoints_left.png">
+  <img width="480" height="240" src="./images/named_keypoints_right.png">
 </p>
 
 
@@ -349,7 +351,7 @@ GUI is primarily used for correcting the false 2D pose estimation results in the
 
 After installing the dependencies we can initialize the GUI using the command line entry point:
 
-![Alt text](../images/gui.gif?raw=true "Title")
+![Alt text](./images/gui.gif?raw=true "Title")
 
 ```
 df3d ./data/test/ 15
@@ -358,17 +360,17 @@ The second argument sets the image folder, while the third argument sets the upp
 
 This should start the GUI:
 
-![Alt text](../images/gui.png?raw=true "Title")
+![Alt text](./images/gui.png?raw=true "Title")
 
 
 you can optionally remove `/FULL/PATH_FOLDER` and `NUM_IMAGES`, in which case pop-up apperas the select the folder. 
 
-<img src="../images/pop-up.png" width="480">
+<img src="./images/pop-up.png" width="480">
 
 
 After completing pose estimation in the cli, you can open the pose mode:
 
-![Alt text](../images/pose.png?raw=true "Title")
+![Alt text](./images/pose.png?raw=true "Title")
 
 
 # Development
@@ -382,7 +384,7 @@ The master branch of the DeepFly3D package is kept up-to-date with the last vers
 
 
 # References
-
+You can cite our paper in case you find it useful.
 ```
 @inproceedings{Gunel19DeepFly3D,
   author    = {Semih G{\"u}nel and
