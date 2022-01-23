@@ -103,13 +103,60 @@ Therefore, you can create advanced queries in df3d-cli, for example:
 df3d-cli -f /path/to/text.txt    \  # process each line from the text file 
          -r                      \  # recursively search for images folder under each line of the text line
          --order 0 1 2 3 4 5 6   \  # set the camera order
+         -n 100                  \  # process only the first 100 images 
          --output-folder results \  # write results under  /your/image/path/results instead of  /your/image/path/df3d
          --vv                    \  # will print agressivelly, for debugging purposes
          --skip-pose-estimation  \  # will not run 2d pose estimation, instead will do calibration, triangulation and will save results
          --video-2d              \  # will make 2d video for each folder 
          --video-3d              \  # will make 3d video for each folder
-
 ```
+
+To test df3d-cli, you run it on a folder for only 100 images, make videos, and print agressivelly for debugging:
+
+```bash 
+df3d-cli /path/to/images/ -n 100 -vv -order 0 1 2 3 4 5 6
+```
+
+# Python Interface
+Optinally, you can also use df3d on directly python. 
+
+```python
+from df3d.core import Core
+from df3d import video
+
+core = Core(input_folder='../sample/test/', num_images_max=100, output_subfolder='df3d_py', camera_ordering=[0,1,2,3,4,5,6])
+core.pose2d_estimation()
+core.calibrate_calc(min_img_id=0, max_img_id=100)
+
+# save df3d_resultt  file under '../sample/test/df3d_py' 
+core.save()
+
+# make videos
+video.make_pose2d_video(
+    core.plot_2d, core.num_images, core.input_folder, core.output_folder
+)
+video.make_pose3d_video(
+    core.get_points3d(),
+    core.plot_2d,
+    core.num_images,
+    core.input_folder,
+    core.output_folder,
+)
+```
+# Videos 
+
+
+https://user-images.githubusercontent.com/20509861/150675465-fc5b52a7-9fa0-4782-b48f-828bd03fc93c.mp4
+
+
+
+https://user-images.githubusercontent.com/20509861/150675462-4d438faa-c3bb-4392-b6bd-5be266dd55e0.mp4
+
+
+# Output
+
+
+
 # GUI
 
 The changed poses will be saved under pose_corr files under output folder. 
