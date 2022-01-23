@@ -28,10 +28,6 @@ We previously published our DeepFly3D work on eLife journal. You can read the pu
 - [Running GUI](#running-gui)
 - [Version History](#version-history)
 
-Extras:
-* If you are interested in the online annotation tool instead: [DeepFly3DAnnotation](https://github.com/NeLy-EPFL/DeepFly3DAnnotation)
-* To see the dataset used in the paper: [Dataverse](https://dataverse.harvard.edu/dataverse/DeepFly3D)
-
 
 # Installing
 
@@ -124,7 +120,9 @@ camera order stands for the selection of cameras. The default camera ordering (0
 
 Originally. 
 
-![](https://github.com/NeLy-EPFL/DeepFly3D/blob/dev/images/camera_order.png)
+<p align="center">
+  <img src="https://github.com/NeLy-EPFL/DeepFly3D/blob/dev/images/camera_order.png">
+</p>
 
 
 Then if you have the following order, your
@@ -282,8 +280,19 @@ d.keys()
 ```
 ## Points2D
 
-Detected 2D keypoints are hold under d['points2d'], which is a 4 dimensional tensor. Points2D has the following format: [CAMERA, TIME, JOINT, 2].
-In order to read the 2D points corresponding to camera c and time t and joint j, you can do d['points2d'][c, t, j]. The points are in the (row, column) format.
+Detected 2D keypoints are hold under d['points2d'], which is a 4 dimensional tensor. 
+```python
+d['points2d'].shape
+>>> (7, 15, 38, 2) # [CAMERAS, TIMES, JOINTS, 2D]
+```
+
+You can read the corresponding 2D points from a particular camera from a particular time using,
+
+```python
+row, column = d['points2d'][CAMERA, TIME, JOINT]
+```
+
+The points are in the (row, column) format.
 
 You can also visualize which keypoints in results belongs to which keypoints on the animal:
 ```python
@@ -329,6 +338,12 @@ camNet = CameraNetwork(points2d=points2d*[480, 960], calib=d, image_path=image_p
 points3d = camNet.triangulate()
 ```
 
+Camera 0 corresponds to origin. It's camera center (not the translation vector) corresponds to 0 point. 
+
+![image](https://user-images.githubusercontent.com/20509861/150681844-d467850c-dda5-4aed-a890-5e1f7f4325ff.png)
+
+
+
 ## Camera Ordering
 
 The same camera ordering as given input using --order flag in cli. 
@@ -339,6 +354,8 @@ d["camera_ordering"]
 
 ## Heatmap Confidence
 Stacked Hourglass confidence values for each joint predicted. Given an unnormalized posterior distribution heatmap H over the pixels, we take the argmax_{h, w} H for the final prediction and H[h, w] for the confidence level.
+
+![image](https://user-images.githubusercontent.com/20509861/150681661-3243b89c-5363-461f-bfd0-eca8ec311d9a.png)
 
 
 ## Calibration
@@ -368,6 +385,11 @@ calib = {0: {'R': array([[ 0.90885957,  0.006461  , -0.41705219],
   'distort': array([0., 0., 0., 0., 0.])},
 }
 ```
+
+The coordinate system is compatible with OpenCV, where z-axis corresponds to axis going out of camera.
+
+
+
 
 # Running GUI
 
@@ -431,7 +453,6 @@ You can cite our paper in case you find it useful.
 - Major internal rewrite.
 
 ### Changes in 0.4
-
 - Using the CLI, the output folder can be changed using the `--output-folder` flag
 - CLI and GUI now use the same pose estimation code, so changes will automatically propagate to both
 - Minor tweaks in the GUI layout, functionality kept unchanged
@@ -452,3 +473,8 @@ You can cite our paper in case you find it useful.
 - Better notebooks for plotting
 - Adding procrustes support. Now all the output is registere to template skeleton.
 - Bug fixes in CameraNetwork. Now calibration with arbitrary camera sequence is possible.
+
+
+## Extras:
+* If you are interested in the online annotation tool instead: [DeepFly3DAnnotation](https://github.com/NeLy-EPFL/DeepFly3DAnnotation)
+* To see the dataset used in the paper: [Dataverse](https://dataverse.harvard.edu/dataverse/DeepFly3D)
