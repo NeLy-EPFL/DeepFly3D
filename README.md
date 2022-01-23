@@ -281,6 +281,10 @@ d.keys()
 >>> dict_keys([0, 1, 2, 3, 4, 5, 6, 'points3d', 'points2d', 'points3d_wo_procrustes', 'camera_ordering', 'heatmap_confidence'])
 ```
 ## Points2D
+
+Detected 2D keypoints are hold under d['points2d'], which is a 4 dimensional tensor. Points2D has the following format: [CAMERA, TIME, JOINT, 2].
+In order to read the 2D points corresponding to camera c and time t and joint j, you can do d['points2d'][c, t, j]. The points are in the (row, column) format.
+
 You can also visualize which keypoints in results belongs to which keypoints on the animal:
 ```python
 import matplotlib.pyplot as plt
@@ -288,10 +292,12 @@ import matplotlib.pyplot as plt
 image_path = '../sample/test/camera_{cam_id}_img_{img_id}.jpg'
 pr_path = '../sample/test/df3d/df3d_result*.pkl'
 
+cam_id, time = 0, 0
+
 plt.imshow(plt.imread(image_path.format(cam_id=0,img_id=0)))
 plt.axis('off')
-for i in range(19):
-    x, y = d['points2d'][0, 0][i, 1] * 960, d['points2d'][0, 0][i, 0] * 480
+for joint_id in range(19):
+    x, y = d['points2d'][cam_id, time][joint_id, 1] * 960, d['points2d'][cam_id, time][joint_id, 0] * 480
     plt.scatter(x, y, c='blue', s=5)
     plt.text(x, y, f'{i}', c='red')
 ```
@@ -302,6 +308,26 @@ for i in range(19):
   <img width="480" height="240" src="./images/named_keypoints_right.png">
 </p>
 
+
+## Points3D 
+You can recalculate the 3D points, given the 2D points and the caibraiton parameters:
+
+```python
+from pyba.CameraNetwork import CameraNetwork
+import pickle
+import glob
+
+image_path = './sample/test/camera_{cam_id}_img_{img_id}.jpg'
+pr_path = './sample/test/df3d/df3d_result*.pkl'
+
+d = pickle.load(open(glob.glob(pr_path)[0], 'rb'))
+points2d = d['points2d']
+
+# df3d points2d are saved in normalized into [0,1], rescale them into image shape
+camNet = CameraNetwork(points2d=points2d*[480, 960], calib=d, image_path=image_path)
+
+points3d = camNet.triangulate()
+```
 
 ## Camera Ordering
 
