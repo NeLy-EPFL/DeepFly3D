@@ -2,15 +2,18 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![PyPI version](https://badge.fury.io/py/df3d.svg)](https://badge.fury.io/py/df3d)
 
-![Alt text](../images/pose3D.gif?raw=true "Title")
+![Alt text](../images/pose3D.gif?raw=true "Df3d Teaser")
 
 DeepFly3D is a PyTorch and PyQT5 implementation of 2D-3D tethered Drosophila pose estimation. It aims to provide an interface for pose estimation and to permit further correction of 2D pose estimates, which are automatically converted to 3D pose.
 
 DeepFly3D does not require a calibration pattern, it enforces geometric constraints using pictorial structures, which corrects most of the errors, and the remaining errors are automatically detected can be dealt manually with GUI.
 
-Table of Contents:
+- [Installing](#installing)
+  * [Installing with pip](#installing-with-pip)
+  * [Old CUDA Drivers](#old-cuda-drivers)
+  * [Installing from the source](#installing-from-the-source)
 - [Data Structure](#data-structure)
-  * [Basic Usage](#basic-usage)
+- [Basic Usage](#basic-usage)
 - [Advanced Usage](#advanced-usage)
 - [Python Interface](#python-interface)
 - [Videos](#videos)
@@ -18,8 +21,8 @@ Table of Contents:
   * [Points2d](#points2d)
   * [Camera Ordering](#camera-ordering)
   * [Heatmap Confidence](#heatmap-confidence)
-- [GUI](#gui)
-- [Output](#output-1)
+- [Running GUI](#running-gui)
+- [Version History](#version-history)
 
 Extras:
 * If you are interested in the online annotation tool instead: [DeepFly3DAnnotation](https://github.com/NeLy-EPFL/DeepFly3DAnnotation)
@@ -104,7 +107,7 @@ or
 
 In case of mp4 files, df3d will first expand them into images using ffmpeg. Please check the sample data for a real exampe: https://github.com/NeLy-EPFL/DeepFly3D/tree/master/sample/test
 
-## Basic Usage
+# Basic Usage
 
 The basic usage is like this.
 ```bash
@@ -189,7 +192,7 @@ df3d-cli /path/to/images/ -n 100 -vv -order 0 1 2 3 4 5 6
 ```
 
 # Python Interface
-Optinally, you can also use df3d on directly python. 
+Optionally, you can also use df3d on directly python. 
 
 ```python
 from df3d.core import Core
@@ -215,9 +218,11 @@ video.make_pose3d_video(
 )
 ```
 # Videos 
-
+Using the flag --video-2d with df3d-cli will create the following video:
 ![Alt text](../images/out.gif?raw=true "Title")
 
+Using the flag --video-3d with df3d-cli will create the following video:
+![Alt text](../images/out3d.gif?raw=true "Title")
 
 # Output
 
@@ -231,7 +236,7 @@ This will read a dictionary with the following keys:
 d.keys()
 >>> dict_keys([0, 1, 2, 3, 4, 5, 6, 'points3d', 'points2d', 'points3d_wo_procrustes', 'camera_ordering', 'heatmap_confidence'])
 ```
-## Points2d
+## Points2D
 You can also visualize which keypoints in results belongs to which keypoints on the animal:
 ```python
 import matplotlib.pyplot as plt
@@ -248,6 +253,10 @@ for i in range(19):
 ```
 
 
+<p align="center">
+  <img width="480" height="240" src="../images/named_keypoints_left.png">
+  <img width="480" height="240" src="../images/named_keypoints_right.png">
+</p>
 
 
 ## Camera Ordering
@@ -259,6 +268,7 @@ d["camera_ordering"]
 ```
 
 ## Heatmap Confidence
+Stacked Hourglass confidence values for each joint predicted. Given an unnormalized posterior distribution heatmap H over the pixels, we take the argmax_{h, w} H for the final prediction and H[h, w] for the confidence level.
 
 
 
