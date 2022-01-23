@@ -219,6 +219,46 @@ video.make_pose3d_video(
     core.output_folder,
 )
 ```
+In general following functions are available for Core module:
+```python
+class Core:
+    def __init__(self, input_folder, num_images_max):  # 9 lines
+	def setup_cameras(self):  # 38 lines
+    
+    # attribute access
+    @property def input_folder(self):  # 2 lines
+    @property def output_folder(self):  # 2 lines
+    @property def image_shape(self):  # 2 lines
+    @property def number_of_joints(self):  # 3 lines
+    def has_pose(self):  # 1 lines
+    def has_heatmap(self):  # 1 lines
+    def has_calibration(self):  # 4 lines
+    
+    # interactions with pose-estimation
+    def update_camera_ordering(self, cidread2cid):  # 12 lines
+    def pose2d_estimation(self):  # 14 lines
+    def next_error(self, img_id):  # 1 lines
+    def prev_error(self, img_id):  # 1 lines
+    def calibrate_calc(self, min_img_id, max_img_id):  # 35 lines
+    def nearest_joint(self, cam_id, img_id, x, y):  # 10 lines
+    def move_joint(self, cam_id, img_id, joint_id, x, y):  # 10 lines
+
+    def save_calibration(self):  # 3 lines
+    def save_pose(self):  # 63 lines
+    def save_corrections(self):  # 1 line
+    
+    # visualizations
+    def plot_2d(self, cam_id, img_id, with_corrections=False, joints=[]):  # 33 lines
+    def plot_heatmap(self, cam_id, img_id, joints=[]):  # 5 lines
+    def get_image(self, cam_id, img_id):  # 4 lines
+    
+    # private helper methods
+    def next_error_in_range(self, range_of_ids):  # 6 lines
+    def get_joint_reprojection_error(self, img_id, joint_id, camNet):  # 11 lines
+    def joint_has_error(self, img_id, joint_id):  # 4 lines
+    def solve_bp_for_camnet(self, img_id, camNet):  # 29 lines
+ ```
+    
 # Videos 
 Using the flag --video-2d with df3d-cli will create the following video:
 ![Alt text](../images/out.gif?raw=true "Title")
