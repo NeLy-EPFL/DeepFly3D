@@ -216,12 +216,7 @@ video.make_pose3d_video(
 ```
 # Videos 
 
-
-https://user-images.githubusercontent.com/20509861/150675465-fc5b52a7-9fa0-4782-b48f-828bd03fc93c.mp4
-
-
-
-https://user-images.githubusercontent.com/20509861/150675462-4d438faa-c3bb-4392-b6bd-5be266dd55e0.mp4
+![Alt text](../images/out.gif?raw=true "Title")
 
 
 # Output
@@ -252,7 +247,7 @@ for i in range(19):
     plt.text(x, y, f'{i}', c='red')
 ```
 
-![Alt text](../images/out.gif?raw=true "Title")
+
 
 
 ## Camera Ordering
