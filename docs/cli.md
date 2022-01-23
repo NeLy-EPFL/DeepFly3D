@@ -252,8 +252,7 @@ for i in range(19):
     plt.text(x, y, f'{i}', c='red')
 ```
 
-![image](https://user-images.githubusercontent.com/20509861/150675829-5a17a82a-ea4b-4e58-af19-d70a8cfd149f.png)
-![image](https://user-images.githubusercontent.com/20509861/150675854-9707e068-6822-44ad-8854-732d47c29b14.png)
+![Alt text](../images/out.gif?raw=true "Title")
 
 
 ## Camera Ordering
