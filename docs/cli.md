@@ -273,6 +273,33 @@ d["camera_ordering"]
 Stacked Hourglass confidence values for each joint predicted. Given an unnormalized posterior distribution heatmap H over the pixels, we take the argmax_{h, w} H for the final prediction and H[h, w] for the confidence level.
 
 
+## Calibration
+
+df3d_result files also have the calculated calibration parameters for each camera. Each calibration section includes 
+1. rotation matrix R
+2. translation vector tvec,
+3. intrinsic matrix intr,
+4. distortion parameters distort.
+
+```python
+calib = {0: {'R': array([[ 0.90885957,  0.006461  , -0.41705219],
+         [ 0.01010426,  0.99924554,  0.03750006],
+         [ 0.41697983, -0.0382963 ,  0.90810859]]),
+  'tvec': array([1.65191596e+00, 2.22582670e-02, 1.18353733e+02]),
+  'intr': array([[1.60410e+04, 0.00000e+00, 2.40000e+02],
+         [0.00000e+00, 1.59717e+04, 4.80000e+02],
+         [0.00000e+00, 0.00000e+00, 1.00000e+00]]),
+  'distort': array([0., 0., 0., 0., 0.])},
+ 1: {'R': array([[ 0.59137248,  0.02689833, -0.80594979],
+         [-0.00894927,  0.9996009 ,  0.02679478],
+         [ 0.80634887, -0.00863303,  0.59137718]]),
+  'tvec': array([ 1.02706542e+00, -9.25820468e-02,  1.18251732e+02]),
+  'intr': array([[1.60410e+04, 0.00000e+00, 2.40000e+02],
+         [0.00000e+00, 1.59717e+04, 4.80000e+02],
+         [0.00000e+00, 0.00000e+00, 1.00000e+00]]),
+  'distort': array([0., 0., 0., 0., 0.])},
+}
+```
 
 # Running GUI
 
@@ -315,9 +342,9 @@ The master branch of the DeepFly3D package is kept up-to-date with the last vers
 
 
 # Version History
-## Changes
 ### Changes in 0.5
-- 
+- Major internal rewrite.
+
 ### Changes in 0.4
 
 - Using the CLI, the output folder can be changed using the `--output-folder` flag
