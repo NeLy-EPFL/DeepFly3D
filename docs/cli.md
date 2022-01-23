@@ -1,49 +1,119 @@
-## Training
+# Data Structure
 
-To reproduce the results from the paper, first download the necessarry weights using from the root folder of the project. This will download the weights for MPII dataset, together with the final weights for the paper:
+The inteded usage of DeepFly3D is through command-line-intarface (CLI).
+df3d-cli assumes there are videos or images in this format under the folder. 
+if your path /your/image/path has images or videos, df3d-cli will run 2D pose estimation, calibration and triangulation and will save 2d pose, 3d pose and calibration parameters under the folder /your/image/path/df3d.
 
+Idealy you would have images or videos under ```images/``` folder, with the specific naming convention:
+```
+.
++-- images/
+|   +-- camera_0_img_0.jpg
+|   +-- camera_1_img_0.jpg
+|   +-- camera_2_img_0.jpg
+|   +-- camera_3_img_0.jpg
+|   +-- camera_4_img_0.jpg
+|   +-- camera_5_img_0.jpg
+|   +-- camera_6_img_0.jpg
+...
+```
+or 
 
 ```
-./weights/download.sh
+.
++-- images
+|   +-- camera_0.mp4
+|   +-- camera_1.mp4
+|   +-- camera_2.mp4
+|   +-- camera_3.mp4
+|   +-- camera_4.mp4
+|   +-- camera_5.mp4
+|   +-- camera_6.mp4
 ```
 
-You can train the network starting from the MPII dataset. You can read more details about the meaning of each argument from [ArgParse](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/deepfly/pose2d/ArgParse.py) file. 
+In case of mp4 files, df3d will first expand them into images using ffmpeg. Please check the sample data for a real exampe: https://github.com/NeLy-EPFL/DeepFly3D/tree/master/sample/test
 
-```
-python pose2d/drosophila.py -s 8 --resume ./weights/sh8_mpii.tar 
-```
+## Basic Usage
 
-This will create a new folder called checkpoint and will save training logs and loss curves. This will also save the best weights with the lowest validation error as  ```model_best.pth.tar```. To also save example training and validation images, use 
-```--num-output-image``` argument, and set it to a non-zero value.
-
-### Using DeepFly3D Annotation Tool for Training
-
-```
-python pose2d/drosophila.py -s 8 --resume ./weights/sh8_mpii.tar --num-output-image 10
-```
-To use the annotation tool, download the resulting json file from Google Firebase and place the image folders under the ```data``` folder. Then, set the  DeepFly3D will automatically parse the json file and add the annotated images to the training. Set ```jsonfile="drosophilaimaging-export.json``` and  ```self.json_file = os.path.join("../../data/", jsonfile)``` lines accordingly in the to make sure dataset file can find it. 
-
-Further, set the necessary variables inside the dataset initilization under ```pose2d/drosophila.py```.
-
-```
-session_id_list = [
-    "q47rx0Ybo0QHraRuDWken9WtPTA2"
-]
-train_session_id_list, test_session_id_list = session_id_list, session_id_list
-if args.train_folder_list is None:
-    args.train_folder_list = [
-        "2018-05-29--18-58-22--semih",
-    ]
-test_folder_list = ["2018-06-07--17-00-16--semih-walking--3"]
+The basic usage is like this.
+```bash
+df3d-cli /your/image/path \
+         --order 0 1 2 3 4 5 6 
 ```
 
-### Using Automatic/Manual Corrections for Training
-Manual/Automatic corrections are stored inside the ```pose_corr*.pkl``` files under the image folder. To also incorporate them into the training, go to [pose2d/DrosophilaDataset.py](https://github.com/NeLy-EPFL/DeepFly3D/blob/master/deepfly/pose2d/DrosophilaDataset.py), and set the ```manual_path_list = ['../data/test']``` variable. DeepFly3D will search __recursively__ on the specified folder to find the correction files and will automatically add them.
+camera order stands for the selection of cameras. The default camera ordering (0 1 2 3 4 5 6) stands for this. In case you have some other order, then you need to  tell which order.
 
 
-## Prediction
-For only making prediction, use ```--unlabeled``` argument. For instance,
+Originally. 
+
+![](https://github.com/NeLy-EPFL/DeepFly3D/blob/dev/images/camera_order.png)
+
+
+Then if you have the following order, your
+![image](https://user-images.githubusercontent.com/20509861/150675023-099f3d24-3c99-47bf-a2de-e2aa3665fdc9.png)
+
+
+
+So for example, if your data looks like this, then your order should be 6 5 4 3 2 1 0.
+![image](https://user-images.githubusercontent.com/20509861/150674985-c0035ab5-2b55-4dd0-8ffe-fc364857dae7.png)
+
+
+# Advanced Usage
+
+```bash
+usage: df3d-cli [-h] [-v] [-vv] [-d] [--output-folder OUTPUT_FOLDER] [-r] [-f]
+                [-o] [-n NUM_IMAGES_MAX]
+                [-order [CAMERA_IDS [CAMERA_IDS ...]]] [--video-2d]
+                [--video-3d] [--skip-pose-estimation]
+                INPUT
+
+DeepFly3D pose estimation
+
+positional arguments:
+  INPUT                 Without additional arguments, a folder containing
+                        unlabeled images.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --verbose         Enable info output (such as progress bars)
+  -vv, --verbose2       Enable debug output
+  -d, --debug           Displays the argument list for debugging purposes
+  --output-folder OUTPUT_FOLDER
+                        The name of subfolder where to write results
+  -r, --recursive       INPUT is a folder. Successively use its subfolders
+                        named 'images/'
+  -f, --from-file       INPUT is a text-file, where each line names a folder.
+                        Successively use the listed folders.
+  -o, --overwrite       Rerun pose estimation and overwrite existing pose
+                        results
+  -n NUM_IMAGES_MAX, --num-images-max NUM_IMAGES_MAX
+                        Maximal number of images to process.
+  -order [CAMERA_IDS [CAMERA_IDS ...]], --camera-ids [CAMERA_IDS [CAMERA_IDS ...]]
+                        Ordering of the cameras provided as an ordered list of
+                        ids. Example: 0 1 4 3 2 5 6.
+  --video-2d            Generate pose2d videos
+  --video-3d            Generate pose3d videos
+  --skip-pose-estimation
+                        Skip 2D and 3D pose estimation
 ```
-python pose2d/drosophila.py --resume ./weights/sh8_deepfly.tar --unlabeled /home/user/Desktop/DeepFly3D/data/test
-``` 
-will estimate 2D pose and heatmaps again and will replace the current version. This saves the resulting heatmaps and prediction under the ```--unlabeled``` folder
+
+Therefore, you can create advanced queries in df3d-cli, for example:
+
+```bash
+df3d-cli -f /path/to/text.txt    \  # process each line from the text file 
+         -r                      \  # recursively search for images folder under each line of the text line
+         --order 0 1 2 3 4 5 6   \  # set the camera order
+         --output-folder results \  # write results under  /your/image/path/results instead of  /your/image/path/df3d
+         --vv                    \  # will print agressivelly, for debugging purposes
+         --skip-pose-estimation  \  # will not run 2d pose estimation, instead will do calibration, triangulation and will save results
+         --video-2d              \  # will make 2d video for each folder 
+         --video-3d              \  # will make 3d video for each folder
+
+```
+# GUI
+
+The changed poses will be saved under pose_corr files under output folder. 
+
+# Output
+df3d_result
+which keys
