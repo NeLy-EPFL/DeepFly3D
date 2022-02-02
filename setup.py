@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="df3d",
-    version="0.55",
+    version="0.57",
     description="GUI and 3D pose estimation pipeline for tethered Drosophila.",
     author="Semih Gunel",
     author_email="gunelsemih@gmail.com",
@@ -32,6 +32,6 @@ setup(
         "pytorch_lightning",
         "torchvision",
         "pyba==0.13",
-        "df2d==0.14",
+        "df2d==0.15",
     ],
 )
