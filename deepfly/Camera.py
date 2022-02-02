@@ -143,20 +143,20 @@ class Camera:
             img = cv2.imread(image_path)
         elif os.path.isfile(image_pad_path):
             img = cv2.imread(image_pad_path)
-        else:
-            raise FileNotFoundError
+        #else:
+        #    raise FileNotFoundError
 
-        if img is None:
-            print("Cannot find", self.cam_id, img_id)
-            raise FileNotFoundError
+        #if img is None:
+        #    print("Cannot find", self.cam_id, img_id)
+        #    raise FileNotFoundError
 
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        if img.ndim == 2:
-            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-        if img.ndim == 3 and img.shape[2] == 4:
-            img = img[:, :, :3]  # remove A
-        if flip:
-            img = cv2.flip(img, 1)
+        #img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        #if img.ndim == 2:
+        #    img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+        #if img.ndim == 3 and img.shape[2] == 4:
+        #    img = img[:, :, :3]  # remove A
+        #if flip:
+        #    img = cv2.flip(img, 1)
         return img
 
     def get_points2d(self, img_id):

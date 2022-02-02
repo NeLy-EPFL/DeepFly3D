@@ -9,20 +9,32 @@ import deepfly.logger as logger
 
 
 def get_max_img_id(path):
-    print(path)
+    print('path',path)
     bound_low = 0
     bound_high = 100000
 
     curr = (bound_high + bound_low) // 2
-    while bound_high - bound_low > 1:
-        if image_exists_img_id(path, curr):
-            bound_low = curr
-        else:
-            bound_high = curr
-        curr = (bound_low + bound_high) // 2
+#    while bound_high - bound_low > 1:
+#        if image_exists_img_id(path, curr):
+#            bound_low = curr
+#        else:
+#            bound_high = curr
+#        curr = (bound_low + bound_high) // 2
+#        print('curr', curr)
+    
+    items_list=os.listdir(path)
+    num_list=[]
+    for i, item in enumerate(items_list):
+        if item.endswith('.jpg'):
+            num = item.split('_')[3][:-4]
+            num_list.append(int(num))
+    num_list.sort()
+    curr=max(num_list)
+    print('curr',curr)
 
     if not image_exists_img_id(path, curr):
         logger.debug("Cannot find image at {} with img_id {}".format(path, curr))
+        print('No image found ...')
         raise FileNotFoundError("No image found.")
 
     return curr

@@ -1,7 +1,8 @@
 # pylint: disable=unsubscriptable-object
 import glob
 import os
-import pickle
+#import pickle
+import pickle5 as pickle
 
 import cv2
 import numpy as np
@@ -154,10 +155,14 @@ class CameraNetwork:
 
         self.cam_list = list()
         pred_path = find_pred_path(self.output_folder)
+        #print('pred_path', pred_path)
         if pred_path is not None:
             logger.debug("no pred file under {}".format(self.output_folder))
-            pred = np.load(file=pred_path, mmap_mode="r", allow_pickle=True)
+           
+           # pred = np.load(file=pred_path, mmap_mode="r", allow_pickle=True)
+            pred = pickle.load(open(pred_path, 'rb'))
             pred = pred[:, : self.num_images]
+            #print(pred)
         else:
             pred = None
 
@@ -201,6 +206,8 @@ class CameraNetwork:
 
     def triangulate(self):
         assert self.cam_list
+        
+        print(self.cam_list[0])
 
         s = self.cam_list[0].points2d.shape
         self.points3d = np.zeros(shape=(s[0], s[1], 3), dtype=np.float)
