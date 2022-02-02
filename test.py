@@ -207,7 +207,7 @@ class TestDf3d(unittest.TestCase):
         path_result = path + "df3d/"
         shutil.rmtree(path_result)
         _ = subprocess.check_output(
-            ["CUDA_VISIBLE_DEVICES=-1 df3d-cli ./sample/test/  -vv --video-3d"],
+            ['CUDA_VISIBLE_DEVICES="" df3d-cli ./sample/test/  -vv --video-3d'],
             shell=True,
         )
 
