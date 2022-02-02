@@ -1,13 +1,15 @@
-# DeepFly3D
+# Markerless Multi-view Motion Capture for Tethered Drosophila
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![PyPI version](https://badge.fury.io/py/df3d.svg)](https://badge.fury.io/py/df3d)
 
-![Alt text](../images/pose3D.gif?raw=true "Df3d Teaser")
+![Alt text](./images/pose3D.gif?raw=true "Df3d Teaser")
 
 DeepFly3D is a PyTorch and PyQT5 implementation of 2D-3D tethered Drosophila pose estimation. It aims to provide an interface for pose estimation and to permit further correction of 2D pose estimates, which are automatically converted to 3D pose.
 
 DeepFly3D does not require a calibration pattern, it enforces geometric constraints using pictorial structures, which corrects most of the errors, and the remaining errors are automatically detected can be dealt manually with GUI.
+
+We previously published our DeepFly3D work on eLife journal. You can read the publication [here](https://elifesciences.org/articles/48571).
 
 # Table of Contents
 - [Installing](#installing)
@@ -25,10 +27,6 @@ DeepFly3D does not require a calibration pattern, it enforces geometric constrai
   * [Heatmap Confidence](#heatmap-confidence)
 - [Running GUI](#running-gui)
 - [Version History](#version-history)
-
-Extras:
-* If you are interested in the online annotation tool instead: [DeepFly3DAnnotation](https://github.com/NeLy-EPFL/DeepFly3DAnnotation)
-* To see the dataset used in the paper: [Dataverse](https://dataverse.harvard.edu/dataverse/DeepFly3D)
 
 
 # Installing
@@ -122,7 +120,9 @@ camera order stands for the selection of cameras. The default camera ordering (0
 
 Originally. 
 
-![](https://github.com/NeLy-EPFL/DeepFly3D/blob/dev/images/camera_order.png)
+<p align="center">
+  <img src="https://github.com/NeLy-EPFL/DeepFly3D/blob/dev/images/camera_order.png">
+</p>
 
 
 Then if you have the following order, your
@@ -261,10 +261,10 @@ class Core:
     
 # Videos 
 Using the flag --video-2d with df3d-cli will create the following video:
-![Alt text](../images/out.gif?raw=true "Title")
+![Alt text](./images/out.gif?raw=true "Title")
 
 Using the flag --video-3d with df3d-cli will create the following video:
-![Alt text](../images/out3d.gif?raw=true "Title")
+![Alt text](./images/out3d.gif?raw=true "Title")
 
 # Output
 
@@ -279,6 +279,21 @@ d.keys()
 >>> dict_keys([0, 1, 2, 3, 4, 5, 6, 'points3d', 'points2d', 'points3d_wo_procrustes', 'camera_ordering', 'heatmap_confidence'])
 ```
 ## Points2D
+
+Detected 2D keypoints are hold under d['points2d'], which is a 4 dimensional tensor. 
+```python
+d['points2d'].shape
+>>> (7, 15, 38, 2) # [CAMERAS, TIMES, JOINTS, 2D]
+```
+
+You can read the corresponding 2D points from a particular camera from a particular time using,
+
+```python
+row, column = d['points2d'][CAMERA, TIME, JOINT]
+```
+
+The points are in the (row, column) format.
+
 You can also visualize which keypoints in results belongs to which keypoints on the animal:
 ```python
 import matplotlib.pyplot as plt
@@ -286,19 +301,47 @@ import matplotlib.pyplot as plt
 image_path = '../sample/test/camera_{cam_id}_img_{img_id}.jpg'
 pr_path = '../sample/test/df3d/df3d_result*.pkl'
 
+cam_id, time = 0, 0
+
 plt.imshow(plt.imread(image_path.format(cam_id=0,img_id=0)))
 plt.axis('off')
-for i in range(19):
-    x, y = d['points2d'][0, 0][i, 1] * 960, d['points2d'][0, 0][i, 0] * 480
+for joint_id in range(19):
+    x, y = d['points2d'][cam_id, time][joint_id, 1] * 960, d['points2d'][cam_id, time][joint_id, 0] * 480
     plt.scatter(x, y, c='blue', s=5)
     plt.text(x, y, f'{i}', c='red')
 ```
 
 
 <p align="center">
-  <img width="480" height="240" src="../images/named_keypoints_left.png">
-  <img width="480" height="240" src="../images/named_keypoints_right.png">
+  <img width="480" height="240" src="./images/named_keypoints_left.png">
+  <img width="480" height="240" src="./images/named_keypoints_right.png">
 </p>
+
+
+## Points3D 
+You can recalculate the 3D points, given the 2D points and the caibraiton parameters:
+
+```python
+from pyba.CameraNetwork import CameraNetwork
+import pickle
+import glob
+
+image_path = './sample/test/camera_{cam_id}_img_{img_id}.jpg'
+pr_path = './sample/test/df3d/df3d_result*.pkl'
+
+d = pickle.load(open(glob.glob(pr_path)[0], 'rb'))
+points2d = d['points2d']
+
+# df3d points2d are saved in normalized into [0,1], rescale them into image shape
+camNet = CameraNetwork(points2d=points2d*[480, 960], calib=d, image_path=image_path)
+
+points3d = camNet.triangulate()
+```
+
+Camera 0 corresponds to origin. It's camera center (not the translation vector) corresponds to 0 point. 
+
+![image](https://user-images.githubusercontent.com/20509861/150681844-d467850c-dda5-4aed-a890-5e1f7f4325ff.png)
+
 
 
 ## Camera Ordering
@@ -311,6 +354,8 @@ d["camera_ordering"]
 
 ## Heatmap Confidence
 Stacked Hourglass confidence values for each joint predicted. Given an unnormalized posterior distribution heatmap H over the pixels, we take the argmax_{h, w} H for the final prediction and H[h, w] for the confidence level.
+
+![image](https://user-images.githubusercontent.com/20509861/150681661-3243b89c-5363-461f-bfd0-eca8ec311d9a.png)
 
 
 ## Calibration
@@ -341,6 +386,11 @@ calib = {0: {'R': array([[ 0.90885957,  0.006461  , -0.41705219],
 }
 ```
 
+The coordinate system is compatible with OpenCV, where z-axis corresponds to axis going out of camera.
+
+
+
+
 # Running GUI
 
 GUI is primarily used for correcting the false 2D pose estimation results in the 'Correction' mode. Your changes will be saved under df3d folder and will be used for the final df3d_result file. 
@@ -349,7 +399,7 @@ GUI is primarily used for correcting the false 2D pose estimation results in the
 
 After installing the dependencies we can initialize the GUI using the command line entry point:
 
-![Alt text](../images/gui.gif?raw=true "Title")
+![Alt text](./images/gui.gif?raw=true "Title")
 
 ```
 df3d ./data/test/ 15
@@ -358,17 +408,17 @@ The second argument sets the image folder, while the third argument sets the upp
 
 This should start the GUI:
 
-![Alt text](../images/gui.png?raw=true "Title")
+![Alt text](./images/gui.png?raw=true "Title")
 
 
 you can optionally remove `/FULL/PATH_FOLDER` and `NUM_IMAGES`, in which case pop-up apperas the select the folder. 
 
-<img src="../images/pop-up.png" width="480">
+<img src="./images/pop-up.png" width="480">
 
 
 After completing pose estimation in the cli, you can open the pose mode:
 
-![Alt text](../images/pose.png?raw=true "Title")
+![Alt text](./images/pose.png?raw=true "Title")
 
 
 # Development
@@ -382,7 +432,7 @@ The master branch of the DeepFly3D package is kept up-to-date with the last vers
 
 
 # References
-
+You can cite our paper in case you find it useful.
 ```
 @inproceedings{Gunel19DeepFly3D,
   author    = {Semih G{\"u}nel and
@@ -403,7 +453,6 @@ The master branch of the DeepFly3D package is kept up-to-date with the last vers
 - Major internal rewrite.
 
 ### Changes in 0.4
-
 - Using the CLI, the output folder can be changed using the `--output-folder` flag
 - CLI and GUI now use the same pose estimation code, so changes will automatically propagate to both
 - Minor tweaks in the GUI layout, functionality kept unchanged
@@ -424,3 +473,8 @@ The master branch of the DeepFly3D package is kept up-to-date with the last vers
 - Better notebooks for plotting
 - Adding procrustes support. Now all the output is registere to template skeleton.
 - Bug fixes in CameraNetwork. Now calibration with arbitrary camera sequence is possible.
+
+
+## Extras:
+* If you are interested in the online annotation tool instead: [DeepFly3DAnnotation](https://github.com/NeLy-EPFL/DeepFly3DAnnotation)
+* To see the dataset used in the paper: [Dataverse](https://dataverse.harvard.edu/dataverse/DeepFly3D)
