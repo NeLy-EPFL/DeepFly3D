@@ -448,6 +448,7 @@ You can cite our paper in case you find it useful.
 }
 ```
 
+
 # Version History
 ### Changes in 0.5
 - Major internal rewrite.
@@ -474,7 +475,7 @@ You can cite our paper in case you find it useful.
 - Adding procrustes support. Now all the output is registere to template skeleton.
 - Bug fixes in CameraNetwork. Now calibration with arbitrary camera sequence is possible.
 
-
 ## Extras:
 * If you are interested in the online annotation tool instead: [DeepFly3DAnnotation](https://github.com/NeLy-EPFL/DeepFly3DAnnotation)
 * To see the dataset used in the paper: [Dataverse](https://dataverse.harvard.edu/dataverse/DeepFly3D)
+
