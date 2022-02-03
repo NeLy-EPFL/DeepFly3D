@@ -14,7 +14,7 @@ We previously published our DeepFly3D work on eLife journal. You can read the pu
 # Table of Contents
 - [Installing](#installing)
   * [Installing with pip](#installing-with-pip)
-  * [Old CUDA Drivers](#old-cuda-drivers)
+  * [Odd CUDA Drivers](#odd-cuda-drivers)
   * [Installing from the source](#installing-from-the-source)
 - [Data Structure](#data-structure)
 - [Basic Usage](#basic-usage)
@@ -39,11 +39,19 @@ conda activate df3d
 pip install df3d
 ```
 
-## Old CUDA Drivers
-**Only in case your cuda driver is not up-to-date**, additionally you might need to explicitly install cudatoolkit before pip installing df3d:
+## Odd CUDA Drivers
+**Only in case your cuda driver is not up-to-date**, or is not supported by mainstream pytorch, additionally you might need to explicitly install cudatoolkit before pip installing df3d:
 
 ```bash
 conda install pytorch torchvision torchaudio cudatoolkit="YOUR_CUDA_VERSION" -c pytorch
+```
+
+For example with with RTX 3080 Ti GPU, you will need to do:
+```bash
+conda create -n df3d python=3.6
+conda activate df3d
+conda install pytorch torchvision cudatoolkit=11 -c pytorch-nightly
+pip install df3d
 ```
 
 ## Installing from the source
