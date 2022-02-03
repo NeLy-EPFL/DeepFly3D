@@ -105,6 +105,12 @@ def parse_cli_args():
         action="store_true",
     )
     parser.add_argument(
+        "-x",
+        "--delete-images",
+        help="Delete image files *after running df3d-cli*. Only deletes if there is corresponding .mp4 file is already in the folder. Especially useful if you are expanding .mp4's for processing.",
+        action="store_true",
+    )
+    parser.add_argument(
         "-o",
         "--overwrite",
         help="Rerun pose estimation and overwrite existing pose results",
@@ -134,7 +140,7 @@ def parse_cli_args():
     parser.add_argument(
         "--skip-pose-estimation",
         help="Skip 2D and 3D pose estimation",
-        dest='skip_estimation',
+        dest="skip_estimation",
         action="store_true",
     )
     parser.add_argument(
@@ -308,6 +314,9 @@ def run(args):
             core.input_folder,
             core.output_folder,
         )
+
+    if args.delete_images:
+        core.delete_images()
 
     return 0
 
