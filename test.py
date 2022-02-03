@@ -231,6 +231,21 @@ class TestDf3d(unittest.TestCase):
         self.assertTrue(os.path.exists(glob.glob(path_result + "video_pose3d*.mp4")[0]))
         self.assertGreaterEqual(10, get_reprojection_error(path_result))
 
+    def test_delete_images(self):
+        path = "./sample/test/"
+        path_result = path + "df3d/"
+        delete_df3d_folder(path)
+        _ = subprocess.check_output(
+            ["df3d-cli ./sample/test/ --video-3d -vv --delete-images"],
+            shell=True,
+        )
+
+        shutil.copy(glob.glob(path_result + "video_pose3d*.mp4")[0], "./")
+        self.assertTrue(check_df3d_result(path_result))
+        self.assertTrue(os.path.exists(glob.glob(path_result + "video_pose3d*.mp4")[0]))
+        self.assertGreaterEqual(5, get_reprojection_error(path_result))
+        self.assertTrue(len(glob.glob(os.path.join(path, "camera_*.jpg"))) == 0)
+
 
 if __name__ == "__main__":
     unittest.main()

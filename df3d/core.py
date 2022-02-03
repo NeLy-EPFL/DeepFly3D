@@ -71,7 +71,7 @@ class Core:
         self.output_subfolder = output_subfolder
         self.output_folder = os.path.join(input_folder, output_subfolder)
 
-        self.expand_videos()  # turn .mp4 into .jpg
+        self.expand_videos()
         self.num_images_max = num_images_max or math.inf
         max_img_id = get_max_img_id(self.input_folder)
         self.num_images = min(self.num_images_max, max_img_id + 0)
@@ -414,16 +414,29 @@ class Core:
         """expands video camera_x.mp4 into set of images camera_x_img_y.jpg"""
         for vid in glob.glob(os.path.join(self.input_folder, "camera_*.mp4")):
             cam_id = parse_vid_name(os.path.basename(vid))
-            if not (
-                os.path.exists(
-                    os.path.join(self.input_folder, f"camera_{cam_id}_img_0.jpg")
-                )
-                or os.path.exists(
-                    os.path.join(self.input_folder, f"camera_{cam_id}_img_000000.jpg")
-                )
-            ):
+            first_image_path = os.path.join(
+                self.input_folder, f"camera_{cam_id}_img_0.jpg"
+            )
+            already_expanded = os.path.exists(first_image_path)
+            if not already_expanded:
                 command = f"ffmpeg -i {vid} -qscale:v 2 -start_number 0 {self.input_folder}/camera_{cam_id}_img_%d.jpg  < /dev/null"
                 subprocess.call(command, shell=True)
+
+    def delete_images(self):
+        """Delete images under self.input_folder.
+
+        Deletes the images with signature {self.input_folder}/camera_{cam_id}_img_{img_id}.jpg for all img_id,
+        Images are deleted only given {self.input_folder}/camera_{cam_id}.mp4 exists.
+
+        Returns:
+        Nothing.
+        """
+        for vid in glob.glob(os.path.join(self.input_folder, "camera_[0-9].mp4")):
+            cam_id = parse_vid_name(os.path.basename(vid))
+            pattern = os.path.join(self.input_folder, f'camera_{cam_id}_img_*.jpg')
+            command = f"rm {pattern}"
+            logger.debug(f"Deleting images for camera {cam_id}.")
+            subprocess.call(command, shell=True)
 
     def check_cameras(self):
         cam_missing = [cam.cam_id for cam in self.camNetAll.cam_list if cam.is_empty()]

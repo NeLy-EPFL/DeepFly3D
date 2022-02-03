@@ -105,6 +105,12 @@ def parse_cli_args():
         action="store_true",
     )
     parser.add_argument(
+        "-x",
+        "--delete-images",
+        help="Delete image files *after running df3d-cli*. Only deletes if there is corresponding .mp4 file is already in the folder. Especially useful if you are expanding .mp4's for processing.",
+        action="store_true",
+    )
+    parser.add_argument(
         "-o",
         "--overwrite",
         help="Rerun pose estimation and overwrite existing pose results",
@@ -118,8 +124,7 @@ def parse_cli_args():
         type=int,
     )
     parser.add_argument(
-        "-order",
-        "--camera-ids",
+        "--order",
         help="Ordering of the cameras provided as an ordered list of ids. Example: 0 1 4 3 2 5 6.",
         default=None,
         type=int,
@@ -134,7 +139,7 @@ def parse_cli_args():
     parser.add_argument(
         "--skip-pose-estimation",
         help="Skip 2D and 3D pose estimation",
-        dest='skip_estimation',
+        dest="skip_estimation",
         action="store_true",
     )
     return parser.parse_args()
@@ -263,9 +268,7 @@ def run(args):
 
     logger.info(f"{Style.BRIGHT}\nWorking in {args.input_folder}{Style.RESET_ALL}")
 
-    core = Core(
-        args.input_folder, args.output_folder, args.num_images_max, args.camera_ids
-    )
+    core = Core(args.input_folder, args.output_folder, args.num_images_max, args.order)
     core.overwrite = args.overwrite  # monkey-patch: save it for later
 
     if not args.skip_estimation:
@@ -281,7 +284,7 @@ def run(args):
         video.make_pose2d_video(
             core.plot_2d, core.num_images, core.input_folder, core.output_folder
         )
-    
+
     if args.video_3d:
         video.make_pose3d_video(
             core.get_points3d(),
@@ -290,6 +293,9 @@ def run(args):
             core.input_folder,
             core.output_folder,
         )
+
+    if args.delete_images:
+        core.delete_images()
 
     return 0
 
