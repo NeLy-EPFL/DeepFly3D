@@ -5,8 +5,8 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name="df3d",
-    version="0.57",
+    name="nely-df3d",
+    version="0.58",
     description="GUI and 3D pose estimation pipeline for tethered Drosophila.",
     author="Semih Gunel",
     author_email="gunelsemih@gmail.com",
@@ -31,7 +31,7 @@ setup(
         "progress",
         "pytorch_lightning",
         "torchvision",
-        "pyba==0.13",
-        "df2d==0.15",
+        "nely-pyba==0.13",
+        "nely-df2d==0.13",
     ],
 )
