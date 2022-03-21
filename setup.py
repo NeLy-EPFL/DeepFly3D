@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="nely-df3d",
-    version="0.58",
+    version="0.59",
     description="GUI and 3D pose estimation pipeline for tethered Drosophila.",
     author="Semih Gunel",
     author_email="gunelsemih@gmail.com",
