@@ -1,7 +1,7 @@
 # Markerless Multi-view Motion Capture for Tethered Drosophila
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![PyPI version](https://badge.fury.io/py/df3d.svg)](https://badge.fury.io/py/df3d)
+[![PyPI version](https://badge.fury.io/py/nely-df3d.svg)](https://badge.fury.io/py/nely-df3d)
 
 ![Alt text](./images/pose3D.gif?raw=true "Df3d Teaser")
 
@@ -32,15 +32,15 @@ We previously published our DeepFly3D work on eLife journal. You can read the pu
 # Installing
 
 ## Installing with pip
-Create a new anaconda environment, and pip install df3d package.
+Create a new anaconda environment, and pip install nely-df3d package.
 ```bash
 conda create -n df3d python=3.6
 conda activate df3d
-pip install df3d
+pip install nely-df3d
 ```
 
 ## Odd CUDA Drivers
-**Only in case your cuda driver is not up-to-date**, or is not supported by mainstream pytorch, additionally you might need to explicitly install cudatoolkit before pip installing df3d:
+**Only in case your cuda driver is not up-to-date**, or is not supported by mainstream pytorch, additionally you might need to explicitly install cudatoolkit before pip installing nely-df3d:
 
 ```bash
 conda install pytorch torchvision torchaudio cudatoolkit="YOUR_CUDA_VERSION" -c pytorch
@@ -51,7 +51,7 @@ For example with with RTX 3080 Ti GPU, you will need to do:
 conda create -n df3d python=3.6
 conda activate df3d
 conda install pytorch torchvision cudatoolkit=11 -c pytorch-nightly
-pip install df3d
+pip install nely-df3d
 ```
 
 ## Installing from the source
@@ -432,7 +432,7 @@ After completing pose estimation in the cli, you can open the pose mode:
 # Development
 
 DeepFly3D consists of 3 pip packages:
-- DeepFly3D: https://pypi.org/project/df3d/0.56/
+- DeepFly3D: https://pypi.org/project/df3d/
 - PyBundleAdjustment: https://pypi.org/project/pyba/
 - Drosophila2D Pose: https://pypi.org/project/df2d/
 
