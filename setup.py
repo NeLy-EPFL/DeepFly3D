@@ -31,7 +31,7 @@ setup(
         "progress",
         "pytorch_lightning",
         "torchvision",
-        "nely-pyba==0.13",
-        "nely-df2d==0.13",
+        "nely-pyba>=0.13",
+        "nely-df2d>=0.14",
     ],
 )
