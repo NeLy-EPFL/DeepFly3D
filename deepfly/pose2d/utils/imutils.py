@@ -4,9 +4,12 @@ import random
 
 import cv2
 import numpy as np
-import scipy.misc
+# import scipy.misc
+import imageio
 import torch.nn as nn
 from torchvision.transforms import ToPILImage, ToTensor, ColorJitter, RandomAffine
+
+from skimage import transform
 
 from deepfly.Config import config
 from deepfly.pose2d.utils.evaluation import get_preds
@@ -29,16 +32,16 @@ def im_to_torch(img):
 
 def load_image(img_path):
     # H x W x C => C x H x W
-    return im_to_torch(scipy.misc.imread(img_path, mode="RGB"))
+    return im_to_torch(np.array(imageio.imread(img_path, pilmode="RGB")))  # scipy.misc.imread(..., mode="RGB")
 
 
 def save_image(img_path, img):
-    scipy.misc.imsave(img_path, img)
+    imageio.imwrite(img_path, img)  # scipy.misc.imsave
 
 
 def resize(img, owidth, oheight):
     img = im_to_numpy(img)
-    img = scipy.misc.imresize(img, (oheight, owidth))
+    img = transform.resize(img, (oheight, owidth))  # scipy.misc.imresize
     img = im_to_torch(img)
     return img
 
@@ -195,12 +198,18 @@ def sample_with_heatmap(inp, out, num_rows=2, parts_to_show=None):
     full_img = np.zeros((img.shape[0], size * (num_cols + num_rows), 3), np.uint8)
     full_img[: img.shape[0], : img.shape[1]] = img
 
-    inp_small = scipy.misc.imresize(img, [size, size])
+    if img.shape[0] == 3:
+        img = im_to_numpy(img)
+    inp_small = transform.resize(img, [size, size])  # scipy.misc.imresize
+
+    if out.shape[0] == 3:
+        out = im_to_numpy(out)
 
     # Set up heatmap display for each part
     for i, part in enumerate(parts_to_show):
         part_idx = part
-        out_resized = scipy.misc.imresize(out[part_idx], [size, size])
+        # out is already to_numpy() above
+        out_resized = transform.resize(out, [size, size])  # scipy.misc.imresize
         out_resized = out_resized.astype(float) / 255
         out_img = inp_small.copy() * 0.3
         color_hm = color_heatmap(out_resized)
@@ -222,7 +231,7 @@ def image_overlay_heatmap(inp, hm):
         img[:, :, i] = inp[:, :, i]
 
     hm = to_numpy(hm)
-    hm_resized = scipy.misc.imresize(hm, [inp.shape[0], inp.shape[1], 3])
+    hm_resized = transform.resize(hm, [inp.shape[0], inp.shape[1], 3])  # scipy.misc.imresize
     hm_resized = hm_resized.astype(float) / 255
 
     img = img.copy() * 0.3

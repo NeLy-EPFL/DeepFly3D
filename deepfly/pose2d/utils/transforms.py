@@ -2,9 +2,11 @@ from __future__ import absolute_import
 
 import os
 import numpy as np
-import scipy.misc
+# import scipy.misc
 import matplotlib.pyplot as plt
 import torch
+
+from skimage import transform
 
 from .misc import *
 from .imutils import *
@@ -140,7 +142,7 @@ def crop(img, center, scale, res, rot=0):
                 else torch.zeros(res[0], res[1])
             )
         else:
-            img = scipy.misc.imresize(img, [new_ht, new_wd])
+            img = transform.resize(img, [new_ht, new_wd])  # scipy.misc.imresize
             center = center * 1.0 / sf
             scale = scale / sf
 
@@ -172,8 +174,8 @@ def crop(img, center, scale, res, rot=0):
 
     if not rot == 0:
         # Remove padding
-        new_img = scipy.misc.imrotate(new_img, rot)
+        new_img = transform.rotate(new_img, rot)  # scipy.misc.imrotate
         new_img = new_img[pad:-pad, pad:-pad]
 
-    new_img = im_to_torch(scipy.misc.imresize(new_img, res))
+    new_img = im_to_torch(transform.resize(new_img, res))  # scipy.misc.imresize
     return new_img

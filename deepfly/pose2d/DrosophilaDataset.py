@@ -11,6 +11,7 @@ import numpy as np
 import scipy
 import torch
 import torch.utils.data as data
+from skimage import transform
 
 import deepfly.logger as logger
 from deepfly.Config import config
@@ -28,6 +29,7 @@ from deepfly.pose2d.utils.transforms import (
     resize,
     shufflelr,
     to_torch,
+    im_to_numpy
 )
 
 FOLDER_NAME = 0
@@ -347,7 +349,9 @@ class DrosophilaDataset(data.Dataset):
         if flip:
             img_orig = torch.from_numpy(fliplr(img_orig.numpy())).float()
             pts = shufflelr(pts, width=img_orig.size(2), dataset="drosophila")
-        img_norm = im_to_torch(scipy.misc.imresize(img_orig, self.img_res))
+        if img_orig.shape[0] == 3:
+            img_orig = im_to_numpy(img_orig)
+        img_norm = im_to_torch(transform.resize(img_orig, self.img_res))  # scipy.misc.imresize
 
         # Generate ground truth heatmap
         tpts = pts.clone()
