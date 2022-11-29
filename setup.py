@@ -20,7 +20,7 @@ setup(
     url="https://github.com/NeLy-EPFL/DeepFly3D",
     install_requires=[
         "PyQt5",
-        "sklearn",
+        "scikit-learn",
         "scipy<=1.2.1",
         "scikit-video",
         "scikit-image",
