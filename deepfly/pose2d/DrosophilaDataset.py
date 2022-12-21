@@ -382,7 +382,7 @@ class DrosophilaDataset(data.Dataset):
         if cid == 3 or cid == 7:
             raise NotImplementedError
         meta = {
-            "inp": resize(img_orig, 600, 350),
+            "inp": transform.resize(img_orig, (350, 600)).T,
             "folder_name": folder_name,
             "image_name": img_name,
             "index": index,
