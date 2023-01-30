@@ -21,7 +21,7 @@ setup(
     install_requires=[
         "PyQt5",
         "scikit-learn",
-        "scipy<=1.2.1",
+        "scipy<=1.4.1",
         "scikit-video",
         "scikit-image",
         "matplotlib",
