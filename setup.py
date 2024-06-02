@@ -21,11 +21,11 @@ setup(
     install_requires=[
         "PyQt5",
         "scikit-learn",
-        "scipy<=1.4.1",
+        "scipy",
         "scikit-video",
         "scikit-image",
         "matplotlib",
-        "opencv-python==4.2.0.32",
+        "opencv-python-headless",
         "tqdm",
         "colorama",
         "progress",
