@@ -144,7 +144,7 @@ So for example, if your data looks like this, then your order should be 6 5 4 3 
 
 # Advanced Usage
 
-```bash
+```
 usage: df3d-cli [-h] [-v] [-vv] [-d] [--output-folder OUTPUT_FOLDER] [-r] [-f]
                 [-o] [-n NUM_IMAGES_MAX]
                 [-order [CAMERA_IDS [CAMERA_IDS ...]]] [--video-2d]
@@ -172,7 +172,7 @@ optional arguments:
                         results
   -n NUM_IMAGES_MAX, --num-images-max NUM_IMAGES_MAX
                         Maximal number of images to process.
-  -order [CAMERA_IDS [CAMERA_IDS ...]], --camera-ids [CAMERA_IDS [CAMERA_IDS ...]]
+  --order [CAMERA_IDS [CAMERA_IDS ...]], --camera-ids [CAMERA_IDS [CAMERA_IDS ...]]
                         Ordering of the cameras provided as an ordered list of
                         ids. Example: 0 1 4 3 2 5 6.
   --video-2d            Generate pose2d videos
@@ -198,7 +198,7 @@ df3d-cli -f /path/to/text.txt    \  # process each line from the text file
 To test df3d-cli, you run it on a folder for only 100 images, make videos, and print agressivelly for debugging:
 
 ```bash 
-df3d-cli /path/to/images/ -n 100 -vv -order 0 1 2 3 4 5 6
+df3d-cli /path/to/images/ -n 100 -vv --order 0 1 2 3 4 5 6
 ```
 
 # Python Interface
