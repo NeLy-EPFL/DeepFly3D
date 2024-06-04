@@ -100,7 +100,7 @@ class Core:
                 self.points3d = df3d_result["points3d"]
 
             self.camNet = CameraNetwork(
-                df3d_result["points2d"] * [480, 960],
+                df3d_result["points2d"] * self.image_shape[::-1],
                 calib=df3d_result,
                 image_path=image_path,
                 colors=df3d_colors,
@@ -246,7 +246,7 @@ class Core:
         image_path = os.path.join(self.input_folder, "camera_{cam_id}_img_{img_id}.jpg")
 
         self.camNet = CameraNetwork(
-            self.points2d * [480, 960], calib=calib_reordered, image_path=image_path
+            self.points2d * self.image_shape[::-1], calib=calib_reordered, image_path=image_path
         )
         self.camNet.bundle_adjust(update_intrinsic=False, update_distort=False)
 
