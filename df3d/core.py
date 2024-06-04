@@ -89,7 +89,8 @@ class Core:
         if os.path.exists(self.save_path):
             from pyba.config import df3d_bones, df3d_colors
 
-            df3d_result = pickle.load(open(self.save_path, "rb"))
+            with open(self.save_path, "rb") as f:
+                df3d_result = pickle.load(f)
             image_path = image_path = os.path.join(
                 self.input_folder, "camera_{cam_id}_img_{img_id}.jpg"
             )
@@ -238,7 +239,8 @@ class Core:
             os.path.abspath(os.path.dirname(__file__)), "../data/calib.pkl"
         )
 
-        calib = pickle.load(open(calib_path, "rb"))
+        with open(calib_path, "rb") as f:
+            calib = pickle.load(f)
         calib_reordered = {
             cidx: calib[idx] for (idx, cidx) in enumerate(self.camera_ordering)
         }
@@ -364,7 +366,8 @@ class Core:
         dict_merge["camera_ordering"] = self.camera_ordering
         dict_merge["heatmap_confidence"] = self.conf
 
-        pickle.dump(dict_merge, open(self.save_path, "wb"))
+        with open(self.save_path, "wb") as f:
+            pickle.dump(dict_merge, f)
         print(f"Saved results at: {self.save_path}")
 
     # -------------------------------------------------------------------------

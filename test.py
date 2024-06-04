@@ -28,7 +28,8 @@ def delete_df3d_folder(path):
 
 def check_df3d_result(folder):
     path = glob.glob(os.path.join(folder, "df3d_result*.pkl"))[0]
-    df3d_res = pickle.load(open(path, "rb"))
+    with open(path, "rb") as f:
+        df3d_res = pickle.load(f)
     has_keys = all(
         [
             k in df3d_res
@@ -71,7 +72,8 @@ def check_df3d_result(folder):
 
 def get_reprojection_error(df3d_path):
     pr_path = df3d_path + "/df3d_result*.pkl"
-    d = pickle.load(open(glob.glob(pr_path)[0], "rb"))
+    with open(glob.glob(pr_path)[0], "rb") as f:
+        d = pickle.load(f)
     points2d = d["points2d"]
     camNet = CameraNetwork(
         points2d=points2d * [480, 960],
@@ -162,7 +164,8 @@ class TestDf3d(unittest.TestCase):
     def test_pyba(self):
         image_path = "./sample/test/camera_{cam_id}_img_{img_id}.jpg"
         pr_path = "./sample/test/df3d/df3d_result*.pkl"
-        d = pickle.load(open(glob.glob(pr_path)[0], "rb"))
+        with open(glob.glob(pr_path)[0], "rb") as f:
+            d = pickle.load(f)
         points2d = d["points2d"]
         camNet = CameraNetwork(
             points2d=points2d * [480, 960],
@@ -183,10 +186,12 @@ class TestDf3d(unittest.TestCase):
 
     def test_prior_reprojection(self):
         calib_path = os.path.join("./data/calib.pkl")
-        calib = pickle.load(open(calib_path, "rb"))
+        with open(calib_path, "rb") as f:
+            calib = pickle.load(f)
 
         pr_path = "./sample/test/df3d/df3d_result*.pkl"
-        d = pickle.load(open(glob.glob(pr_path)[0], "rb"))
+        with open(glob.glob(pr_path)[0], "rb") as f:
+            d = pickle.load(f)
         points2d = d["points2d"]
         camNet = CameraNetwork(
             points2d=points2d * [480, 960],

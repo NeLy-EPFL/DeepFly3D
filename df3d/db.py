@@ -16,7 +16,8 @@ class PoseDB:
         self.last_write_image_id = 0
         if len(self.db_path_list) != 0:
             self.db_path = self.db_path_list[0]
-            self.db = pickle.load(open(self.db_path, "rb"))
+            with open(self.db_path, "rb") as f:
+                self.db = pickle.load(f)
         else:
             self.db_path = os.path.join(
                 self.folder, "pose_corr_{}.pkl".format(self.folder.replace("/", "-"))
