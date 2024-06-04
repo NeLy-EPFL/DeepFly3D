@@ -151,7 +151,7 @@ class TestDf3d(unittest.TestCase):
         path = "./sample/test/"
         path_result = path + "df3d/"
         _ = subprocess.check_output(
-            ["df3d-cli ./sample/test/ -vv -order 0 1 2 3 4 5 6 --video-2d --video-3d"],
+            ["df3d-cli ./sample/test/ -vv --order 0 1 2 3 4 5 6 --video-2d --video-3d"],
             shell=True,
         )
         self.assertTrue(check_df3d_result(path_result))
@@ -221,7 +221,7 @@ class TestDf3d(unittest.TestCase):
         delete_df3d_folder(path)
         _ = subprocess.check_output(
             [
-                "df3d-cli ./sample/test_missing_camera/ --video-3d -vv -order 0 1 2 3 4 5 6"
+                "df3d-cli ./sample/test_missing_camera/ --video-3d -vv --order 0 1 2 3 4 5 6"
             ],
             shell=True,
         )

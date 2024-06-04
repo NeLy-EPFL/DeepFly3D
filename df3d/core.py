@@ -53,7 +53,9 @@ def find_default_camera_ordering(input_folder: str):
         return np.array(order)
     else:
         raise NotImplementedError(
-            f"Cannot find camera ordering for folder {input_folder}. Please set your camera ordering using the -order flag. Example usage is df3d-cli /your/path/images/ -order 0 1 2 3 4 5 6"
+            f"Cannot find camera ordering for folder {input_folder}. Please"
+            " set your camera ordering using the --order flag. Example usage"
+            " is df3d-cli /your/path/images/ --order 0 1 2 3 4 5 6"
         )
 
 

@@ -147,7 +147,7 @@ So for example, if your data looks like this, then your order should be 6 5 4 3 
 ```
 usage: df3d-cli [-h] [-v] [-vv] [-d] [--output-folder OUTPUT_FOLDER] [-r] [-f]
                 [-o] [-n NUM_IMAGES_MAX]
-                [-order [CAMERA_IDS [CAMERA_IDS ...]]] [--video-2d]
+                [--order [CAMERA_IDS [CAMERA_IDS ...]]] [--video-2d]
                 [--video-3d] [--skip-pose-estimation]
                 INPUT
 
