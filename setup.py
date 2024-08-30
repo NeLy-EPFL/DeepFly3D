@@ -25,7 +25,7 @@ setup(
         "scikit-video",
         "scikit-image",
         "matplotlib",
-        "opencv-python==4.2.0.32",
+        "opencv-python==4.8.1.78",
         "tqdm",
         "colorama",
         "progress",
