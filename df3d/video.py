@@ -3,7 +3,6 @@ import itertools
 
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import axes3d, Axes3D
 import cv2
 from tqdm import tqdm
 
@@ -134,7 +133,7 @@ def _compute_3d_img(points3d, img_id, cam_id):
     fig = plt.figure(figsize=img3d_aspect, dpi=img3d_dpi)
     fig.tight_layout(pad=0)
 
-    ax3d = Axes3D(fig)
+    ax3d = fig.add_subplot(111, projection='3d')
     ax3d.set_xticklabels([])
     ax3d.set_yticklabels([])
     ax3d.set_zticklabels([])
