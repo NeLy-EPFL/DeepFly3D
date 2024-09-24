@@ -263,10 +263,10 @@ class Core:
 
         joints = range(config["skeleton"].num_joints)
         visible = lambda j_id: config["skeleton"].camera_see_joint(cam_id, j_id)
-        unvisible_joints = [j_id for j_id in joints if not visible(j_id)]
+        invisible_joints = [j_id for j_id in joints if not visible(j_id)]
 
         pts = self.corrected_points2d(cam_id, img_id)
-        pts[unvisible_joints] = [9999, 9999]
+        pts[invisible_joints] = [9999, 9999]
 
         nbrs = NearestNeighbors(n_neighbors=1, algorithm="ball_tree").fit(pts)
         _, indices = nbrs.kneighbors(np.array([[x, y]]))
