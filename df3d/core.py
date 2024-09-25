@@ -417,7 +417,7 @@ class Core:
 
     def expand_videos(self):
         """expands video camera_x.mp4 into set of images camera_x_img_y.jpg"""
-        for vid in glob.glob(os.path.join(self.input_folder, "camera_*.mp4")):
+        for vid in glob.glob(os.path.join(self.input_folder, "camera_?.mp4")):
             cam_id = parse_vid_name(os.path.basename(vid))
             if not (
                 os.path.exists(
