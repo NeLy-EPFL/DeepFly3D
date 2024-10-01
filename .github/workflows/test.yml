@@ -20,7 +20,7 @@ jobs:
       with:
         path: ~/conda_pkgs_dir
         key:
-          ${{ runner.os }}-conda--${{hashFiles('environment.yml') }}
+          ${{ runner.os }}-conda-python${{ matrix.python-version }}-${{hashFiles('environment.yml') }}
 
     - name: Set up Conda (Python ${{ matrix.python-version }})
       uses: conda-incubator/setup-miniconda@v3
@@ -39,9 +39,11 @@ jobs:
       
     - name: Conda info
       run: |
+        conda activate df3d
         conda info
         conda list
 
     - name: Run Tests
       run: |
+        conda activate df3d
         python -m unittest
