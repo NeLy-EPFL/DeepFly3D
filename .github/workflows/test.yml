@@ -38,6 +38,7 @@ jobs:
     - name: hack to use system ffmpeg
       run: |
         conda remove ffmpeg --force
+        sudo apt install ffmpeg -y
 
     - name: Conda info
       run: |
