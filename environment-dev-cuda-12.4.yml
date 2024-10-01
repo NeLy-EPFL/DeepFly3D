@@ -1,0 +1,26 @@
+name: df3d
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - scikit-learn
+  - scipy
+  - scikit-video
+  - scikit-image
+  - matplotlib
+  - tqdm
+  - colorama
+  - progress
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=12.4
+  - lightning
+  - pip:
+    - PyQt5
+    - opencv-python-headless
+    - -e ../Drosophila2DPose
+    - -e ../PyBundleAdjustment
+    - -e .

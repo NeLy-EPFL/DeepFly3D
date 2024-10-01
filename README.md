@@ -79,6 +79,20 @@ which uses the setup.py function to create the package.
 
 Make sure you also have installed the CUDA drivers compatible with your GPU, otherwise it is not possible to make 2D predictions. You can check how to install CUDA drivers here: https://developer.nvidia.com/cuda-downloads
 
+## Installing from the source for development
+
+To run DeepFly3D you also need 2 other packages, `nely-df2d` and `nely-pyba`. If you want to do development it's best to install all 3 from source. You can do that as follows (also installs pytorch with CUDA 12.4 support).
+
+```bash
+# in a particular folder, clone all 3 repos
+git clone https://github.com/NeLy-EPFL/DeepFly3D.git
+git clone https://github.com/NeLy-EPFL/Drosophila2DPose.git
+git clone https://github.com/NeLy-EPFL/PyBundleAdjustment.git
+cd DeepFly3D
+conda env create -f environment-dev-cuda-12.4.yml
+mamba install ffmpeg=7 --no-deps
+mamba remove ffmpeg
+```
 
 # Data Structure
 
