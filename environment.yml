@@ -15,7 +15,7 @@ dependencies:
   - pytorch
   - torchvision
   - torchaudio
-  - lightning
+  - pip
   - pip:
     - PyQt5
     - opencv-python-headless
