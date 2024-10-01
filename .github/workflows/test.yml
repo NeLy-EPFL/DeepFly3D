@@ -35,7 +35,7 @@ jobs:
     - name: Update environment
       if: steps.cache.outputs.cache-hit != 'true'
       run: |
-        cond env update -n df3d -f environment.yml
+        conda env update -n df3d -f environment.yml
       
     - name: Conda info
       run: |
