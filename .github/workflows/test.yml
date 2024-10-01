@@ -38,12 +38,13 @@ jobs:
         conda env update -n df3d -f environment.yml
       
     - name: Conda info
+      shell: bash -el {0}
       run: |
-        conda activate df3d
         conda info
         conda list
 
     - name: Run Tests
+      shell: bash -el {0}
       run: |
         conda activate df3d
         python -m unittest
