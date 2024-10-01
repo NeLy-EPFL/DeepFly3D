@@ -7,21 +7,39 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.7", "3.9", "3.12"]
 
     steps:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+    - name: Cache conda
+      id: cache
+      uses: actions/cache@v3
       with:
-        python-version: ${{ matrix.python-version }}
+        path: ~/conda_pkgs_dir
+        key:
+          ${{ runner.os }}-conda--${{hashFiles('environment.yml') }}
 
-    - name: Install dependencies
+    - name: Set up Conda (Python ${{ matrix.python-version }})
+      uses: conda-incubator/setup-miniconda@v3
+      with:
+        activate-environment: df3d
+        auto-update-conda: true
+        python-version: ${{ matrix.python-version }}
+        environment-file: environment.yml
+        channel-priority: strict
+        use-only-tar-bz2: true
+
+    - name: Update environment
+      if: steps.cache.outputs.cache-hit != 'true'
       run: |
-        # $CONDA is an environment variable pointing to the root of the miniconda directory
-        $CONDA/bin/conda env update --file environment.yml --name base
+        cond env update -n df3d -f environment.yml
+      
+    - name: Conda info
+      run: |
+        conda info
+        conda list
 
     - name: Run Tests
       run: |
