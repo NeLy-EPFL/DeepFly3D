@@ -35,7 +35,7 @@ jobs:
         environment-file: environment.yml
         use-only-tar-bz2: true
 
-    - name: hack to use system ffmpeg
+    - name: Use system ffmpeg instead of conda's
       run: |
         conda remove ffmpeg --force
         sudo apt install ffmpeg -y
