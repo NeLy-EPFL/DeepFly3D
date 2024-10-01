@@ -18,13 +18,19 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Cache conda
+    # only cache environments with the same date because otherwise we might be using out of date packages
+    - name: Get Date
+      id: get-date
+      run: echo "today=$(/bin/date -u '+%Y%m%d')" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Cache conda environment
       id: cache
       uses: actions/cache@v4
       with:
-        path: ~/conda_pkgs_dir
+        path: ${{ env.CONDA }}/envs
         key:
-          ${{ runner.os }}-conda-python${{ matrix.python-version }}-${{hashFiles('environment.yml') }}
+          ${{ runner.os }}-conda-python${{ matrix.python-version }}-${{ steps.get-date.outputs.today }}-${{ hashFiles('environment.yml') }}
 
     - name: Set up Conda (Python ${{ matrix.python-version }})
       uses: conda-incubator/setup-miniconda@v3
@@ -32,12 +38,15 @@ jobs:
         activate-environment: df3d
         auto-update-conda: true
         python-version: ${{ matrix.python-version }}
-        environment-file: environment.yml
         use-only-tar-bz2: true
 
-    - name: hack to use system ffmpeg
+    - name: Update environment
       run: |
-        conda remove ffmpeg --force
+        conda env update -n df3d -f environment.yml
+      if: steps.cache.outputs.cache-hit != 'true'
+
+    - name: Install ffmpeg
+      run: |
         sudo apt install ffmpeg -y
 
     - name: Conda info
