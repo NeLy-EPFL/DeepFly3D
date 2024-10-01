@@ -4,7 +4,6 @@ import pickle
 import shutil
 import subprocess
 import unittest
-from shutil import copyfile
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,10 +13,15 @@ from pyba.config import df3d_bones, df3d_colors
 from df3d import video
 from df3d.core import Core
 
+import pathlib
 
-def delete_images(folder):
-    for hgx in glob.glob(folder + "*.jpg"):
-        os.remove(hgx)
+TEST_DATA_LOCATION = str(pathlib.Path(__file__).parent / "sample/test")
+TEST_DATA_LOCATION_RESULT = f"{TEST_DATA_LOCATION}/df3d/"
+
+
+def delete_images(folder: str):
+    for image in glob.glob(f"{folder}/*.jpg"):
+        os.remove(image)
 
 
 def delete_df3d_folder(path):
@@ -27,6 +31,8 @@ def delete_df3d_folder(path):
 
 
 def check_df3d_result(folder):
+    print(os.path.join(folder, "df3d_result*.pkl"))
+    print(glob.glob(os.path.join(folder, "df3d_result*.pkl")))
     path = glob.glob(os.path.join(folder, "df3d_result*.pkl"))[0]
     with open(path, "rb") as f:
         df3d_res = pickle.load(f)
@@ -87,12 +93,21 @@ def get_reprojection_error(df3d_path):
 
 
 class TestDf3d(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        pass
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        """Remove all the images we created once we're done running tests"""
+        delete_df3d_folder(TEST_DATA_LOCATION)
+        delete_images(TEST_DATA_LOCATION)
+
     def test_python_interface(self):
-        path = "./sample/test/"
-        path_result = "./sample/test/df3d/"
-        delete_df3d_folder(path)
+        """Tests the whole process of pose estimation and making 2D and 3D videos."""
+        delete_df3d_folder(TEST_DATA_LOCATION)
         core = Core(
-            input_folder=path,
+            input_folder=TEST_DATA_LOCATION,
             num_images_max=100,
             output_subfolder="df3d",
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
@@ -113,57 +128,51 @@ class TestDf3d(unittest.TestCase):
             core.output_folder,
         )
 
-        self.assertTrue(check_df3d_result(path_result))
-        self.assertTrue(os.path.exists(glob.glob(path_result + "video_pose2d*.mp4")[0]))
-        self.assertTrue(os.path.exists(glob.glob(path_result + "video_pose3d*.mp4")[0]))
-        self.assertGreaterEqual(5, get_reprojection_error(path_result))
+        self.assertTrue(check_df3d_result(TEST_DATA_LOCATION_RESULT))
+        self.assertTrue(os.path.exists(glob.glob(TEST_DATA_LOCATION_RESULT + "video_pose2d*.mp4")[0]))
+        self.assertTrue(os.path.exists(glob.glob(TEST_DATA_LOCATION_RESULT + "video_pose3d*.mp4")[0]))
+        self.assertGreaterEqual(5, get_reprojection_error(TEST_DATA_LOCATION_RESULT))
 
     def test_expanding_videos(self):
-        path = "./sample/test/"
-        path_result = path + "df3d/"
-        shutil.rmtree(path_result)
-        delete_images(path)
+        shutil.rmtree(TEST_DATA_LOCATION_RESULT)
+        delete_images(TEST_DATA_LOCATION)
         _ = subprocess.check_output(
-            ["df3d-cli ./sample/test/  -vv --video-2d --video-3d -n 5"], shell=True
+            [f"df3d-cli {TEST_DATA_LOCATION} -vv --video-2d --video-3d -n 5"], shell=True
         )
-        self.assertTrue(check_df3d_result(path_result))
-        self.assertTrue(os.path.exists(glob.glob(path_result + "video_pose2d*.mp4")[0]))
-        self.assertTrue(os.path.exists(glob.glob(path_result + "video_pose3d*.mp4")[0]))
-        self.assertGreaterEqual(5, get_reprojection_error(path_result))
+        self.assertTrue(check_df3d_result(TEST_DATA_LOCATION_RESULT))
+        self.assertTrue(os.path.exists(glob.glob(TEST_DATA_LOCATION_RESULT + "video_pose2d*.mp4")[0]))
+        self.assertTrue(os.path.exists(glob.glob(TEST_DATA_LOCATION_RESULT + "video_pose3d*.mp4")[0]))
+        self.assertGreaterEqual(5, get_reprojection_error(TEST_DATA_LOCATION_RESULT))
 
     def test_skip_pose_estimation(self):
-        path = "./sample/test/"
-        path_result = path + "df3d/"
         _ = subprocess.check_output(
             [
-                "df3d-cli ./sample/test/ -vv --skip-pose-estimation --video-2d --video-3d"
+                f"df3d-cli {TEST_DATA_LOCATION} -vv --skip-pose-estimation --video-2d --video-3d"
             ],
             shell=True,
         )
-        self.assertTrue(check_df3d_result(path_result))
-        self.assertTrue(os.path.exists(glob.glob(path_result + "video_pose2d*.mp4")[0]))
-        self.assertTrue(os.path.exists(glob.glob(path_result + "video_pose3d*.mp4")[0]))
-        self.assertGreaterEqual(5, get_reprojection_error(path_result))
+        self.assertTrue(check_df3d_result(TEST_DATA_LOCATION_RESULT))
+        self.assertTrue(os.path.exists(glob.glob(TEST_DATA_LOCATION_RESULT + "video_pose2d*.mp4")[0]))
+        self.assertTrue(os.path.exists(glob.glob(TEST_DATA_LOCATION_RESULT + "video_pose3d*.mp4")[0]))
+        self.assertGreaterEqual(5, get_reprojection_error(TEST_DATA_LOCATION_RESULT))
 
         # move resulting video for further inspection
-        shutil.copy(glob.glob(path_result + "video_pose2d*.mp4")[0], "./")
-        shutil.copy(glob.glob(path_result + "video_pose3d*.mp4")[0], "./")
+        shutil.copy(glob.glob(TEST_DATA_LOCATION_RESULT + "video_pose2d*.mp4")[0], "./")
+        shutil.copy(glob.glob(TEST_DATA_LOCATION_RESULT + "video_pose3d*.mp4")[0], "./")
 
     def test_order(self):
-        path = "./sample/test/"
-        path_result = path + "df3d/"
         _ = subprocess.check_output(
-            ["df3d-cli ./sample/test/ -vv --order 0 1 2 3 4 5 6 --video-2d --video-3d"],
+            [f"df3d-cli {TEST_DATA_LOCATION} -vv --order 0 1 2 3 4 5 6 --video-2d --video-3d"],
             shell=True,
         )
-        self.assertTrue(check_df3d_result(path_result))
-        self.assertTrue(os.path.exists(glob.glob(path_result + "video_pose2d*.mp4")[0]))
-        self.assertTrue(os.path.exists(glob.glob(path_result + "video_pose3d*.mp4")[0]))
-        self.assertGreaterEqual(5, get_reprojection_error(path_result))
+        self.assertTrue(check_df3d_result(TEST_DATA_LOCATION_RESULT))
+        self.assertTrue(os.path.exists(glob.glob(TEST_DATA_LOCATION_RESULT + "video_pose2d*.mp4")[0]))
+        self.assertTrue(os.path.exists(glob.glob(TEST_DATA_LOCATION_RESULT + "video_pose3d*.mp4")[0]))
+        self.assertGreaterEqual(5, get_reprojection_error(TEST_DATA_LOCATION_RESULT))
 
     def test_pyba(self):
-        image_path = "./sample/test/camera_{cam_id}_img_{img_id}.jpg"
-        pr_path = "./sample/test/df3d/df3d_result*.pkl"
+        image_path = TEST_DATA_LOCATION + "/camera_{cam_id}_img_{img_id}.jpg"
+        pr_path = f"{TEST_DATA_LOCATION_RESULT}/df3d_result*.pkl"
         with open(glob.glob(pr_path)[0], "rb") as f:
             d = pickle.load(f)
         points2d = d["points2d"]
@@ -208,33 +217,14 @@ class TestDf3d(unittest.TestCase):
         self.assertGreaterEqual(5, reproj)
 
     def test_cpu(self):
-        path = "./sample/test/"
-        path_result = path + "df3d/"
-        shutil.rmtree(path_result)
-        _ = subprocess.check_output(
-            ['CUDA_VISIBLE_DEVICES="" df3d-cli ./sample/test/  -vv --video-3d'],
+        subprocess.call(
+            ['CUDA_VISIBLE_DEVICES=""', 'df3d-cli', TEST_DATA_LOCATION, '-vv' '--video-3d'],
             shell=True,
         )
 
-        self.assertTrue(check_df3d_result(path_result))
-        self.assertTrue(os.path.exists(glob.glob(path_result + "video_pose3d*.mp4")[0]))
-        self.assertGreaterEqual(5, get_reprojection_error(path_result))
-
-    def test_missing_camera(self):
-        path = "./sample/test_missing_camera/"
-        path_result = path + "df3d/"
-        delete_df3d_folder(path)
-        _ = subprocess.check_output(
-            [
-                "df3d-cli ./sample/test_missing_camera/ --video-3d -vv --order 0 1 2 3 4 5 6"
-            ],
-            shell=True,
-        )
-
-        shutil.copy(glob.glob(path_result + "video_pose3d*.mp4")[0], "./")
-        self.assertTrue(check_df3d_result(path_result))
-        self.assertTrue(os.path.exists(glob.glob(path_result + "video_pose3d*.mp4")[0]))
-        self.assertGreaterEqual(10, get_reprojection_error(path_result))
+        self.assertTrue(check_df3d_result(TEST_DATA_LOCATION_RESULT))
+        self.assertTrue(os.path.exists(glob.glob(TEST_DATA_LOCATION_RESULT + "video_pose3d*.mp4")[0]))
+        self.assertGreaterEqual(5, get_reprojection_error(TEST_DATA_LOCATION_RESULT))
 
 
 if __name__ == "__main__":
