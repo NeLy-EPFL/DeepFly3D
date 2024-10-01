@@ -33,13 +33,11 @@ jobs:
         auto-update-conda: true
         python-version: ${{ matrix.python-version }}
         environment-file: environment.yml
-        channel-priority: strict
         use-only-tar-bz2: true
 
-    - name: ffmpeg update hack
+    - name: hack to use system ffmpeg
       run: |
-        conda install ffmpeg=7 --no-deps
-        conda remove ffmpeg
+        conda remove ffmpeg --force
 
     - name: Conda info
       run: |
