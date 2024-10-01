@@ -9,6 +9,10 @@ jobs:
       matrix:
         python-version: ["3.7", "3.9", "3.12"]
       fail-fast: false
+    defaults:
+      run:
+        # these makes it so all steps automatically have our conda environment activated
+        shell: bash -el {0}
 
     steps:
     - name: Checkout
@@ -16,7 +20,7 @@ jobs:
 
     - name: Cache conda
       id: cache
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/conda_pkgs_dir
         key:
@@ -32,19 +36,17 @@ jobs:
         channel-priority: strict
         use-only-tar-bz2: true
 
-    - name: Update environment
-      if: steps.cache.outputs.cache-hit != 'true'
+    - name: ffmpeg update hack
       run: |
-        conda env update -n df3d -f environment.yml
-      
+        conda install ffmpeg=7 --no-deps
+        conda remove ffmpeg
+
     - name: Conda info
-      shell: bash -el {0}
       run: |
         conda info
         conda list
 
     - name: Run Tests
-      shell: bash -el {0}
       run: |
         conda activate df3d
         python -m unittest
