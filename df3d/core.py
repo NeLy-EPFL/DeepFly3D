@@ -78,6 +78,20 @@ class Core:
         max_img_id = get_max_img_id(self.input_folder)
         self.num_images = min(self.num_images_max, max_img_id + 0)
         self.max_img_id = self.num_images - 1
+        image_path = os.path.join(self.input_folder, "camera_{cam_id}_img_{img_id}.jpg")
+        image0_path = image_path.format(cam_id=0, img_id=0)
+        if "image_shape" in config:
+            self.image_shape = config["image_shape"]
+        if os.path.exists(image0_path):
+            image0 = plt.imread(image0_path)
+            image0_shape = list(image0.shape[:2][::-1])
+            if "image_shape" in config and image0_shape != self.image_shape:
+                raise ValueError(f"Actual image shape {image0_shape} does not match"
+                                 f" config.py image shape {self.image_shape}")
+            self.image_shape = config["image_shape"] = image0_shape
+        if not hasattr(self, "image_shape"):
+            raise ValueError("Image shape not specified in config and could"
+                             f" not be read from {image0_path}")
 
         self.db = PoseDB(self.output_folder)
         self.camera_ordering = self.setup_camera_ordering(camera_ordering)
@@ -91,9 +105,6 @@ class Core:
 
             with open(self.save_path, "rb") as f:
                 df3d_result = pickle.load(f)
-            image_path = image_path = os.path.join(
-                self.input_folder, "camera_{cam_id}_img_{img_id}.jpg"
-            )
             self.points2d = df3d_result["points2d"]
             self.conf = df3d_result["heatmap_confidence"]
 
@@ -133,10 +144,6 @@ class Core:
         value = value.rstrip("/")
         assert os.path.isdir(value), f"Not a directory {value}"
         self._output_folder = value
-
-    @property
-    def image_shape(self):
-        return config["image_shape"]
 
     @property
     def number_of_joints(self):
