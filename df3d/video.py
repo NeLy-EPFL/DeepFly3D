@@ -131,9 +131,9 @@ def _compute_3d_img(points3d, img_id, cam_id):
 
     plt.style.use('dark_background')
     fig = plt.figure(figsize=img3d_aspect, dpi=img3d_dpi)
-    fig.tight_layout(pad=0)
 
     ax3d = fig.add_subplot(111, projection='3d')
+    fig.tight_layout(pad=0)
     ax3d.set_xticklabels([])
     ax3d.set_yticklabels([])
     ax3d.set_zticklabels([])
