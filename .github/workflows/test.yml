@@ -32,20 +32,13 @@ jobs:
         activate-environment: df3d
         auto-update-conda: true
         python-version: ${{ matrix.python-version }}
-        environment-file: environment.yml
         use-only-tar-bz2: true
 
-    - name: Use system ffmpeg instead of conda's
+    - name: Install dependencies
       run: |
-        conda remove ffmpeg --force
+        python -m pip install git+https://github.com/NeLy-EPFL/DeepFly2D git+https://github.com/NeLy-EPFL/PyBundleAdjustment.git -e .
         sudo apt install ffmpeg -y
-
-    - name: Conda info
-      run: |
-        conda info
-        conda list
 
     - name: Run Tests
       run: |
-        conda activate df3d
-        python -m unittest
+        python -m unittest discover
