@@ -15,7 +15,7 @@ from df3d.core import Core
 
 import pathlib
 
-# unittest.TestLoader.sortTestMethodsUsing = None
+unittest.TestLoader.sortTestMethodsUsing = None
 
 TEST_DATA_LOCATION = str(pathlib.Path(__file__).parent / "data")
 TEST_DATA_LOCATION_RESULT = f"{TEST_DATA_LOCATION}/df3d/"
@@ -122,8 +122,6 @@ class TestDf3d(unittest.TestCase):
 
     def test_python_interface(self):
         """Tests the whole process of pose estimation and making 2D and 3D videos."""
-        print('TEST_DATA_LOCATION', os.listdir(TEST_DATA_LOCATION))
-        print('TEST_DATA_LOCATION / ..', os.listdir(TEST_DATA_LOCATION + '/..'))
         delete_df3d_folder(TEST_DATA_LOCATION)
         core = Core(
             input_folder=TEST_DATA_LOCATION,
