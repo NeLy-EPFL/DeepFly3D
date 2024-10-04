@@ -1,6 +1,5 @@
 # pylint: skip-file
 import glob
-import pickle
 import warnings
 
 import numpy as np

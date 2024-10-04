@@ -1,11 +1,6 @@
 import math
 
-import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.ticker import FuncFormatter, MultipleLocator
-
-from df3d.config import config
-
 
 class LowPassFilter(object):
     def __init__(self, alpha):

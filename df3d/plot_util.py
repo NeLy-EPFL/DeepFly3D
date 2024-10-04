@@ -1,4 +1,3 @@
-import cv2
 import numpy as np
 
 from df3d.config import config
