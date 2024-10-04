@@ -28,7 +28,8 @@ def delete_df3d_folder(path):
 
 def check_df3d_result(folder):
     path = glob.glob(os.path.join(folder, "df3d_result*.pkl"))[0]
-    df3d_res = pickle.load(open(path, "rb"))
+    with open(path, "rb") as f:
+        df3d_res = pickle.load(f)
     has_keys = all(
         [
             k in df3d_res
@@ -71,7 +72,8 @@ def check_df3d_result(folder):
 
 def get_reprojection_error(df3d_path):
     pr_path = df3d_path + "/df3d_result*.pkl"
-    d = pickle.load(open(glob.glob(pr_path)[0], "rb"))
+    with open(glob.glob(pr_path)[0], "rb") as f:
+        d = pickle.load(f)
     points2d = d["points2d"]
     camNet = CameraNetwork(
         points2d=points2d * [480, 960],
@@ -151,7 +153,7 @@ class TestDf3d(unittest.TestCase):
         path = "./sample/test/"
         path_result = path + "df3d/"
         _ = subprocess.check_output(
-            ["df3d-cli ./sample/test/ -vv -order 0 1 2 3 4 5 6 --video-2d --video-3d"],
+            ["df3d-cli ./sample/test/ -vv --order 0 1 2 3 4 5 6 --video-2d --video-3d"],
             shell=True,
         )
         self.assertTrue(check_df3d_result(path_result))
@@ -162,7 +164,8 @@ class TestDf3d(unittest.TestCase):
     def test_pyba(self):
         image_path = "./sample/test/camera_{cam_id}_img_{img_id}.jpg"
         pr_path = "./sample/test/df3d/df3d_result*.pkl"
-        d = pickle.load(open(glob.glob(pr_path)[0], "rb"))
+        with open(glob.glob(pr_path)[0], "rb") as f:
+            d = pickle.load(f)
         points2d = d["points2d"]
         camNet = CameraNetwork(
             points2d=points2d * [480, 960],
@@ -183,10 +186,12 @@ class TestDf3d(unittest.TestCase):
 
     def test_prior_reprojection(self):
         calib_path = os.path.join("./data/calib.pkl")
-        calib = pickle.load(open(calib_path, "rb"))
+        with open(calib_path, "rb") as f:
+            calib = pickle.load(f)
 
         pr_path = "./sample/test/df3d/df3d_result*.pkl"
-        d = pickle.load(open(glob.glob(pr_path)[0], "rb"))
+        with open(glob.glob(pr_path)[0], "rb") as f:
+            d = pickle.load(f)
         points2d = d["points2d"]
         camNet = CameraNetwork(
             points2d=points2d * [480, 960],
@@ -221,7 +226,7 @@ class TestDf3d(unittest.TestCase):
         delete_df3d_folder(path)
         _ = subprocess.check_output(
             [
-                "df3d-cli ./sample/test_missing_camera/ --video-3d -vv -order 0 1 2 3 4 5 6"
+                "df3d-cli ./sample/test_missing_camera/ --video-3d -vv --order 0 1 2 3 4 5 6"
             ],
             shell=True,
         )

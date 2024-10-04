@@ -118,7 +118,7 @@ def parse_cli_args():
         type=int,
     )
     parser.add_argument(
-        "-order",
+        "--order",
         "--camera-ids",
         help="Ordering of the cameras provided as an ordered list of ids. Example: 0 1 4 3 2 5 6.",
         default=None,
@@ -264,7 +264,7 @@ def run(args):
     logger.info(f"{Style.BRIGHT}\nWorking in {args.input_folder}{Style.RESET_ALL}")
 
     core = Core(
-        args.input_folder, args.output_folder, args.num_images_max, args.camera_ids
+        args.input_folder, args.output_folder, args.num_images_max, args.order
     )
     core.overwrite = args.overwrite  # monkey-patch: save it for later
 

@@ -53,7 +53,9 @@ def find_default_camera_ordering(input_folder: str):
         return np.array(order)
     else:
         raise NotImplementedError(
-            f"Cannot find camera ordering for folder {input_folder}. Please set your camera ordering using the -order flag. Example usage is df3d-cli /your/path/images/ -order 0 1 2 3 4 5 6"
+            f"Cannot find camera ordering for folder {input_folder}. Please"
+            " set your camera ordering using the --order flag. Example usage"
+            " is df3d-cli /your/path/images/ --order 0 1 2 3 4 5 6"
         )
 
 
@@ -76,6 +78,20 @@ class Core:
         max_img_id = get_max_img_id(self.input_folder)
         self.num_images = min(self.num_images_max, max_img_id + 0)
         self.max_img_id = self.num_images - 1
+        image_path = os.path.join(self.input_folder, "camera_{cam_id}_img_{img_id}.jpg")
+        image0_path = image_path.format(cam_id=0, img_id=0)
+        if "image_shape" in config:
+            self.image_shape = config["image_shape"]
+        if os.path.exists(image0_path):
+            image0 = plt.imread(image0_path)
+            image0_shape = list(image0.shape[:2][::-1])
+            if "image_shape" in config and image0_shape != self.image_shape:
+                raise ValueError(f"Actual image shape {image0_shape} does not match"
+                                 f" config.py image shape {self.image_shape}")
+            self.image_shape = config["image_shape"] = image0_shape
+        if not hasattr(self, "image_shape"):
+            raise ValueError("Image shape not specified in config and could"
+                             f" not be read from {image0_path}")
 
         self.db = PoseDB(self.output_folder)
         self.camera_ordering = self.setup_camera_ordering(camera_ordering)
@@ -87,10 +103,8 @@ class Core:
         if os.path.exists(self.save_path):
             from pyba.config import df3d_bones, df3d_colors
 
-            df3d_result = pickle.load(open(self.save_path, "rb"))
-            image_path = image_path = os.path.join(
-                self.input_folder, "camera_{cam_id}_img_{img_id}.jpg"
-            )
+            with open(self.save_path, "rb") as f:
+                df3d_result = pickle.load(f)
             self.points2d = df3d_result["points2d"]
             self.conf = df3d_result["heatmap_confidence"]
 
@@ -98,7 +112,7 @@ class Core:
                 self.points3d = df3d_result["points3d"]
 
             self.camNet = CameraNetwork(
-                df3d_result["points2d"] * [480, 960],
+                df3d_result["points2d"] * self.image_shape[::-1],
                 calib=df3d_result,
                 image_path=image_path,
                 colors=df3d_colors,
@@ -130,10 +144,6 @@ class Core:
         value = value.rstrip("/")
         assert os.path.isdir(value), f"Not a directory {value}"
         self._output_folder = value
-
-    @property
-    def image_shape(self):
-        return config["image_shape"]
 
     @property
     def number_of_joints(self):
@@ -236,7 +246,8 @@ class Core:
             os.path.abspath(os.path.dirname(__file__)), "../data/calib.pkl"
         )
 
-        calib = pickle.load(open(calib_path, "rb"))
+        with open(calib_path, "rb") as f:
+            calib = pickle.load(f)
         calib_reordered = {
             cidx: calib[idx] for (idx, cidx) in enumerate(self.camera_ordering)
         }
@@ -244,7 +255,7 @@ class Core:
         image_path = os.path.join(self.input_folder, "camera_{cam_id}_img_{img_id}.jpg")
 
         self.camNet = CameraNetwork(
-            self.points2d * [480, 960], calib=calib_reordered, image_path=image_path
+            self.points2d * self.image_shape[::-1], calib=calib_reordered, image_path=image_path
         )
         self.camNet.bundle_adjust(update_intrinsic=False, update_distort=False)
 
@@ -362,7 +373,8 @@ class Core:
         dict_merge["camera_ordering"] = self.camera_ordering
         dict_merge["heatmap_confidence"] = self.conf
 
-        pickle.dump(dict_merge, open(self.save_path, "wb"))
+        with open(self.save_path, "wb") as f:
+            pickle.dump(dict_merge, f)
         print(f"Saved results at: {self.save_path}")
 
     # -------------------------------------------------------------------------
@@ -412,7 +424,7 @@ class Core:
 
     def expand_videos(self):
         """expands video camera_x.mp4 into set of images camera_x_img_y.jpg"""
-        for vid in glob.glob(os.path.join(self.input_folder, "camera_*.mp4")):
+        for vid in glob.glob(os.path.join(self.input_folder, "camera_?.mp4")):
             cam_id = parse_vid_name(os.path.basename(vid))
             if not (
                 os.path.exists(
