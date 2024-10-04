@@ -122,6 +122,8 @@ class TestDf3d(unittest.TestCase):
 
     def test_python_interface(self):
         """Tests the whole process of pose estimation and making 2D and 3D videos."""
+        print('TEST_DATA_LOCATION', os.listdir(TEST_DATA_LOCATION))
+        print('TEST_DATA_LOCATION / ..', os.listdir(TEST_DATA_LOCATION + '/..'))
         delete_df3d_folder(TEST_DATA_LOCATION)
         core = Core(
             input_folder=TEST_DATA_LOCATION,
