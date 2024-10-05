@@ -7,32 +7,18 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.9", "3.12"]
+        python-version: ["3.6", "3.7", "3.8", "3.9", "3.12"]
       fail-fast: false
-    defaults:
-      run:
-        # these makes it so all steps automatically have our conda environment activated
-        shell: bash -el {0}
 
     steps:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Cache conda
-      id: cache
-      uses: actions/cache@v4
+    - name: Install python v${{ matrix.python-version }}
+      uses: actions/setup-python@v5
       with:
-        path: ~/conda_pkgs_dir
-        key:
-          ${{ runner.os }}-conda-python${{ matrix.python-version }}-${{hashFiles('environment.yml') }}
-
-    - name: Set up Conda (Python ${{ matrix.python-version }})
-      uses: conda-incubator/setup-miniconda@v3
-      with:
-        activate-environment: df3d
-        auto-update-conda: true
         python-version: ${{ matrix.python-version }}
-        use-only-tar-bz2: true
+        cache: 'pip' # caching pip dependencies
 
     - name: Install dependencies
       run: |
@@ -41,5 +27,4 @@ jobs:
 
     - name: Run Tests
       run: |
-        ls -l
         python -m unittest discover

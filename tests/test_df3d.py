@@ -201,16 +201,16 @@ class TestDeepFly3D(unittest.TestCase):
         core.pose2d_estimation()
 
         reference_results = get_results()
-        self.assertTrue(np.all(core.points2d == reference_results["points2d"]), "2D pose estimation points not correct.")
-        self.assertTrue(np.all(core.conf == reference_results["heatmap_confidence"]), "2D pose estimation confidence heatmaps not correct.")
+        self.assertTrue(np.all(core.points2d == reference_results["points2d"]), f"2D pose estimation points not correct. Max diff = {np.max(abs(core.points2d - reference_results['points2d']))}")
+        self.assertTrue(np.all(core.conf == reference_results["heatmap_confidence"]), f"2D pose estimation confidence heatmaps not correct. Max diff = {np.max(abs(core.conf - reference_results['heatmap_confidence']))}")
 
         core.save()
 
         with open(core.save_path, "rb") as f:
             saved_pose_data = pickle.load(f)
 
-        self.assertTrue(np.all(saved_pose_data["points2d"] == reference_results["points2d"]), "2D pose estimation points not saved correctly.")
-        self.assertTrue(np.all(saved_pose_data["heatmap_confidence"] == reference_results["heatmap_confidence"]), "2D pose estimation confidence heatmaps not saved correctly.")
+        self.assertTrue(np.all(saved_pose_data["points2d"] == reference_results["points2d"]), f"2D pose estimation points not saved correctly. Max diff = {np.max(abs(saved_pose_data['points2d'] == reference_results['points2d']))}")
+        self.assertTrue(np.all(saved_pose_data["heatmap_confidence"] == reference_results["heatmap_confidence"]), f"2D pose estimation confidence heatmaps not saved correctly. Max diff = {np.max(abs(saved_pose_data['heatmap_confidence'] == reference_results['heatmap_confidence']))}")
 
     
     def test_calibration(self):
@@ -232,12 +232,12 @@ class TestDeepFly3D(unittest.TestCase):
         with open(core.save_path, "rb") as f:
             saved_pose_data = pickle.load(f)
         
-        self.assertTrue(np.allclose(saved_pose_data["points3d_wo_procrustes"], reference_results["points3d_wo_procrustes"], atol=1e-4), f"3D pose estimation points3d_wo_procrustes not correct.")
-        self.assertTrue(np.allclose(saved_pose_data["points3d"], reference_results["points3d"], atol=1e-4), f"3D pose estimation points3d not correct.")
+        self.assertTrue(np.allclose(saved_pose_data["points3d_wo_procrustes"], reference_results["points3d_wo_procrustes"], atol=1e-4), f"3D pose estimation points3d_wo_procrustes not correct. Max diff = {np.max(abs(saved_pose_data['points3d_wo_procrustes'] - reference_results['points3d_wo_procrustes']))}")
+        self.assertTrue(np.allclose(saved_pose_data["points3d"], reference_results["points3d"], atol=1e-4), f"3D pose estimation points3d not correct. Max diff = {np.max(abs(saved_pose_data['points3d'] - reference_results['points3d']))}")
 
         def check_cameras_match(camera: int):
             for key in saved_pose_data[camera].keys():
-                self.assertTrue(np.allclose(saved_pose_data[camera][key], reference_results[camera][key], atol=1e-4), f"3D pose estimation camera {camera} calibration property {key} not correct.")
+                self.assertTrue(np.allclose(saved_pose_data[camera][key], reference_results[camera][key], atol=1e-4), f"3D pose estimation camera {camera} calibration property {key} not correct. Max diff = {np.max(abs(saved_pose_data[camera][key] - reference_results[camera][key]))}")
 
         for camera_id in range(6):
             check_cameras_match(camera_id)
