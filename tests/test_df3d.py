@@ -202,6 +202,9 @@ class TestDeepFly3D(unittest.TestCase):
 
         reference_results = get_results()
 
+        for image in range(core.points2d.shape[1]):
+            np.testing.assert_almost_equal(core.points2d[:,image], reference_results["points2d"][:,image], err_msg=f"2D pose estimation points not correct for image {image}.")
+
         np.testing.assert_almost_equal(core.points2d, reference_results["points2d"], err_msg="2D pose estimation points not correct.")
         np.testing.assert_almost_equal(core.conf, reference_results["heatmap_confidence"], err_msg="2D pose estimation confidence heatmaps not correct.")
 
@@ -226,10 +229,17 @@ class TestDeepFly3D(unittest.TestCase):
         )
 
         core.pose2d_estimation()
+        reference_results = get_results()
+
+        for image in range(core.points2d.shape[1]):
+            np.testing.assert_almost_equal(core.points2d[:,image], reference_results["points2d"][:,image], err_msg=f"2D pose estimation points not correct for image {image}.")
+
+        np.testing.assert_almost_equal(core.points2d, reference_results["points2d"], err_msg="2D pose estimation points not correct.")
+        np.testing.assert_almost_equal(core.conf, reference_results["heatmap_confidence"], err_msg="2D pose estimation confidence heatmaps not correct.")
+
         core.calibrate_calc(0, 100)
         core.save()
 
-        reference_results = get_results()
         with open(core.save_path, "rb") as f:
             saved_pose_data = pickle.load(f)
         
