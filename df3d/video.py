@@ -155,7 +155,6 @@ def _compute_3d_img(points3d, img_id, cam_id):
         thickness=np.ones((points3d.shape[1])) * 1.5)
 
     fig.canvas.draw()
-    data = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
-    data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+    data = np.array(fig.canvas.renderer.buffer_rgba(), dtype=np.uint8)[:,:,:3] # drop the alpha channel
     plt.close()
     return data
