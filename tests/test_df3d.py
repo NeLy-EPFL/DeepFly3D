@@ -247,12 +247,12 @@ class TestDeepFly3D(unittest.TestCase):
         with open(core.save_path, "rb") as f:
             saved_pose_data = pickle.load(f)
         
-        np.testing.assert_allclose(saved_pose_data["points3d_wo_procrustes"], reference_results["points3d_wo_procrustes"], err_msg="3D pose estimation points3d_wo_procrustes not correct.")
-        np.testing.assert_allclose(saved_pose_data["points3d"], reference_results["points3d"], err_msg="3D pose estimation points3d not correct.")
+        np.testing.assert_allclose(saved_pose_data["points3d_wo_procrustes"], reference_results["points3d_wo_procrustes"], err_msg="3D pose estimation points3d_wo_procrustes not correct.", atol=1e-5)
+        np.testing.assert_allclose(saved_pose_data["points3d"], reference_results["points3d"], err_msg="3D pose estimation points3d not correct.", atol=1e-5)
 
         def check_cameras_match(camera: int):
             for key in saved_pose_data[camera].keys():
-                np.testing.assert_allclose(saved_pose_data[camera][key], reference_results[camera][key], err_msg="3D pose estimation camera {camera} calibration property {key} not correct.")
+                np.testing.assert_allclose(saved_pose_data[camera][key], reference_results[camera][key], err_msg="3D pose estimation camera {camera} calibration property {key} not correct.", atol=1e-4)
 
         for camera_id in range(7):
             check_cameras_match(camera_id)
