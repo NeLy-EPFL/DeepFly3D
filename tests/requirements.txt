@@ -1,3 +1,5 @@
+# install the latest versions of these packages from the master branch
+# instead of the latest release on pypi
 git+https://github.com/NeLy-EPFL/DeepFly2D
 git+https://github.com/NeLy-EPFL/PyBundleAdjustment.git
 -e .
