@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import unittest
 
+import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 from pyba.CameraNetwork import CameraNetwork
@@ -20,9 +21,11 @@ import random
 
 TEST_DATA_LOCATION = str(pathlib.Path(__file__).parent / "data")
 TEST_DATA_LOCATION_REFERENCE = f"{TEST_DATA_LOCATION}/reference"
-TEST_DATA_LOCATION_REFERENCE_RESULT = f"{TEST_DATA_LOCATION_REFERENCE}/df3d/"
+TEST_DATA_LOCATION_REFERENCE_RESULT = f"{TEST_DATA_LOCATION_REFERENCE}/df3d"
 TEST_DATA_LOCATION_REFERENCE_RESULT_FILE_2D = f"{TEST_DATA_LOCATION_REFERENCE_RESULT}/df3d_result_2d.pkl"
 TEST_DATA_LOCATION_REFERENCE_RESULT_FILE_3D = f"{TEST_DATA_LOCATION_REFERENCE_RESULT}/df3d_result_3d.pkl"
+TEST_DATA_LOCATION_REFERENCE_VIDEO_2D = f"{TEST_DATA_LOCATION_REFERENCE_RESULT}/video_pose2d.mp4"
+TEST_DATA_LOCATION_REFERENCE_VIDEO_3D = f"{TEST_DATA_LOCATION_REFERENCE_RESULT}/video_pose3d.mp4"
 TEST_DATA_LOCATION_WORKING = f"{TEST_DATA_LOCATION}/working"
 TEST_DATA_LOCATION_WORKING_RESULT = f"{TEST_DATA_LOCATION_WORKING}/df3d"
 
@@ -52,7 +55,7 @@ def load_results_2d():
 
 def load_results_3d():
     os.makedirs(TEST_DATA_LOCATION_WORKING_RESULT, exist_ok=True)
-    shutil.copy(TEST_DATA_LOCATION_REFERENCE_RESULT_FILE_2D, get_results_save_path())
+    shutil.copy(TEST_DATA_LOCATION_REFERENCE_RESULT_FILE_3D, get_results_save_path())
 
 def get_results_save_path():
     return os.path.join(
@@ -67,7 +70,21 @@ def get_results_2d():
 def get_results_3d():
     with open(TEST_DATA_LOCATION_REFERENCE_RESULT_FILE_3D, "rb") as f:
         return pickle.load(f)
+    
+def get_video_2d_frames():
+    return get_video_frames(TEST_DATA_LOCATION_REFERENCE_VIDEO_2D)
 
+def get_video_3d_frames():
+    return get_video_frames(TEST_DATA_LOCATION_REFERENCE_VIDEO_3D)
+
+def get_video_frames(video_path: str):
+    cap = cv2.VideoCapture(video_path)
+    frames = []
+    success, frame = cap.read()
+    while success:
+        frames.append(frame)
+        success, frame = cap.read()
+    return frames
 
 def delete_df3d_folder(path):
     path_result = path + "df3d/"
@@ -137,27 +154,6 @@ def get_reprojection_error(df3d_path):
     return reproj
 
 
-
-"""Tests to run
-
-
-IDEA -
-have copies of the images and results files
-run the code and produce output
-check that it's the same
-
-1. get core
-    - with frames already existing
-    - without frames already existing
-2. do pose2d_estimation
-3. do calibrate_calc
-4. make 2d video
-5. make 3d video
-
-
-
-"""
-
 class TestDeepFly3D(unittest.TestCase):
     def setUp(self):
         clear_working_data()
@@ -224,7 +220,6 @@ class TestDeepFly3D(unittest.TestCase):
         np.testing.assert_allclose(saved_pose_data["points2d"], reference_results["points2d"], err_msg="2D pose estimation points not saved correctly.", atol=0.02)
         np.testing.assert_allclose(saved_pose_data["heatmap_confidence"], reference_results["heatmap_confidence"], err_msg="2D pose estimation confidence heatmaps not saved correctly.", atol=0.002)
 
-    
     def test_calibration(self):
         """Test that we can run calibration to triangulate the 2D points into 3D points"""
         load_images()
@@ -256,6 +251,56 @@ class TestDeepFly3D(unittest.TestCase):
 
         for camera_id in range(7):
             check_cameras_match(camera_id)
+
+    def test_video_2d(self):
+        """Test that we can generate a video of the 2D pose estimation results"""
+        load_images()
+        load_results_3d()
+        core = Core(
+            input_folder=TEST_DATA_LOCATION_WORKING,
+            output_subfolder="df3d",
+            num_images_max=100,
+            camera_ordering=[0, 1, 2, 3, 4, 5, 6],
+        )
+
+        video.make_pose2d_video(
+            core.plot_2d, core.num_images, core.input_folder, core.output_folder
+        )
+
+        video_name = 'video_pose2d_' + core.input_folder.replace('/', '_') + '.mp4'
+        video_path = os.path.join(core.output_folder, video_name)
+        self.assertTrue(os.path.exists(video_path), f"Video of 2D poses wasn't successfully created - does not exist at {core.output_folder}/{video_name}")
+
+        reference_frames = get_video_2d_frames()
+        test_frames = get_video_frames(video_path)
+
+        self.assertEqual(len(test_frames), len(reference_frames), "Number of frames in output video doesn't match what it should")
+        for frame, (test_frame, reference_frame) in enumerate(zip(test_frames, reference_frames)):
+            np.testing.assert_almost_equal(test_frame, reference_frame, err_msg=f"Frame {frame} of 2D video doesn't match what it should")
+
+    def test_video_3d(self):
+        """Test that we can generate a video of the 3D pose estimation results"""
+        load_images()
+        load_results_3d()
+        core = Core(
+            input_folder=TEST_DATA_LOCATION_WORKING,
+            output_subfolder="df3d",
+            num_images_max=100,
+            camera_ordering=[0, 1, 2, 3, 4, 5, 6],
+        )
+
+        video.make_pose3d_video(core.get_points3d(), core.plot_2d, core.num_images, core.input_folder, core.output_folder)
+
+        video_name = 'video_pose3d_' + core.input_folder.replace('/', '_') + '.mp4'
+        video_path = os.path.join(core.output_folder, video_name)
+        self.assertTrue(os.path.exists(video_path), f"Video of 3D poses wasn't successfully created - does not exist at {core.output_folder}/{video_name}")
+
+        reference_frames = get_video_3d_frames()
+        test_frames = get_video_frames(video_path)
+
+        self.assertEqual(len(test_frames), len(reference_frames), "Number of frames in output video doesn't match what it should")
+        for frame, (test_frame, reference_frame) in enumerate(zip(test_frames, reference_frames)):
+            np.testing.assert_almost_equal(test_frame, reference_frame, err_msg=f"Frame {frame} of 3D video doesn't match what it should")
 
 
     # def test_python_interface(self):
