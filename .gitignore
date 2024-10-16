@@ -114,7 +114,6 @@ venv.bak/
 *.npy
 *.png
 *.zip
-*.mp4
 preds_best
 *.iml
 *.json
