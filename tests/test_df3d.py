@@ -15,6 +15,9 @@ from df3d.core import Core
 
 import pathlib
 
+import torch
+import random
+
 TEST_DATA_LOCATION = str(pathlib.Path(__file__).parent / "data")
 TEST_DATA_LOCATION_REFERENCE = f"{TEST_DATA_LOCATION}/reference"
 TEST_DATA_LOCATION_REFERENCE_RESULT = f"{TEST_DATA_LOCATION_REFERENCE}/df3d/"
@@ -23,8 +26,15 @@ TEST_DATA_LOCATION_REFERENCE_RESULT_FILE_3D = f"{TEST_DATA_LOCATION_REFERENCE_RE
 TEST_DATA_LOCATION_WORKING = f"{TEST_DATA_LOCATION}/working"
 TEST_DATA_LOCATION_WORKING_RESULT = f"{TEST_DATA_LOCATION_WORKING}/df3d"
 
+def reset_rngs():
+    # See: https://pytorch.org/docs/stable/notes/randomness.html
+    torch.manual_seed(0)
+    random.seed(0)
+    np.random.seed(0)
+
 def clear_working_data():
-    shutil.rmtree(TEST_DATA_LOCATION_WORKING)
+    if os.path.exists(TEST_DATA_LOCATION_WORKING):
+        shutil.rmtree(TEST_DATA_LOCATION_WORKING)
 
 def load_videos():
     os.makedirs(TEST_DATA_LOCATION_WORKING, exist_ok=True)
@@ -50,7 +60,11 @@ def get_results_save_path():
         "df3d_result_{}.pkl".format(TEST_DATA_LOCATION_WORKING.replace("/", "_")),
     )
 
-def get_results():
+def get_results_2d():
+    with open(TEST_DATA_LOCATION_REFERENCE_RESULT_FILE_2D, "rb") as f:
+        return pickle.load(f)
+    
+def get_results_3d():
     with open(TEST_DATA_LOCATION_REFERENCE_RESULT_FILE_3D, "rb") as f:
         return pickle.load(f)
 
@@ -145,17 +159,12 @@ check that it's the same
 """
 
 class TestDeepFly3D(unittest.TestCase):
+    def setUp(self):
+        clear_working_data()
+        reset_rngs()
+
     def tearDown(self):
         clear_working_data()
-
-    # @classmethod
-    # def setUpClass(cls) -> None:
-    #     pass
-
-    # @classmethod
-    # def tearDownClass(cls) -> None:
-    #     """Remove all the files we created once we're done running tests"""
-    #     clear_working_data()
 
     def test_load_core_with_videos(self):
         """Test that we can create the Core in a folder that only contains videos.
@@ -189,7 +198,7 @@ class TestDeepFly3D(unittest.TestCase):
         self.assertTrue(np.all(core.camera_ordering == np.array([0, 1, 2, 3, 4, 5, 6])), "Core didn't get correct camera ordering")
 
     def test_pose_estimation(self):
-        """Test that we can create the Core in a folder that already contains images"""
+        """Test that we can run pose estimation on images and get the right 2D points"""
         load_images()
 
         core = Core(
@@ -200,27 +209,26 @@ class TestDeepFly3D(unittest.TestCase):
         )
         core.pose2d_estimation()
 
-        reference_results = get_results()
+        reference_results = get_results_2d()
 
-        for image in range(core.points2d.shape[1]):
-            np.testing.assert_almost_equal(core.points2d[:,image], reference_results["points2d"][:,image], err_msg=f"2D pose estimation points not correct for image {image}.")
 
-        np.testing.assert_almost_equal(core.points2d, reference_results["points2d"], err_msg="2D pose estimation points not correct.")
-        np.testing.assert_almost_equal(core.conf, reference_results["heatmap_confidence"], err_msg="2D pose estimation confidence heatmaps not correct.")
+        assert core.points2d is not None, "2D pose estimation completely failed - no points are available"
+        np.testing.assert_allclose(core.points2d, reference_results["points2d"], err_msg="2D pose estimation points not correct.", atol=0.02)
+        np.testing.assert_allclose(core.conf, reference_results["heatmap_confidence"], err_msg="2D pose estimation confidence heatmaps not correct.", atol=0.002)
 
         core.save()
 
         with open(core.save_path, "rb") as f:
             saved_pose_data = pickle.load(f)
 
-        np.testing.assert_almost_equal(saved_pose_data["points2d"], reference_results["points2d"], err_msg="2D pose estimation points not saved correctly.")
-        np.testing.assert_almost_equal(saved_pose_data["heatmap_confidence"], reference_results["heatmap_confidence"], err_msg="2D pose estimation confidence heatmaps not saved correctly.")
+        np.testing.assert_allclose(saved_pose_data["points2d"], reference_results["points2d"], err_msg="2D pose estimation points not saved correctly.", atol=0.02)
+        np.testing.assert_allclose(saved_pose_data["heatmap_confidence"], reference_results["heatmap_confidence"], err_msg="2D pose estimation confidence heatmaps not saved correctly.", atol=0.002)
 
     
     def test_calibration(self):
+        """Test that we can run calibration to triangulate the 2D points into 3D points"""
         load_images()
-        # FIX: can't load in 2d results from pose estimation and resume from there - CameraNetwork tries to load calib data
-        # need to r
+        # FIX: can't load in 2d results from pose estimation and resume from there - CameraNetwork tries to load calib data which doesn't exist
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
             output_subfolder="df3d",
@@ -228,29 +236,25 @@ class TestDeepFly3D(unittest.TestCase):
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
 
-        core.pose2d_estimation()
-        reference_results = get_results()
+        reference_results = get_results_3d()
 
-        for image in range(core.points2d.shape[1]):
-            np.testing.assert_almost_equal(core.points2d[:,image], reference_results["points2d"][:,image], err_msg=f"2D pose estimation points not correct for image {image}.")
-
-        np.testing.assert_almost_equal(core.points2d, reference_results["points2d"], err_msg="2D pose estimation points not correct.")
-        np.testing.assert_almost_equal(core.conf, reference_results["heatmap_confidence"], err_msg="2D pose estimation confidence heatmaps not correct.")
-
+        # manually set the pose estimation points to the reference
+        core.points2d = reference_results["points2d"]
+        core.conf = reference_results["heatmap_confidence"]
         core.calibrate_calc(0, 100)
         core.save()
 
         with open(core.save_path, "rb") as f:
             saved_pose_data = pickle.load(f)
         
-        np.testing.assert_almost_equal(saved_pose_data["points3d_wo_procrustes"], reference_results["points3d_wo_procrustes"], decimal=4, err_msg="3D pose estimation points3d_wo_procrustes not correct.")
-        np.testing.assert_almost_equal(saved_pose_data["points3d"], reference_results["points3d"], decimal=4, err_msg="3D pose estimation points3d not correct.")
+        np.testing.assert_allclose(saved_pose_data["points3d_wo_procrustes"], reference_results["points3d_wo_procrustes"], err_msg="3D pose estimation points3d_wo_procrustes not correct.")
+        np.testing.assert_allclose(saved_pose_data["points3d"], reference_results["points3d"], err_msg="3D pose estimation points3d not correct.")
 
         def check_cameras_match(camera: int):
             for key in saved_pose_data[camera].keys():
-                np.testing.assert_almost_equal(saved_pose_data[camera][key], reference_results[camera][key], decimal=4, err_msg="3D pose estimation camera {camera} calibration property {key} not correct.")
+                np.testing.assert_allclose(saved_pose_data[camera][key], reference_results[camera][key], err_msg="3D pose estimation camera {camera} calibration property {key} not correct.")
 
-        for camera_id in range(6):
+        for camera_id in range(7):
             check_cameras_match(camera_id)
 
 

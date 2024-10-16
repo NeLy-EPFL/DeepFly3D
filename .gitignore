@@ -107,7 +107,6 @@ venv.bak/
 *.pkl
 *.tar
 .vscode
-df3d
 *.jpg
 *.xml
 *.txt
