@@ -18,10 +18,11 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+        cache: pip
 
     - name: Install dependencies
       run: |
-        python -m pip install git+https://github.com/NeLy-EPFL/DeepFly2D git+https://github.com/NeLy-EPFL/PyBundleAdjustment.git -e .
+        python -m pip install -r tests/requirements.txt
         sudo apt update && sudo apt install ffmpeg -y
 
     - name: Run Tests

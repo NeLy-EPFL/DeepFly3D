@@ -1,0 +1,3 @@
+git+https://github.com/NeLy-EPFL/DeepFly2D
+git+https://github.com/NeLy-EPFL/PyBundleAdjustment.git
+-e .

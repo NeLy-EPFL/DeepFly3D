@@ -107,14 +107,8 @@ venv.bak/
 *.pkl
 *.tar
 .vscode
-*.jpg
 *.xml
-*.txt
-*.eps
 *.npy
-*.png
 *.zip
 preds_best
 *.iml
-*.json
-*.svg
