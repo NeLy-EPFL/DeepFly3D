@@ -112,3 +112,6 @@ venv.bak/
 *.zip
 preds_best
 *.iml
+
+# test outputs
+tests/data/working
