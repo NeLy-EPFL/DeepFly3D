@@ -434,7 +434,7 @@ class Core:
                     os.path.join(self.input_folder, f"camera_{cam_id}_img_000000.jpg")
                 )
             ):
-                command = f"ffmpeg -i {vid} -qscale:v 2 -start_number 0 {self.input_folder}/camera_{cam_id}_img_%d.jpg  < /dev/null"
+                command = f"ffmpeg -nostats -loglevel error -i {vid} -qscale:v 2 -start_number 0 {self.input_folder}/camera_{cam_id}_img_%d.jpg  < /dev/null"
                 subprocess.call(command, shell=True)
 
     def check_cameras(self):

@@ -107,16 +107,11 @@ venv.bak/
 *.pkl
 *.tar
 .vscode
-df3d
-*.jpg
 *.xml
-*.txt
-*.eps
 *.npy
-*.png
 *.zip
-*.mp4
 preds_best
 *.iml
-*.json
-*.svg
+
+# test outputs
+tests/data/working

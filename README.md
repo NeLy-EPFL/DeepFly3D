@@ -12,21 +12,33 @@ DeepFly3D does not require a calibration pattern, it enforces geometric constrai
 We previously published our DeepFly3D work on eLife journal. You can read the publication [here](https://elifesciences.org/articles/48571).
 
 # Table of Contents
+- [Markerless Multi-view Motion Capture for Tethered Drosophila](#markerless-multi-view-motion-capture-for-tethered-drosophila)
+- [Table of Contents](#table-of-contents)
 - [Installing](#installing)
-  * [Installing with pip](#installing-with-pip)
-  * [Odd CUDA Drivers](#odd-cuda-drivers)
-  * [Installing from the source](#installing-from-the-source)
+  - [Installing with pip](#installing-with-pip)
+  - [Odd CUDA Drivers](#odd-cuda-drivers)
+  - [Installing from the source](#installing-from-the-source)
+  - [Installing from the source for development](#installing-from-the-source-for-development)
 - [Data Structure](#data-structure)
 - [Basic Usage](#basic-usage)
 - [Advanced Usage](#advanced-usage)
 - [Python Interface](#python-interface)
 - [Videos](#videos)
 - [Output](#output)
-  * [Points2d](#points2d)
-  * [Camera Ordering](#camera-ordering)
-  * [Heatmap Confidence](#heatmap-confidence)
+  - [Points2D](#points2d)
+  - [Points3D](#points3d)
+  - [Camera Ordering](#camera-ordering)
+  - [Heatmap Confidence](#heatmap-confidence)
+  - [Calibration](#calibration)
 - [Running GUI](#running-gui)
+- [Development](#development)
+- [References](#references)
 - [Version History](#version-history)
+    - [Changes in 0.5](#changes-in-05)
+    - [Changes in 0.4](#changes-in-04)
+    - [Changes in 0.3](#changes-in-03)
+    - [Changes in 0.2](#changes-in-02)
+  - [Extras:](#extras)
 
 
 # Installing
@@ -79,6 +91,21 @@ which uses the setup.py function to create the package.
 
 Make sure you also have installed the CUDA drivers compatible with your GPU, otherwise it is not possible to make 2D predictions. You can check how to install CUDA drivers here: https://developer.nvidia.com/cuda-downloads
 
+## Installing from the source for development
+
+To run DeepFly3D you also need 2 other packages, `nely-df2d` and `nely-pyba`. If you want to do development it's best to install all 3 from source so you can easily make changes to different parts of the code. You can do that as follows.
+
+```bash
+# in a particular folder, clone all 3 repos
+git clone https://github.com/NeLy-EPFL/DeepFly3D.git
+git clone https://github.com/NeLy-EPFL/DeepFly2D.git
+git clone https://github.com/NeLy-EPFL/PyBundleAdjustment.git
+cd DeepFly3D
+conda env create -n df3d python
+conda activate df3d
+# this will install all 3 packages as editable
+pip install -e ../DeepFly2D -e ../PyBundleAdjustment -e .
+```
 
 # Data Structure
 
@@ -434,9 +461,9 @@ After completing pose estimation in the cli, you can open the pose mode:
 DeepFly3D consists of 3 pip packages:
 - DeepFly3D: https://pypi.org/project/df3d/
 - PyBundleAdjustment: https://pypi.org/project/pyba/
-- Drosophila2D Pose: https://pypi.org/project/df2d/
+- DeepFly2D: https://pypi.org/project/df2d/
 
-The master branch of the DeepFly3D package is kept up-to-date with the last version of the pip package. Development is done under dev branch. Before pushing changes to the master branch, make sure all test cases are passing. You can run the tests using python test.py. Unittests make sure several scenarios can be processed using cli without failing.
+The master branch of the DeepFly3D package is kept up-to-date with the last version of the pip package. Development is done under dev branch. Before pushing changes to the master branch, make sure all test cases are passing. You can run the tests using `python -m unittest discover`. Unittests make sure several scenarios can be processed using cli without failing.
 
 
 # References

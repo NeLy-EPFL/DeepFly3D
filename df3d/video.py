@@ -2,13 +2,14 @@ import os.path
 import itertools
 
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 import cv2
+import packaging.version
 from tqdm import tqdm
 
 from df3d.plot_util import plot_drosophila_3d
 import df3d.logger as logger
-
 
 img3d_dpi = 100  # this is the dpi for one image on the 3d video's grid
 img3d_aspect = (2, 2)  # this is the aspect ration for one image on the 3d video's grid
@@ -130,6 +131,11 @@ def _compute_3d_img(points3d, img_id, cam_id):
     import numpy as np
 
     plt.style.use('dark_background')
+    if packaging.version.Version(matplotlib.__version__) >= packaging.version.Version("3.9"):
+        # Versions of matplotlib 3.9 or newer produce a slightly zoomed in 3d plot compared to older versions #55
+        # We enable automargin to match the plots from older versions of matplotlib
+        plt.rcParams['axes3d.automargin'] = True
+        
     fig = plt.figure(figsize=img3d_aspect, dpi=img3d_dpi)
 
     ax3d = fig.add_subplot(111, projection='3d')
