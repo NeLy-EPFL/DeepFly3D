@@ -166,17 +166,25 @@ bones = [
 
 bones3d = [[15, 34]]
 
+LEG_RIGHT_FRONT = (186, 30, 49)
+LEG_RIGHT_MIDDLE = (201, 86, 79)
+LEG_RIGHT_REAR = (213, 133, 121)
+LEG_LEFT_FRONT = (15, 115, 153)
+LEG_LEFT_MIDDLE = (26, 141, 175)
+LEG_LEFT_REAR = (117, 190, 203)
+BODY = (210, 210, 210)
+
 colors = [
-    (255, 0, 0),
-    (0, 0, 255),
-    (0, 255, 0),
-    (150, 100, 150),
-    (255, 165, 0),
-    (255, 255, 0),
-    (255, 0, 255),
-    (0, 255, 255),
-    (150, 200, 200),
-    (255, 165, 0),
+    LEG_RIGHT_FRONT,
+    LEG_RIGHT_MIDDLE,
+    LEG_RIGHT_REAR,
+    BODY,
+    BODY,
+    LEG_LEFT_FRONT,
+    LEG_LEFT_MIDDLE,
+    LEG_LEFT_REAR,
+    BODY,
+    BODY,
 ]
 
 num_joints = len(tracked_points)
