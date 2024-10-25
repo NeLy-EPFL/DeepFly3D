@@ -113,8 +113,8 @@ def parse_cli_args():
     parser.add_argument(
         "-n",
         "--num-images-max",
-        help="Maximal number of images to process.",
-        default=math.inf,
+        help="Maximal number of images to process. If 0 or not defined, process all images.",
+        default=0,
         type=int,
     )
     parser.add_argument(

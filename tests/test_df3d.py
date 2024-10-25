@@ -97,11 +97,11 @@ class TestDeepFly3D(unittest.TestCase):
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
             output_subfolder="df3d",
-            num_images_max=100,
+            num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
 
-        self.assertEqual(core.num_images, 14, "Core didn't find all images in folder")
+        self.assertEqual(core.num_images, 15, "Core didn't find all images in folder")
         self.assertEqual(core.image_shape, [960,480], "Core didn't get the right image shape")
         self.assertTrue(np.all(core.camera_ordering == np.array([0, 1, 2, 3, 4, 5, 6])), "Core didn't get correct camera ordering")
 
@@ -112,11 +112,11 @@ class TestDeepFly3D(unittest.TestCase):
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
             output_subfolder="df3d",
-            num_images_max=100,
+            num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
 
-        self.assertEqual(core.num_images, 14, "Core didn't find all images in folder")
+        self.assertEqual(core.num_images, 15, "Core didn't find all images in folder")
         self.assertEqual(core.image_shape, [960,480], "Core didn't get the right image shape")
         self.assertTrue(np.all(core.camera_ordering == np.array([0, 1, 2, 3, 4, 5, 6])), "Core didn't get correct camera ordering")
 
@@ -127,13 +127,12 @@ class TestDeepFly3D(unittest.TestCase):
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
             output_subfolder="df3d",
-            num_images_max=100,
+            num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
         core.pose2d_estimation()
 
         reference_results = get_results_2d()
-
 
         assert core.points2d is not None, "2D pose estimation completely failed - no points are available"
         np.testing.assert_allclose(core.points2d, reference_results["points2d"], err_msg="2D pose estimation points not correct.", atol=0.02)
@@ -154,15 +153,16 @@ class TestDeepFly3D(unittest.TestCase):
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
             output_subfolder="df3d",
-            num_images_max=100,
+            num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
 
+        results_2d = get_results_2d()
         reference_results = get_results_3d()
 
         # manually set the pose estimation points to the reference
-        core.points2d = reference_results["points2d"]
-        core.conf = reference_results["heatmap_confidence"]
+        core.points2d = results_2d["points2d"]
+        core.conf = results_2d["heatmap_confidence"]
         core.calibrate_calc(0, 100)
         core.save()
 
@@ -186,7 +186,7 @@ class TestDeepFly3D(unittest.TestCase):
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
             output_subfolder="df3d",
-            num_images_max=100,
+            num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
 
@@ -212,7 +212,7 @@ class TestDeepFly3D(unittest.TestCase):
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
             output_subfolder="df3d",
-            num_images_max=100,
+            num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
 

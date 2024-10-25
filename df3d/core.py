@@ -74,10 +74,13 @@ class Core:
         self.output_folder = os.path.join(input_folder, output_subfolder)
 
         self.expand_videos()  # turn .mp4 into .jpg
-        self.num_images_max = num_images_max or math.inf
-        max_img_id = get_max_img_id(self.input_folder)
-        self.num_images = min(self.num_images_max, max_img_id + 0)
-        self.max_img_id = self.num_images - 1
+        self.num_images_max = num_images_max if num_images_max is not None else 0
+        self.max_img_id = get_max_img_id(self.input_folder)
+        if self.num_images_max > 0:
+            self.num_images = min(self.num_images_max, self.max_img_id + 1)
+            self.max_img_id = self.num_images - 1
+        else:
+            self.num_images = self.max_img_id + 1
         image_path = os.path.join(self.input_folder, "camera_{cam_id}_img_{img_id}.jpg")
         image0_path = image_path.format(cam_id=0, img_id=0)
         if "image_shape" in config:
