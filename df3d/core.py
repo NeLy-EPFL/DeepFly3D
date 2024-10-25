@@ -261,6 +261,8 @@ class Core:
             self.points2d * self.image_shape[::-1], calib=calib_reordered, image_path=image_path
         )
         self.camNet.bundle_adjust(update_intrinsic=False, update_distort=False)
+        print(f"Reprojection error is {self.camNet.reprojection_error()}")
+
 
     def nearest_joint(self, cam_id, img_id, x, y):
         """Finds the joint nearest to (x,y) coordinates on the img_id of cam_id.
