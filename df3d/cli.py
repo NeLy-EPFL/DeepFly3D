@@ -137,6 +137,17 @@ def parse_cli_args():
         dest='skip_estimation',
         action="store_true",
     )
+    parser.add_argument(
+        "--batch-size",
+        help="Batch size for inference - how many images are processed through the model at once",
+        type=int,
+        default=8
+    )
+    parser.add_argument(
+        "--pin-memory-disabled",
+        help="Whether to disable `pin_memory` in the dataloader. Keeping this enabled usually speeds up the processing, but sometimes leads to memory leaks. See https://github.com/NeLy-EPFL/DeepFly2D/issues/6",
+        action="store_true",
+    )
     return parser.parse_args()
 
 
@@ -266,10 +277,9 @@ def run(args):
     core = Core(
         args.input_folder, args.output_folder, args.num_images_max, args.order
     )
-    core.overwrite = args.overwrite  # monkey-patch: save it for later
 
     if not args.skip_estimation:
-        core.pose2d_estimation(core.overwrite)
+        core.pose2d_estimation(args.batch_size, args.pin_memory_disabled)
         core.save()
         core.calibrate_calc(0, core.max_img_id)
         core.save()

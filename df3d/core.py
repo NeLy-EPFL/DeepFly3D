@@ -164,40 +164,23 @@ class Core:
     # -------------------------------------------------------------------------
     # public methods
 
-    def pose2d_estimation(self, overwrite=True):
+    def pose2d_estimation(self, batch_size: int = 8, disable_pin_memory: bool = False):
         """Runs the pose2d estimation on self.input_folder.
 
         Parameters:
-        overwrite: whether to overwrite existing pose estimation results (default: True)
+        batch_size: Batch size to use when running inference on the images (default: 8)
+        disable_pin_memory: Whether to disable the `pin_memory` option for the dataloader (default: False)
         """
-
-        # to make sure we rotate the necessary cameras
-        class load_f:
-            def __init__(self, cam_order):
-                self.cam_order = cam_order.tolist()
-
-            def parse_img_path(self, name: str) -> Tuple[int, int]:
-                """returns cid and img_id"""
-                name = os.path.basename(name)
-                match = re.match(r"camera_(\d+)_img_(\d+)", name.replace(".jpg", ""))
-                return int(match[1]), int(match[2])
-
-            def __call__(self, x):
-                img = plt.imread(x)
-                cam_id, _ = self.parse_img_path(x)
-                if self.cam_order.index(cam_id) > 3:
-                    img = img[:, ::-1]
-                return img
-
         self.points2d, self.conf = inference_folder(
             folder=self.input_folder,
-            load_f=load_f(self.camera_ordering),
+            camera_ids_to_flip=[camera_id for index, camera_id in enumerate(self.camera_ordering) if index > 3], # flip the last 3 cameras so all images face to the right
             return_heatmap=False,
             return_confidence=True,
             max_img_id=self.max_img_id,
+            batch_size=batch_size,
+            disable_pin_memory=disable_pin_memory
         )
 
-        # fmt: off
         # 2d pose estimation outputs 19 points, which is what a single camera sees,
         #     however there are 38 joints in total
         points2d_cp = np.zeros((self.points2d.shape[0], self.points2d.shape[1], self.points2d.shape[2]*2, 2))
@@ -209,7 +192,7 @@ class Core:
         points2d_cp[self.camera_ordering[4], :, 19+15:] = 0
 
         # flip lr back left-hand-side cameras
-        for cidx in [4,5,6]:            
+        for cidx in [4,5,6]:
             points2d_cp[self.camera_ordering[cidx], ..., 1] = 1 - points2d_cp[self.camera_ordering[cidx], ..., 1]
             # points2d_cp[points2d_cp==1] == 0 # ugly hack
 
