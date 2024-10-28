@@ -1,0 +1,4 @@
+# See https://github.com/pypa/pip/issues/11457
+[build-system]
+requires = ["setuptools >= 64"]
+build-backend = "setuptools.build_meta"
