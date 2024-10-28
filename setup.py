@@ -18,6 +18,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/NeLy-EPFL/DeepFly3D",
+    python_requires=">=3.8",
     install_requires=[
         "colorama",
         "matplotlib",

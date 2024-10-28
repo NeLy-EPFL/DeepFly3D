@@ -46,7 +46,7 @@ We previously published our DeepFly3D work on eLife journal. You can read the pu
 ## Installing with pip
 Create a new anaconda environment, and pip install nely-df3d package.
 ```bash
-conda create -n df3d python=3.6
+conda create -n df3d python=3.12
 conda activate df3d
 pip install nely-df3d
 ```
@@ -60,7 +60,7 @@ conda install pytorch torchvision torchaudio cudatoolkit="YOUR_CUDA_VERSION" -c 
 
 For example with with RTX 3080 Ti GPU, you will need to do:
 ```bash
-conda create -n df3d python=3.6
+conda create -n df3d python=3.12
 conda activate df3d
 conda install pytorch torchvision cudatoolkit=11 -c pytorch-nightly
 pip install nely-df3d
@@ -75,7 +75,7 @@ cd DeepFly3D
 ```
 Then, run create a conda environment with
 ```
-conda create -n df3d python=3.6
+conda create -n df3d python=3.12
 ```
 which will create a new python environment. Then, activate the environment.
 ```
@@ -101,7 +101,7 @@ git clone https://github.com/NeLy-EPFL/DeepFly3D.git
 git clone https://github.com/NeLy-EPFL/DeepFly2D.git
 git clone https://github.com/NeLy-EPFL/PyBundleAdjustment.git
 cd DeepFly3D
-conda env create -n df3d python
+conda env create -n df3d python=3.12
 conda activate df3d
 # this will install all 3 packages as editable
 pip install -e ../DeepFly2D -e ../PyBundleAdjustment -e .
