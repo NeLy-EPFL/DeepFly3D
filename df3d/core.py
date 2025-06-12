@@ -69,9 +69,10 @@ class Core:
         num_images_max: int,
         camera_ordering: List[int],
     ):
-        self.input_folder = input_folder
+        self.input_folder = input_folder.rstrip("/")
         self.output_subfolder = output_subfolder
-        self.output_folder = os.path.join(input_folder, output_subfolder)
+        self.output_folder = os.path.join(os.path.dirname(input_folder),
+                                          output_subfolder)
 
         self.expand_videos()  # turn .mp4 into .jpg
         self.num_images_max = num_images_max if num_images_max is not None else 0
