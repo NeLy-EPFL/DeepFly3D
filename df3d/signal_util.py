@@ -66,24 +66,24 @@ class OneEuroFilter(object):
         return self.__x(x, timestamp, alpha=self.__alpha(cutoff))
 
 
-def filter_batch(pts, filter_indices=None, config_oneuro=None, freq=None):
+def filter_batch(pts, filter_indices=None, config_oneeuro=None, freq=None):
     from df3d.config import config
 
     assert pts.shape[-1] == 2 or pts.shape[-1] == 3
     if filter_indices is None:
         filter_indices = np.arange(config["skeleton"].num_joints)
-    if config_oneuro is None:
-        config_oneuro = {
+    if config_oneeuro is None:
+        config_oneeuro = {
             "freq": 100,  # Hz
             "mincutoff": 0.1,  # FIXME
             "beta": 2.0,  # FIXME
             "dcutoff": 1.0,  # this one should be ok
         }
     if freq is not None:
-        config_oneuro["freq"] = freq
+        config_oneeuro["freq"] = freq
 
     f = [
-        [OneEuroFilter(**config_oneuro) for j in range(pts.shape[-1])]
+        [OneEuroFilter(**config_oneeuro) for j in range(pts.shape[-1])]
         for i in range(config["skeleton"].num_joints)
     ]
     timestamp = 0.0  # seconds
@@ -100,22 +100,24 @@ def filter_batch(pts, filter_indices=None, config_oneuro=None, freq=None):
     return pts_after
 
 
-def filter_batch_2d(pts, filter_indices=None, config=None, freq=None):
+def filter_batch_2d(pts, filter_indices=None, config_oneeuro=None, freq=None):
+    from df3d.config import config
+
     assert pts.shape[-1] == 2 or pts.shape[-1] == 3
     if filter_indices is None:
         filter_indices = np.arange(config["skeleton"].num_joints)
-    if config is None:
-        config = {
+    if config_oneeuro is None:
+        config_oneeuro = {
             "freq": 100,  # Hz
             "mincutoff": 0.0001,  # FIXME # 0.1
             "beta": 30,  # FIXME
             "dcutoff": 1.0,  # this one should be ok
         }
     if freq is not None:
-        config["freq"] = freq
+        config_oneeuro["freq"] = freq
 
     f = [
-        [OneEuroFilter(**config) for j in range(pts.shape[-1])]
+        [OneEuroFilter(**config_oneeuro) for j in range(pts.shape[-1])]
         for i in range(config["skeleton"].num_joints)
     ]
     timestamp = 0.0  # seconds
