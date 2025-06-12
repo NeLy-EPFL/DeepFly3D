@@ -27,7 +27,8 @@ def plot_drosophila_3d(
     lim=None,
 ):
     points3d = np.array(points3d)
-    draw_joints = np.arange(config["skeleton"].num_joints)
+    if draw_joints is None:
+        draw_joints = np.arange(config["skeleton"].num_joints)
     colors = config["skeleton"].colors
     colors_tmp = ["#%02x%02x%02x" % c for c in colors]
     zorder = config["skeleton"].get_zorder(cam_id)
@@ -46,9 +47,9 @@ def plot_drosophila_3d(
     ax_3d.zaxis.line.set_color(white)
 
     if cam_id < 3:
-        ax_3d.view_init(ax_3d.elev, -60 + 30 * cam_id)
+        ax_3d.view_init(elev=ax_3d.elev, azim=-60 + 30 * cam_id)
     else:
-        ax_3d.view_init(ax_3d.elev, -60 + 45 * cam_id)
+        ax_3d.view_init(elev=ax_3d.elev, azim=-60 + 45 * cam_id)
 
     if lim:
         max_range = lim
