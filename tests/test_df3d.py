@@ -12,8 +12,8 @@ import cv2
 import numpy as np
 import torch
 
-from df3d import video
-from df3d.core import Core
+import df3d.core
+import df3d.video
 
 TEST_DATA_LOCATION = str(pathlib.Path(__file__).parent / "data")
 TEST_DATA_LOCATION_REFERENCE = f"{TEST_DATA_LOCATION}/reference"
@@ -110,7 +110,7 @@ class TestDeepFly3D(unittest.TestCase):
         In this case we need to convert the videos to images first."""
         load_videos()
 
-        core = Core(
+        core = df3d.core.Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
             output_folder=TEST_DATA_LOCATION_WORKING_RESULT,
             num_images_max=0,
@@ -130,7 +130,7 @@ class TestDeepFly3D(unittest.TestCase):
         """Test that we can create the Core in a folder that already contains images"""
         load_images()
 
-        core = Core(
+        core = df3d.core.Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
             output_folder=TEST_DATA_LOCATION_WORKING_RESULT,
             num_images_max=0,
@@ -150,7 +150,7 @@ class TestDeepFly3D(unittest.TestCase):
         """Test that we can run pose estimation on images and get the right 2D points"""
         load_images()
 
-        core = Core(
+        core = df3d.core.Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
             output_folder=TEST_DATA_LOCATION_WORKING_RESULT,
             num_images_max=0,
@@ -198,7 +198,7 @@ class TestDeepFly3D(unittest.TestCase):
         """Test that we can run calibration to triangulate the 2D points into 3D points"""
         load_images()
         # FIX: can't load in 2d results from pose estimation and resume from there - CameraNetwork tries to load calib data which doesn't exist
-        core = Core(
+        core = df3d.core.Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
             output_folder=TEST_DATA_LOCATION_WORKING_RESULT,
             num_images_max=0,
@@ -246,14 +246,14 @@ class TestDeepFly3D(unittest.TestCase):
         """Test that we can generate a video of the 2D pose estimation results"""
         load_images()
         load_results_3d()
-        core = Core(
+        core = df3d.core.Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
             output_folder=TEST_DATA_LOCATION_WORKING_RESULT,
             num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
 
-        video.make_pose2d_video(
+        df3d.video.make_pose2d_video(
             core.plot_2d, core.num_images, core.input_folder, core.output_folder
         )
 
@@ -285,14 +285,14 @@ class TestDeepFly3D(unittest.TestCase):
         """Test that we can generate a video of the 3D pose estimation results"""
         load_images()
         load_results_3d()
-        core = Core(
+        core = df3d.core.Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
             output_folder=TEST_DATA_LOCATION_WORKING_RESULT,
             num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
 
-        video.make_pose3d_video(
+        df3d.video.make_pose3d_video(
             core.get_points3d(),
             core.plot_2d,
             core.num_images,
