@@ -111,12 +111,6 @@ def parse_cli_args():
         action="store_true",
     )
     parser.add_argument(
-        "-o",
-        "--overwrite",
-        help="Rerun pose estimation and overwrite existing pose results",
-        action="store_true",
-    )
-    parser.add_argument(
         "-n",
         "--num-images-max",
         help="Maximal number of images to process. If 0 or not defined, process all images.",
