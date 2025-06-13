@@ -360,6 +360,27 @@ class TestDeepFly3D(unittest.TestCase):
             atol=0.002,
         )
 
+    def test_delete_images(self):
+        """
+        Test that running df3d with the --delete-images option deletes the images when done
+        """
+        load_videos()
+
+        subprocess.run(
+            shlex.split(
+                "df3d-cli tests/data/working --order 0 1 2 3 4 5 6 --delete-images"
+            )
+        )
+
+        assert (
+            len(glob.glob(os.path.join(TEST_DATA_LOCATION_WORKING, "camera_*.jpg")))
+            == 0
+        ), "images weren't deleted properly after running"
+        assert (
+            len(glob.glob(os.path.join(TEST_DATA_LOCATION_WORKING, "camera_*.mp4")))
+            == 7
+        ), "videos were accidentally deleted after running"
+
 
 if __name__ == "__main__":
     unittest.main()
