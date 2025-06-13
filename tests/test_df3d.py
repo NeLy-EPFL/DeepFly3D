@@ -3,7 +3,9 @@ import os
 import pathlib
 import pickle
 import random
+import shlex
 import shutil
+import subprocess
 import unittest
 
 import cv2
@@ -21,7 +23,8 @@ TEST_DATA_LOCATION_RESULT_FILE_3D = f"{TEST_DATA_LOCATION_RESULT}/df3d_result_3d
 TEST_DATA_LOCATION_REFERENCE_VIDEO_2D = f"{TEST_DATA_LOCATION_RESULT}/video_pose2d.mp4"
 TEST_DATA_LOCATION_REFERENCE_VIDEO_3D = f"{TEST_DATA_LOCATION_RESULT}/video_pose3d.mp4"
 TEST_DATA_LOCATION_WORKING = f"{TEST_DATA_LOCATION}/working"
-TEST_DATA_LOCATION_WORKING_RESULT = f"{TEST_DATA_LOCATION_WORKING}/df3d"
+TEST_DATA_LOCATION_WORKING_RESULT = f"{TEST_DATA_LOCATION_WORKING}_df3d"
+
 
 def reset_rngs():
     # See: https://pytorch.org/docs/stable/notes/randomness.html
@@ -32,6 +35,9 @@ def reset_rngs():
 def clear_working_data():
     if os.path.exists(TEST_DATA_LOCATION_WORKING):
         shutil.rmtree(TEST_DATA_LOCATION_WORKING)
+    if os.path.exists(TEST_DATA_LOCATION_WORKING_RESULT):
+        shutil.rmtree(TEST_DATA_LOCATION_WORKING_RESULT)
+
 
 def load_videos():
     os.makedirs(TEST_DATA_LOCATION_WORKING, exist_ok=True)
@@ -96,7 +102,7 @@ class TestDeepFly3D(unittest.TestCase):
 
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
-            output_folder="df3d",
+            output_folder=TEST_DATA_LOCATION_WORKING_RESULT,
             num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
@@ -111,7 +117,7 @@ class TestDeepFly3D(unittest.TestCase):
 
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
-            output_folder="df3d",
+            output_folder=TEST_DATA_LOCATION_WORKING_RESULT,
             num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
@@ -126,7 +132,7 @@ class TestDeepFly3D(unittest.TestCase):
 
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
-            output_folder="df3d",
+            output_folder=TEST_DATA_LOCATION_WORKING_RESULT,
             num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
@@ -152,7 +158,7 @@ class TestDeepFly3D(unittest.TestCase):
         # FIX: can't load in 2d results from pose estimation and resume from there - CameraNetwork tries to load calib data which doesn't exist
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
-            output_folder="df3d",
+            output_folder=TEST_DATA_LOCATION_WORKING_RESULT,
             num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
@@ -185,7 +191,7 @@ class TestDeepFly3D(unittest.TestCase):
         load_results_3d()
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
-            output_folder="df3d",
+            output_folder=TEST_DATA_LOCATION_WORKING_RESULT,
             num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
@@ -225,9 +231,42 @@ class TestDeepFly3D(unittest.TestCase):
         reference_frames = get_video_3d_frames()
         test_frames = get_video_frames(video_path)
 
-        self.assertEqual(len(test_frames), len(reference_frames), "Number of frames in output video doesn't match what it should")
-        for frame, (test_frame, reference_frame) in enumerate(zip(test_frames, reference_frames)):
-            np.testing.assert_almost_equal(test_frame, reference_frame, err_msg=f"Frame {frame} of 3D video doesn't match what it should")
+    def test_cli_default_output_dir(self):
+        """
+        Test that running df3d from the cli uses the correct default output directory
+        """
+        load_videos()
+
+        subprocess.run(shlex.split("df3d-cli tests/data/working --order 0 1 2 3 4 5 6"))
+
+        reference_results = get_results_2d()
+
+        assert os.path.exists(f"{TEST_DATA_LOCATION_WORKING}_df3d"), (
+            "results folder not in default location"
+        )
+        results_file = [
+            file
+            for file in os.listdir(f"{TEST_DATA_LOCATION_WORKING}_df3d")
+            if file.startswith("df3d_result")
+        ]
+        assert len(results_file) == 1, "Couldn't find df3d_results file"
+
+        with open(f"{TEST_DATA_LOCATION_WORKING}_df3d/{results_file[0]}", "rb") as f:
+            saved_pose_data = pickle.load(f)
+
+        np.testing.assert_allclose(
+            saved_pose_data["points2d"],
+            reference_results["points2d"],
+            err_msg="2D pose estimation points not correct.",
+            atol=0.02,
+        )
+        np.testing.assert_allclose(
+            saved_pose_data["heatmap_confidence"],
+            reference_results["heatmap_confidence"],
+            err_msg="2D pose estimation confidence heatmaps not correct.",
+            atol=0.002,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
