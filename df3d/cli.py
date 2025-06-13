@@ -89,8 +89,8 @@ def parse_cli_args():
     )
     parser.add_argument(
         "--output-folder",
-        help="The name of subfolder where to write results",
-        default="df3d",
+        help="The name of the folder where results will be written. If not specified, a folder with the same name as INPUT suffixed with '_df3d' will be created. If INPUT is a file, the output folder will be created in the same directory as INPUT.",
+        default=None,
     )
     parser.add_argument(
         "-r",
@@ -148,7 +148,15 @@ def parse_cli_args():
         help="Whether to disable `pin_memory` in the dataloader. Keeping this enabled usually speeds up the processing, but sometimes leads to memory leaks. See https://github.com/NeLy-EPFL/DeepFly2D/issues/6",
         action="store_true",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    args.input_folder = Path(args.input_folder).expanduser().resolve()
+    if args.output_folder is None:
+        args.output_folder = args.input_folder.with_name(args.input_folder.stem + "_df3d")
+    else:
+        args.output_folder = Path(args.output_folder).expanduser().resolve()
+    args.input_folder = str(args.input_folder)
+    args.output_folder = str(args.output_folder)
+    return args
 
 
 def print_debug(args):
@@ -291,7 +299,7 @@ def run(args):
         video.make_pose2d_video(
             core.plot_2d, core.num_images, core.input_folder, core.output_folder
         )
-    
+
     if args.video_3d:
         video.make_pose3d_video(
             core.get_points3d(),

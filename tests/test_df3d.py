@@ -15,11 +15,11 @@ from df3d.core import Core
 
 TEST_DATA_LOCATION = str(pathlib.Path(__file__).parent / "data")
 TEST_DATA_LOCATION_REFERENCE = f"{TEST_DATA_LOCATION}/reference"
-TEST_DATA_LOCATION_REFERENCE_RESULT = f"{TEST_DATA_LOCATION_REFERENCE}/df3d"
-TEST_DATA_LOCATION_REFERENCE_RESULT_FILE_2D = f"{TEST_DATA_LOCATION_REFERENCE_RESULT}/df3d_result_2d.pkl"
-TEST_DATA_LOCATION_REFERENCE_RESULT_FILE_3D = f"{TEST_DATA_LOCATION_REFERENCE_RESULT}/df3d_result_3d.pkl"
-TEST_DATA_LOCATION_REFERENCE_VIDEO_2D = f"{TEST_DATA_LOCATION_REFERENCE_RESULT}/video_pose2d.mp4"
-TEST_DATA_LOCATION_REFERENCE_VIDEO_3D = f"{TEST_DATA_LOCATION_REFERENCE_RESULT}/video_pose3d.mp4"
+TEST_DATA_LOCATION_RESULT = f"{TEST_DATA_LOCATION_REFERENCE}_df3d"
+TEST_DATA_LOCATION_RESULT_FILE_2D = f"{TEST_DATA_LOCATION_RESULT}/df3d_result_2d.pkl"
+TEST_DATA_LOCATION_RESULT_FILE_3D = f"{TEST_DATA_LOCATION_RESULT}/df3d_result_3d.pkl"
+TEST_DATA_LOCATION_REFERENCE_VIDEO_2D = f"{TEST_DATA_LOCATION_RESULT}/video_pose2d.mp4"
+TEST_DATA_LOCATION_REFERENCE_VIDEO_3D = f"{TEST_DATA_LOCATION_RESULT}/video_pose3d.mp4"
 TEST_DATA_LOCATION_WORKING = f"{TEST_DATA_LOCATION}/working"
 TEST_DATA_LOCATION_WORKING_RESULT = f"{TEST_DATA_LOCATION_WORKING}/df3d"
 
@@ -45,11 +45,11 @@ def load_images():
 
 def load_results_2d():
     os.makedirs(TEST_DATA_LOCATION_WORKING_RESULT, exist_ok=True)
-    shutil.copy(TEST_DATA_LOCATION_REFERENCE_RESULT_FILE_2D, get_results_save_path())
+    shutil.copy(TEST_DATA_LOCATION_RESULT_FILE_2D, get_results_save_path())
 
 def load_results_3d():
     os.makedirs(TEST_DATA_LOCATION_WORKING_RESULT, exist_ok=True)
-    shutil.copy(TEST_DATA_LOCATION_REFERENCE_RESULT_FILE_3D, get_results_save_path())
+    shutil.copy(TEST_DATA_LOCATION_RESULT_FILE_3D, get_results_save_path())
 
 def get_results_save_path():
     return os.path.join(
@@ -58,11 +58,11 @@ def get_results_save_path():
     )
 
 def get_results_2d():
-    with open(TEST_DATA_LOCATION_REFERENCE_RESULT_FILE_2D, "rb") as f:
+    with open(TEST_DATA_LOCATION_RESULT_FILE_2D, "rb") as f:
         return pickle.load(f)
     
 def get_results_3d():
-    with open(TEST_DATA_LOCATION_REFERENCE_RESULT_FILE_3D, "rb") as f:
+    with open(TEST_DATA_LOCATION_RESULT_FILE_3D, "rb") as f:
         return pickle.load(f)
     
 def get_video_2d_frames():
@@ -96,7 +96,7 @@ class TestDeepFly3D(unittest.TestCase):
 
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
-            output_subfolder="df3d",
+            output_folder="df3d",
             num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
@@ -111,7 +111,7 @@ class TestDeepFly3D(unittest.TestCase):
 
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
-            output_subfolder="df3d",
+            output_folder="df3d",
             num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
@@ -126,7 +126,7 @@ class TestDeepFly3D(unittest.TestCase):
 
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
-            output_subfolder="df3d",
+            output_folder="df3d",
             num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
@@ -152,7 +152,7 @@ class TestDeepFly3D(unittest.TestCase):
         # FIX: can't load in 2d results from pose estimation and resume from there - CameraNetwork tries to load calib data which doesn't exist
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
-            output_subfolder="df3d",
+            output_folder="df3d",
             num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
@@ -185,7 +185,7 @@ class TestDeepFly3D(unittest.TestCase):
         load_results_3d()
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
-            output_subfolder="df3d",
+            output_folder="df3d",
             num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
@@ -211,7 +211,7 @@ class TestDeepFly3D(unittest.TestCase):
         load_results_3d()
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
-            output_subfolder="df3d",
+            output_folder="df3d",
             num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )

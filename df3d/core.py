@@ -65,13 +65,15 @@ class Core:
     def __init__(
         self,
         input_folder: str,
-        output_subfolder: str,
-        num_images_max: int,
-        camera_ordering: List[int],
+        output_folder: Optional[str] = None,
+        num_images_max: Optional[int] = None,
+        camera_ordering: List[int] = [0, 1, 2, 3, 4, 5, 6],
     ):
         self.input_folder = input_folder
-        self.output_subfolder = output_subfolder
-        self.output_folder = os.path.join(input_folder, output_subfolder)
+        if output_folder is None:
+            self.output_folder = self.input_folder + "_df3d"
+        else:
+            self.output_folder = output_folder
 
         self.expand_videos()  # turn .mp4 into .jpg
         self.num_images_max = num_images_max if num_images_max is not None else 0
