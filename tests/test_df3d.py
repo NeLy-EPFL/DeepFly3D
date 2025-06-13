@@ -96,7 +96,7 @@ class TestDeepFly3D(unittest.TestCase):
 
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
-            output_subfolder="df3d",
+            output_folder="df3d",
             num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
@@ -111,7 +111,7 @@ class TestDeepFly3D(unittest.TestCase):
 
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
-            output_subfolder="df3d",
+            output_folder="df3d",
             num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
@@ -126,7 +126,7 @@ class TestDeepFly3D(unittest.TestCase):
 
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
-            output_subfolder="df3d",
+            output_folder="df3d",
             num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
@@ -152,7 +152,7 @@ class TestDeepFly3D(unittest.TestCase):
         # FIX: can't load in 2d results from pose estimation and resume from there - CameraNetwork tries to load calib data which doesn't exist
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
-            output_subfolder="df3d",
+            output_folder="df3d",
             num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
@@ -185,7 +185,7 @@ class TestDeepFly3D(unittest.TestCase):
         load_results_3d()
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
-            output_subfolder="df3d",
+            output_folder="df3d",
             num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
@@ -211,7 +211,7 @@ class TestDeepFly3D(unittest.TestCase):
         load_results_3d()
         core = Core(
             input_folder=TEST_DATA_LOCATION_WORKING,
-            output_subfolder="df3d",
+            output_folder="df3d",
             num_images_max=0,
             camera_ordering=[0, 1, 2, 3, 4, 5, 6],
         )
