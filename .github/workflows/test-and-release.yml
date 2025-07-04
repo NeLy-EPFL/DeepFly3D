@@ -48,6 +48,15 @@ jobs:
       with:
         python-version: "3.x"
 
+    - name: Check version
+      run: |
+        TAG_VERSION = ${{ github.ref_name }}
+        PACKAGE_VERSION = $(grep -Po 'version\s*=\s*["\x27]\K[^"\x27]+' setup.py)
+        if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+          echo "Version mismatch! GitHub tag is $TAG_VERSION but package version is $PACKAGE_VERSION."
+          exit 1
+        fi
+
     - name: Install pypa/build
       run: >-
         python3 -m
