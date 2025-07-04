@@ -427,6 +427,22 @@ class Core:
                 command = f"ffmpeg -nostats -loglevel error -i {vid} -qscale:v 2 -start_number 0 {self.input_folder}/camera_{cam_id}_img_%d.jpg  < /dev/null"
                 subprocess.call(command, shell=True)
 
+    def delete_images(self):
+        """Delete images under self.input_folder.
+
+        Deletes the images with signature {self.input_folder}/camera_{cam_id}_img_{img_id}.jpg for all img_id,
+        Images are deleted only given {self.input_folder}/camera_{cam_id}.mp4 exists.
+
+        Returns:
+        Nothing.
+        """
+        for vid in glob.glob(os.path.join(self.input_folder, "camera_[0-9].mp4")):
+            cam_id = parse_vid_name(os.path.basename(vid))
+            pattern = os.path.join(self.input_folder, f'camera_{cam_id}_img_*.jpg')
+            command = f"rm {pattern}"
+            logger.debug(f"Deleting images for camera {cam_id}.")
+            subprocess.call(command, shell=True)
+
     def check_cameras(self):
         cam_missing = [cam.cam_id for cam in self.camNetAll.cam_list if cam.is_empty()]
         assert not cam_missing, "Some cameras are missing: {}".format(cam_missing)
