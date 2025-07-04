@@ -50,7 +50,7 @@ jobs:
 
     - name: Check version
       run: |
-        TAG_VERSION=${{ github.ref_name }}
+        TAG_VERSION=${GITHUB_REF#refs/tags/v}
         PACKAGE_VERSION=$(grep -Po 'version\s*=\s*["\x27]\K[^"\x27]+' setup.py)
         if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
           echo "Version mismatch! GitHub tag is $TAG_VERSION but package version is $PACKAGE_VERSION."
