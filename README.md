@@ -32,6 +32,7 @@ We previously published our DeepFly3D work on eLife journal. You can read the pu
   - [Calibration](#calibration)
 - [Running GUI](#running-gui)
 - [Development](#development)
+- [Releasing a new version](#releasing-a-new-version)
 - [References](#references)
 - [Version History](#version-history)
     - [Changes in 0.5](#changes-in-05)
@@ -465,6 +466,12 @@ DeepFly3D consists of 3 pip packages:
 
 The master branch of the DeepFly3D package is kept up-to-date with the last version of the pip package. Development is done under dev branch. Before pushing changes to the master branch, make sure all test cases are passing. You can run the tests using `python -m unittest discover`. Unittests make sure several scenarios can be processed using cli without failing.
 
+# Releasing a new version
+
+1. Update the version in `setup.py` (eg. 1.0.1)
+2. Create a tag for the release that matches the new version (eg. v1.0.1)
+3. Push the latest commit and tag - this will trigger a github action to make a new release for DeepFly3D on pypi and github
+4. Edit the github release https://github.com/NeLy-EPFL/DeepFly3D/releases to add information about the latest changes
 
 # References
 You can cite our paper in case you find it useful.
