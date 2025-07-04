@@ -38,21 +38,26 @@ jobs:
     - test
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
       with:
         persist-credentials: false
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.x"
+
     - name: Install pypa/build
       run: >-
         python3 -m
         pip install
         build
         --user
+
     - name: Build a binary wheel and a source tarball
       run: python3 -m build
+
     - name: Store the distribution packages
       uses: actions/upload-artifact@v4
       with:
@@ -66,11 +71,6 @@ jobs:
     needs:
     - build
     runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/p/nely-df3d
-    permissions:
-      id-token: write  # IMPORTANT: mandatory for trusted publishing
 
     steps:
     - name: Download all the dists
@@ -78,7 +78,11 @@ jobs:
       with:
         name: python-package-distributions
         path: dist/
+
     - name: Publish distribution 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+          password: ${{ secrets.DF3D_PYPI_API_TOKEN }}
+
     - name: Make Github release
       uses: softprops/action-gh-release@v2
