@@ -297,7 +297,7 @@ def run(args):
 
     if args.video_2d:
         video.make_pose2d_video(
-            core.plot_2d, core.num_images, core.input_folder, core.output_folder
+            core.plot_2d, core.num_images, core.input_folder, core.output_folder, fps=core.fps
         )
 
     if args.video_3d:
@@ -307,6 +307,7 @@ def run(args):
             core.num_images,
             core.input_folder,
             core.output_folder,
+            fps=core.fps,
         )
 
     if args.delete_images:
