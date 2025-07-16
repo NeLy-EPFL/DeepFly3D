@@ -153,7 +153,7 @@ df3d-cli /your/image/path
 This command assumes your cameras are numbered in the default order:
 
 <p align="center">
-  <img src="https://github.com/NeLy-EPFL/DeepFly3D/blob/main/images/camera_order.png">
+  <img src="https://github.com/NeLy-EPFL/DeepFly3D/blob/master/images/camera_order.png">
 </p>
 
 in which case your data will look like this if cameras 0, 1, 2 are shown left-to-right in the top row and cameras 4, 5, 6 are show left-to-right in the bottom row:
