@@ -330,7 +330,7 @@ class TestDeepFly3D(unittest.TestCase):
         """
         load_videos()
 
-        subprocess.run(shlex.split("df3d-cli tests/data/working --order 0 1 2 3 4 5 6"))
+        subprocess.run(shlex.split("df3d-cli tests/data/working"))
 
         reference_results = get_results_2d()
 
@@ -368,7 +368,7 @@ class TestDeepFly3D(unittest.TestCase):
 
         subprocess.run(
             shlex.split(
-                "df3d-cli tests/data/working --order 0 1 2 3 4 5 6 --delete-images"
+                "df3d-cli tests/data/working --delete-images"
             )
         )
 

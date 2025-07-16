@@ -147,27 +147,24 @@ In case of mp4 files, df3d will first expand them into images using ffmpeg. Plea
 
 The basic usage is like this.
 ```bash
-df3d-cli /your/image/path \
-         --order 0 1 2 3 4 5 6 
+df3d-cli /your/image/path
 ```
 
-camera order stands for the selection of cameras. The default camera ordering (0 1 2 3 4 5 6) stands for this. In case you have some other order, then you need to  tell which order.
-
-
-Originally. 
+This command assumes your cameras are numbered in the default order:
 
 <p align="center">
-  <img src="https://github.com/NeLy-EPFL/DeepFly3D/blob/dev/images/camera_order.png">
+  <img src="https://github.com/NeLy-EPFL/DeepFly3D/blob/main/images/camera_order.png">
 </p>
 
+in which case your data will look like this if cameras 0, 1, 2 are shown left-to-right in the top row and cameras 4, 5, 6 are show left-to-right in the bottom row:
 
-Then if you have the following order, your
 ![image](https://user-images.githubusercontent.com/20509861/150675023-099f3d24-3c99-47bf-a2de-e2aa3665fdc9.png)
 
+If instead your camera order is reversed for instance:
 
-
-So for example, if your data looks like this, then your order should be 6 5 4 3 2 1 0.
 ![image](https://user-images.githubusercontent.com/20509861/150674985-c0035ab5-2b55-4dd0-8ffe-fc364857dae7.png)
+
+then your order is 6 5 4 3 2 1 0, so you'd need to run `df3d-cli /your/image/path --order 6 5 4 3 2 1 0` to get DeepFly3D to work properly.
 
 
 # Advanced Usage
@@ -216,7 +213,7 @@ df3d-cli -f /path/to/text.txt    \  # process each line from the text file
          -r                      \  # recursively search for images folder under each line of the text line
          --order 0 1 2 3 4 5 6   \  # set the camera order
          -n 100                  \  # process only the first 100 images 
-         --output-folder results \  # write results under  /your/image/path/results instead of  /your/image/path/df3d
+         --output-folder results \  # save output into results/ instead of /your/image/path/df3d/
          --vv                    \  # will print agressivelly, for debugging purposes
          --skip-pose-estimation  \  # will not run 2d pose estimation, instead will do calibration, triangulation and will save results
          --video-2d              \  # will make 2d video for each folder 
@@ -226,7 +223,7 @@ df3d-cli -f /path/to/text.txt    \  # process each line from the text file
 To test df3d-cli, you run it on a folder for only 100 images, make videos, and print agressivelly for debugging:
 
 ```bash 
-df3d-cli /path/to/images/ -n 100 -vv --order 0 1 2 3 4 5 6
+df3d-cli /path/to/images/ -n 100 -vv
 ```
 
 # Python Interface
@@ -240,7 +237,7 @@ core = Core(input_folder='../sample/test/', num_images_max=100, output_subfolder
 core.pose2d_estimation()
 core.calibrate_calc(min_img_id=0, max_img_id=100)
 
-# save df3d_resultt  file under '../sample/test/df3d_py' 
+# save df3d_result file under '../sample/test/df3d_py' 
 core.save()
 
 # make videos
