@@ -22,6 +22,7 @@ TEST_DATA_LOCATION_RESULT_FILE_2D = f"{TEST_DATA_LOCATION_RESULT}/df3d_result_2d
 TEST_DATA_LOCATION_RESULT_FILE_3D = f"{TEST_DATA_LOCATION_RESULT}/df3d_result_3d.pkl"
 TEST_DATA_LOCATION_REFERENCE_VIDEO_2D = f"{TEST_DATA_LOCATION_RESULT}/video_pose2d.mp4"
 TEST_DATA_LOCATION_REFERENCE_VIDEO_3D = f"{TEST_DATA_LOCATION_RESULT}/video_pose3d.mp4"
+TEST_DATA_VIDEO_FRAMERATE = 5
 TEST_DATA_LOCATION_WORKING = f"{TEST_DATA_LOCATION}/working"
 TEST_DATA_LOCATION_WORKING_RESULT = f"{TEST_DATA_LOCATION_WORKING}_df3d"
 
@@ -254,7 +255,8 @@ class TestDeepFly3D(unittest.TestCase):
         )
 
         df3d.video.make_pose2d_video(
-            core.plot_2d, core.num_images, core.input_folder, core.output_folder
+            core.plot_2d, core.num_images, core.input_folder,
+            core.output_folder, fps=TEST_DATA_VIDEO_FRAMERATE
         )
 
         video_name = "video_pose2d_" + core.input_folder.replace("/", "_") + ".mp4"
@@ -298,6 +300,7 @@ class TestDeepFly3D(unittest.TestCase):
             core.num_images,
             core.input_folder,
             core.output_folder,
+            fps=TEST_DATA_VIDEO_FRAMERATE,
         )
 
         video_name = "video_pose3d_" + core.input_folder.replace("/", "_") + ".mp4"
