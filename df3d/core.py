@@ -419,14 +419,29 @@ class Core:
             cmd = ["ffprobe", "-v", "error", "-select_streams", "v:0",
                    "-show_entries", "stream=avg_frame_rate", "-of",
                    "default=noprint_wrappers=1:nokey=1", vid]
-            rates.append(subprocess.check_output(cmd, text=True))
+            try:
+                rates.append(subprocess.check_output(cmd, text=True))
+            except:
+                logger.warning(f"Command failed: {' '.join(cmd)}")
+                break
         if len(rates) == 0:
             return None
         if any(rate != rates[0] for rate in rates):
-            return None
-        # All videos returned the same rate, so we return that
-        numerator, denominator = map(int, rates[0].split('/'))
-        return numerator / denominator if denominator != 0 else None
+            logger.warning("Framerates of input videos differ from one another,"
+                           f" using the first one: {rates}")
+        rate = rates[0]
+        try:
+            return float(rate)
+        except ValueError:
+            pass
+        try:
+            numerator, denominator = map(int, rate.split('/'))
+            return numerator / denominator if denominator != 0 else None
+        except ValueError:
+            pass
+        logger.warning(f'Could not parse framerate from string "{rate}" returned'
+                       ' by ffprobe command, so setting fps to None.')
+        return None
 
     def expand_videos(self):
         """expands video camera_x.mp4 into set of images camera_x_img_y.jpg"""
