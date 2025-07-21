@@ -148,6 +148,13 @@ def parse_cli_args():
         help="Whether to disable `pin_memory` in the dataloader. Keeping this enabled usually speeds up the processing, but sometimes leads to memory leaks. See https://github.com/NeLy-EPFL/DeepFly2D/issues/6",
         action="store_true",
     )
+    parser.add_argument(
+        "--output-fps",
+        help="FPS for output videos. If not specified, uses the FPS from the input "
+             "videos. If specified, overrides the input video FPS.",
+        type=float,
+        default=None,
+    )
     args = parser.parse_args()
     args.input_folder = Path(args.input_folder).expanduser().resolve()
     if args.output_folder is None:
@@ -295,9 +302,12 @@ def run(args):
         core.calibrate_calc(0, core.max_img_id)
         core.save()
 
+    # Use output_fps if specified, otherwise use core.fps which comes from the input videos
+    fps = args.output_fps if args.output_fps is not None else core.fps
+
     if args.video_2d:
         video.make_pose2d_video(
-            core.plot_2d, core.num_images, core.input_folder, core.output_folder
+            core.plot_2d, core.num_images, core.input_folder, core.output_folder, fps=fps
         )
 
     if args.video_3d:
@@ -307,6 +317,7 @@ def run(args):
             core.num_images,
             core.input_folder,
             core.output_folder,
+            fps=fps,
         )
 
     if args.delete_images:

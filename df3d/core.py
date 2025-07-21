@@ -76,6 +76,7 @@ class Core:
             self.output_folder = output_folder
 
         self.expand_videos()  # turn .mp4 into .jpg
+        self.fps = self.get_fps()
         self.num_images_max = num_images_max if num_images_max is not None else 0
         self.max_img_id = get_max_img_id(self.input_folder)
         if self.num_images_max > 0:
@@ -411,6 +412,36 @@ class Core:
 
         # self.cidread2cid, self.cid2cidread = read_camera_order(self.output_folder)
         return np.array(camera_ordering)
+
+    def get_fps(self):
+        rates = []
+        for vid in glob.glob(os.path.join(self.input_folder, "camera_?.mp4")):
+            cmd = ["ffprobe", "-v", "error", "-select_streams", "v:0",
+                   "-show_entries", "stream=avg_frame_rate", "-of",
+                   "default=noprint_wrappers=1:nokey=1", vid]
+            try:
+                rates.append(subprocess.check_output(cmd, text=True))
+            except:
+                logger.warning(f"Command failed: {' '.join(cmd)}")
+                break
+        if len(rates) == 0:
+            return None
+        if any(rate != rates[0] for rate in rates):
+            logger.warning("Framerates of input videos differ from one another,"
+                           f" using the first one: {rates}")
+        rate = rates[0]
+        try:
+            return float(rate)
+        except ValueError:
+            pass
+        try:
+            numerator, denominator = map(int, rate.split('/'))
+            return numerator / denominator if denominator != 0 else None
+        except ValueError:
+            pass
+        logger.warning(f'Could not parse framerate from string "{rate}" returned'
+                       ' by ffprobe command, so setting fps to None.')
+        return None
 
     def expand_videos(self):
         """expands video camera_x.mp4 into set of images camera_x_img_y.jpg"""

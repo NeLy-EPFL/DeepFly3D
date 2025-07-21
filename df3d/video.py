@@ -15,9 +15,11 @@ img3d_dpi = 100  # this is the dpi for one image on the 3d video's grid
 img3d_aspect = (2, 2)  # this is the aspect ration for one image on the 3d video's grid
 img2d_aspect = (2, 1)  # this is the aspect ration for one image on the 3d video's grid
 video_width = 5000  # total width of the 2d and 3d videos
+default_fps = 30
 
 
-def make_pose2d_video(plot_2d, num_images, input_folder, output_folder):
+def make_pose2d_video(plot_2d, num_images, input_folder,
+                      output_folder, fps=default_fps):
     """Creates pose2d estimation videos and writes it to output_folder.
 
     Parameters:
@@ -43,10 +45,11 @@ def make_pose2d_video(plot_2d, num_images, input_folder, output_folder):
 
     video_name = 'video_pose2d_' + input_folder.replace('/', '_') + '.mp4'
     video_path = os.path.join(input_folder, output_folder, video_name)
-    _make_video(video_path, generator)
+    _make_video(video_path, generator, fps=fps)
 
 
-def make_pose3d_video(points3d, plot_2d, num_images, input_folder, output_folder):
+def make_pose3d_video(points3d, plot_2d, num_images, input_folder,
+                      output_folder, fps=default_fps):
     """Creates pose3d estimation videos and writes it to output_folder.
 
     Parameters:
@@ -72,16 +75,18 @@ def make_pose3d_video(points3d, plot_2d, num_images, input_folder, output_folder
     generator = imgs_generator()
     video_name = 'video_pose3d_' + input_folder.replace('/', '_') + '.mp4'
     video_path = os.path.join(input_folder, output_folder, video_name)
-    _make_video(video_path, generator)
+    _make_video(video_path, generator, fps=fps)
 
 
-def _make_video(video_path, imgs):
+def _make_video(video_path, imgs, fps=default_fps):
     """Code used to generate a video using cv2.
 
     Parameters:
     video_path: a path ending with .mp4, for instance: "/results/pose2d.mp4"
     imgs: an iterable or generator with the images to turn into a video
     """
+    if fps is None:
+        fps = default_fps
 
     first_frame = next(imgs)
     imgs = itertools.chain([first_frame], imgs)
@@ -89,7 +94,6 @@ def _make_video(video_path, imgs):
     shape = int(first_frame.shape[1]), int(first_frame.shape[0])
     logger.debug('Saving video to: ' + video_path)
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    fps = 30
     output_shape = _resize(current_shape=shape, new_width=video_width)
     logger.debug('Video size is: {}'.format(output_shape))
     video_writer = cv2.VideoWriter(video_path, fourcc, fps, output_shape)

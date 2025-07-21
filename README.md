@@ -141,7 +141,7 @@ or
 |   +-- camera_6.mp4
 ```
 
-In case of mp4 files, df3d will first expand them into images using ffmpeg. Please check the sample data for a real exampe: https://github.com/NeLy-EPFL/DeepFly3D/tree/master/sample/test
+In case of mp4 files, df3d will first expand them into images using ffmpeg. Please check the sample data for a real example: https://github.com/NeLy-EPFL/DeepFly3D/tree/master/sample/test
 
 # Basic Usage
 
@@ -153,7 +153,7 @@ df3d-cli /your/image/path
 This command assumes your cameras are numbered in the default order:
 
 <p align="center">
-  <img src="https://github.com/NeLy-EPFL/DeepFly3D/blob/master/images/camera_order.png">
+  <img src="./images/camera_order.png">
 </p>
 
 in which case your data will look like this if cameras 0, 1, 2 are shown left-to-right in the top row and cameras 4, 5, 6 are show left-to-right in the bottom row:
@@ -172,8 +172,9 @@ then your order is 6 5 4 3 2 1 0, so you'd need to run `df3d-cli /your/image/pat
 ```
 usage: df3d-cli [-h] [-v] [-vv] [-d] [--output-folder OUTPUT_FOLDER] [-r] [-f]
                 [-o] [-n NUM_IMAGES_MAX]
-                [--order [CAMERA_IDS [CAMERA_IDS ...]]] [--video-2d]
-                [--video-3d] [--skip-pose-estimation]
+                [--order [CAMERA_IDS [CAMERA_IDS ...]]] [--skip-pose-estimation]
+                [--video-2d] [--video-3d] [--output-fps OUTPUT_FPS]
+                [--batch-size BATCH_SIZE] [--pin-memory-disabled]
                 INPUT
 
 DeepFly3D pose estimation
@@ -197,13 +198,24 @@ optional arguments:
                         results
   -n NUM_IMAGES_MAX, --num-images-max NUM_IMAGES_MAX
                         Maximal number of images to process.
-  --order [CAMERA_IDS [CAMERA_IDS ...]], --camera-ids [CAMERA_IDS [CAMERA_IDS ...]]
+  --order [CAMERA_IDS [CAMERA_IDS ...]]
                         Ordering of the cameras provided as an ordered list of
                         ids. Example: 0 1 4 3 2 5 6.
+  --skip-pose-estimation
+                        Skip 2D and 3D pose estimation. Use in combination with --video-2d
+                        or --video-3d to generate videos without rerunning pose estimation.
   --video-2d            Generate pose2d videos
   --video-3d            Generate pose3d videos
-  --skip-pose-estimation
-                        Skip 2D and 3D pose estimation
+  --output-fps OUTPUT_FPS
+                        FPS for output videos. If not specified, uses the FPS from
+                        the input videos.
+  --batch-size BATCH_SIZE
+                        Batch size for inference - how many images are processed
+                        through the model at once
+  --pin-memory-disabled
+                        Whether to disable `pin_memory` in the dataloader.
+                        Keeping pin memory enabled usually speeds up processing,
+                        but sometimes leads to memory leaks.
 ```
 
 Therefore, you can create advanced queries in df3d-cli, for example:
@@ -218,6 +230,7 @@ df3d-cli -f /path/to/text.txt    \  # process each line from the text file
          --skip-pose-estimation  \  # will not run 2d pose estimation, instead will do calibration, triangulation and will save results
          --video-2d              \  # will make 2d video for each folder 
          --video-3d              \  # will make 3d video for each folder
+         --output-fps 15.0       \  # set output video FPS to 15 (instead of using the input video FPS)
 ```
 
 To test df3d-cli, you run it on a folder for only 100 images, make videos, and print agressivelly for debugging:
@@ -298,6 +311,8 @@ Using the flag --video-2d with df3d-cli will create the following video:
 
 Using the flag --video-3d with df3d-cli will create the following video:
 ![Alt text](./images/out3d.gif?raw=true "Title")
+
+When generating videos with `--video-2d` or `--video-3d`, you can control the output video frame rate using the `--output-fps` flag. If not specified, the output video framerate will be set to equal the input videos' framerate.
 
 # Output
 
