@@ -96,7 +96,7 @@ class Core:
                                  f" config.py image shape {self.image_shape}")
             self.image_shape = config["image_shape"] = image0_shape
         if not hasattr(self, "image_shape"):
-            raise ValueError("Image shape not specified in config and could"
+            raise ValueError("Image shape not specified in df3d.config and could"
                              f" not be read from {image0_path}")
 
         self.db = PoseDB(self.output_folder)

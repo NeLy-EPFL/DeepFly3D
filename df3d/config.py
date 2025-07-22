@@ -15,7 +15,6 @@ default = {
 config_fly = {
     "name": "fly",
     "num_cameras": 7,
-    "image_shape": [960, 480],
     "heatmap_shape": [64, 128],
     "left_cameras": [0, 1, 2],
     "right_cameras": [6, 5, 4],
