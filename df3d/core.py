@@ -295,7 +295,8 @@ class Core:
             private_cache[cam_id] = smooth_pose2d(cam.points2d)
         return private_cache[cam_id]
 
-    def plot_2d(self, cam_id, img_id, with_corrections=False, smooth=False, joints=[]):
+    def plot_2d(self, cam_id, img_id, with_corrections=False,
+                smooth=False, joints=[], reprojection=False):
         """Plots the 2d pose estimation results.
 
         Parameters:
@@ -311,11 +312,15 @@ class Core:
         from pyba.config import df3d_bones, df3d_colors
 
         if with_corrections:
-            pts2d = self.corrected_points2d(cam_id, img_id)
+            pts = self.corrected_points2d(cam_id, img_id)
         else:
-            pts2d = None
+            pts = None
+
+        if reprojection:
+            pts = np.copy(self.camNet.points3d)
+
         return self.camNet[cam_id].plot_2d(
-            img_id, points2d=pts2d, bones=df3d_bones, colors=df3d_colors
+            img_id, points=pts, bones=df3d_bones, colors=df3d_colors
         )
 
     def get_image(self, cam_id, img_id):
