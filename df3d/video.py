@@ -110,17 +110,17 @@ def _make_video(video_path, imgs, fps=default_fps):
 
 def _resize(current_shape, new_width):
     width, height = current_shape
-    ratio = new_width / width;
+    ratio = new_width / width
     return (int(width * ratio), int(height * ratio))
 
 
-def _compute_2d_img(plot_2d, img_id, cam_id):
+def _compute_2d_img(plot_2d, img_id, cam_id, reprojection=True):
     """Uses plot_2d to generate an image and resizes it using cv2.
 
     Returns:
     A numpy array containing the resized image.
     """
-    img = plot_2d(cam_id, img_id, smooth=True)
+    img = plot_2d(cam_id, img_id, smooth=True, reprojection=reprojection)
     img = cv2.resize(img, (img2d_aspect[0]*img3d_dpi, img2d_aspect[1]*img3d_dpi))
     return img
 
