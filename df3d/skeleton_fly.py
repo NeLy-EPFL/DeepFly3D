@@ -94,6 +94,19 @@ limb_id = [
     9,
 ]
 
+limb_names = [
+    "RF_leg",
+    "RM_leg",
+    "RH_leg",
+    "R_antenna",
+    "stripe",
+    "LF_leg",
+    "LM_leg",
+    "LH_leg",
+    "L_antenna",
+    "stripe",
+]
+
 __limb_visible_left = [
     True,
     True,
@@ -220,6 +233,8 @@ def is_limb_visible_mid(limb_id):
 
 
 def camera_see_limb(camera_id, limb_id):
+    if isinstance(limb_id, str):
+        limb_id = limb_names.index(limb_id)
     if camera_id < 3:
         return is_limb_visible_left(limb_id)
     elif camera_id == 3:
