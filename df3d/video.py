@@ -19,7 +19,7 @@ default_fps = 30
 
 
 def make_pose2d_video(plot_2d, num_images, input_folder,
-                      output_folder, fps=default_fps):
+                      output_folder, fps=default_fps, start_image_idx=0):
     """Creates pose2d estimation videos and writes it to output_folder.
 
     Parameters:
@@ -27,6 +27,7 @@ def make_pose2d_video(plot_2d, num_images, input_folder,
     num_images: the number of images to use for the video
     input_folder: input folder containing the images
     output_folder: output folder where to write the video.
+    start_image_idx: the index of the first image to include in the video (default: 0)
     """
     # Here we create a generator (keyword "yield")
     def imgs_generator():
@@ -36,7 +37,7 @@ def make_pose2d_video(plot_2d, num_images, input_folder,
             row2 = np.hstack([plot(cam_id, img_id) for cam_id in [4, 5, 6]])
             return np.vstack([row1, row2])
 
-        for img_id in range(num_images):
+        for img_id in range(start_image_idx, start_image_idx + num_images):
             yield stack(img_id)
 
     # We can call next(generator) on this instance to get the images,
@@ -49,7 +50,7 @@ def make_pose2d_video(plot_2d, num_images, input_folder,
 
 
 def make_pose3d_video(points3d, plot_2d, num_images, input_folder,
-                      output_folder, fps=default_fps):
+                      output_folder, fps=default_fps, start_image_idx=0):
     """Creates pose3d estimation videos and writes it to output_folder.
 
     Parameters:
@@ -58,6 +59,7 @@ def make_pose3d_video(points3d, plot_2d, num_images, input_folder,
     num_images: the number of images to use for the video
     input_folder: input folder containing the images
     output_folder: output folder where to write the video.
+    start_image_idx: the index of the first image to include in the video (default: 0)
     """
 
     def imgs_generator():
@@ -68,7 +70,7 @@ def make_pose3d_video(points3d, plot_2d, num_images, input_folder,
             img = np.vstack([row1, row2, row3])
             return img
 
-        for img_id in range(num_images):
+        for img_id in range(start_image_idx, start_image_idx + num_images):
             yield stack(img_id)
 
     # We can call next(generator) on this instance to get the images, just like for an iterator
