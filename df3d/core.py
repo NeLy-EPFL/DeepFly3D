@@ -363,6 +363,7 @@ class Core:
 
         dict_merge["camera_ordering"] = self.camera_ordering
         dict_merge["heatmap_confidence"] = self.conf
+        dict_merge["image_shape"] = self.image_shape
 
         with open(self.save_path, "wb") as f:
             pickle.dump(dict_merge, f)
