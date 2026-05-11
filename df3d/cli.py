@@ -107,7 +107,7 @@ def parse_cli_args():
     parser.add_argument(
         "-x",
         "--delete-images",
-        help="Delete image files *after running df3d-cli*. Only deletes if there is corresponding .mp4 file is already in the folder. Especially useful if you are expanding .mp4's for processing.",
+        help="Delete image files *after running df3d-cli*. Only deletes if a corresponding .mp4 or .avi file is already in the folder. Especially useful if you are expanding .mp4's/.avi's for processing.",
         action="store_true",
     )
     parser.add_argument(

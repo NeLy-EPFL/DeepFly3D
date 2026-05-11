@@ -76,7 +76,7 @@ class Core:
         else:
             self.output_folder = output_folder
 
-        self.expand_videos()  # turn .mp4 into .jpg
+        self.expand_videos()  # turn .mp4/.avi into .jpg
         self.fps = self.get_fps()
         self.num_images_max = num_images_max if num_images_max is not None else 0
         self.max_img_id = get_max_img_id(self.input_folder)
@@ -423,7 +423,8 @@ class Core:
 
     def get_fps(self):
         rates = []
-        for vid in glob.glob(os.path.join(self.input_folder, "camera_?.mp4")):
+        for vid in (glob.glob(os.path.join(self.input_folder, "camera_?.mp4"))
+                    + glob.glob(os.path.join(self.input_folder, "camera_?.avi"))):
             cmd = ["ffprobe", "-v", "error", "-select_streams", "v:0",
                    "-show_entries", "stream=avg_frame_rate", "-of",
                    "default=noprint_wrappers=1:nokey=1", vid]
@@ -452,8 +453,9 @@ class Core:
         return None
 
     def expand_videos(self):
-        """expands video camera_x.mp4 into set of images camera_x_img_y.jpg"""
-        for vid in glob.glob(os.path.join(self.input_folder, "camera_?.mp4")):
+        """expands video camera_x.mp4 or camera_x.avi into set of images camera_x_img_y.jpg"""
+        for vid in (glob.glob(os.path.join(self.input_folder, "camera_?.mp4"))
+                    + glob.glob(os.path.join(self.input_folder, "camera_?.avi"))):
             cam_id = parse_vid_name(os.path.basename(vid))
             if not (
                 os.path.exists(
@@ -470,12 +472,13 @@ class Core:
         """Delete images under self.input_folder.
 
         Deletes the images with signature {self.input_folder}/camera_{cam_id}_img_{img_id}.jpg for all img_id,
-        Images are deleted only given {self.input_folder}/camera_{cam_id}.mp4 exists.
+        Images are deleted only given {self.input_folder}/camera_{cam_id}.mp4 or .avi exists.
 
         Returns:
         Nothing.
         """
-        for vid in glob.glob(os.path.join(self.input_folder, "camera_[0-9].mp4")):
+        for vid in (glob.glob(os.path.join(self.input_folder, "camera_[0-9].mp4"))
+                    + glob.glob(os.path.join(self.input_folder, "camera_[0-9].avi"))):
             cam_id = parse_vid_name(os.path.basename(vid))
             pattern = os.path.join(self.input_folder, f'camera_{cam_id}_img_*.jpg')
             command = f"rm {pattern}"

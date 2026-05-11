@@ -55,5 +55,5 @@ def parse_img_name(name):
 
 
 def parse_vid_name(name):
-    match = re.match("camera_(\d+)", name.replace(".mp4", ""))
+    match = re.match("camera_(\d+)", name.replace(".mp4", "").replace(".avi", ""))
     return int(match[1])
