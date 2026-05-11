@@ -113,9 +113,12 @@ def parse_cli_args():
     parser.add_argument(
         "-n",
         "--num-images-max",
-        help="Maximal number of images to process. If 0 or not defined, process all images.",
-        default=0,
+        help="Specify the range of frames to process. Provide a single value N to process"
+             " up to N frames starting from frame 0. Provide two values START END to process"
+             " frames from START to END inclusive. If not provided, all frames are processed.",
+        default=[0],
         type=int,
+        nargs="+",
     )
     parser.add_argument(
         "--order",
@@ -163,6 +166,22 @@ def parse_cli_args():
         args.output_folder = Path(args.output_folder).expanduser().resolve()
     args.input_folder = str(args.input_folder)
     args.output_folder = str(args.output_folder)
+
+    n_args = args.num_images_max
+    if len(n_args) == 1:
+        args.start_image_idx = 0
+        args.num_images_max = n_args[0]
+    elif len(n_args) == 2:
+        start, end = n_args[0], n_args[1]
+        if start < 0 or end < start:
+            parser.error(
+                f"-n START END requires START >= 0 and END >= START, got {start} {end}"
+            )
+        args.start_image_idx = start
+        args.num_images_max = end - start + 1
+    else:
+        parser.error("-n accepts at most 2 values: -n N or -n START END")
+
     return args
 
 
@@ -290,7 +309,8 @@ def run(args):
     logger.info(f"{Style.BRIGHT}\nWorking in {args.input_folder}{Style.RESET_ALL}")
 
     core = Core(
-        args.input_folder, args.output_folder, args.num_images_max, args.order
+        args.input_folder, args.output_folder, args.num_images_max, args.order,
+        args.start_image_idx
     )
 
     if not args.skip_estimation:
@@ -307,7 +327,8 @@ def run(args):
 
     if args.video_2d:
         video.make_pose2d_video(
-            core.plot_2d, core.num_images, core.input_folder, core.output_folder, fps=fps
+            core.plot_2d, core.num_images, core.input_folder, core.output_folder,
+            fps=fps, start_image_idx=core.start_image_idx
         )
 
     if args.video_3d:
@@ -318,6 +339,7 @@ def run(args):
             core.input_folder,
             core.output_folder,
             fps=fps,
+            start_image_idx=core.start_image_idx,
         )
 
     if args.delete_images:

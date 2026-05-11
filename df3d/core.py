@@ -68,6 +68,7 @@ class Core:
         output_folder: Optional[str] = None,
         num_images_max: Optional[int] = None,
         camera_ordering: List[int] = [0, 1, 2, 3, 4, 5, 6],
+        start_image_idx: int = 0,
     ):
         self.input_folder = input_folder
         if output_folder is None:
@@ -79,11 +80,12 @@ class Core:
         self.fps = self.get_fps()
         self.num_images_max = num_images_max if num_images_max is not None else 0
         self.max_img_id = get_max_img_id(self.input_folder)
+        self.start_image_idx = start_image_idx
         if self.num_images_max > 0:
-            self.num_images = min(self.num_images_max, self.max_img_id + 1)
-            self.max_img_id = self.num_images - 1
+            self.num_images = min(self.num_images_max, self.max_img_id + 1 - self.start_image_idx)
+            self.max_img_id = self.start_image_idx + self.num_images - 1
         else:
-            self.num_images = self.max_img_id + 1
+            self.num_images = self.max_img_id + 1 - self.start_image_idx
         image_path = os.path.join(self.input_folder, "camera_{cam_id}_img_{img_id}.jpg")
         image0_path = image_path.format(cam_id=0, img_id=0)
         if "image_shape" in config:
@@ -396,7 +398,7 @@ class Core:
         manual_corrections = self.db.manual_corrections()
         pts2d = self.camNet.points2d
         for cam_id in range(config["num_cameras"]):
-            for img_id in range(self.num_images):
+            for img_id in range(self.start_image_idx, self.start_image_idx + self.num_images):
                 if img_id in manual_corrections.get(cam_id, {}):
                     pts2d[cam_id, img_id, :] = manual_corrections[cam_id][img_id]
         return pts2d

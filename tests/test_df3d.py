@@ -6,6 +6,7 @@ import random
 import shlex
 import shutil
 import subprocess
+import sys
 import unittest
 
 import cv2
@@ -14,6 +15,7 @@ import torch
 
 import df3d.core
 import df3d.video
+from df3d.cli import parse_cli_args
 
 TEST_DATA_LOCATION = str(pathlib.Path(__file__).parent / "data")
 TEST_DATA_LOCATION_REFERENCE = f"{TEST_DATA_LOCATION}/reference"
@@ -383,6 +385,74 @@ class TestDeepFly3D(unittest.TestCase):
             len(glob.glob(os.path.join(TEST_DATA_LOCATION_WORKING, "camera_*.mp4")))
             == 7
         ), "videos were accidentally deleted after running"
+
+
+    def test_start_image_idx_core(self):
+        """Test that Core correctly handles start_image_idx for frame range selection"""
+        load_images()
+
+        # Total frames in test data is 15 (frames 0-14)
+        core = df3d.core.Core(
+            input_folder=TEST_DATA_LOCATION_WORKING,
+            output_folder=TEST_DATA_LOCATION_WORKING_RESULT,
+            num_images_max=0,
+            camera_ordering=[0, 1, 2, 3, 4, 5, 6],
+            start_image_idx=5,
+        )
+
+        self.assertEqual(core.start_image_idx, 5, "Core didn't store start_image_idx correctly")
+        self.assertEqual(core.num_images, 10, "Core didn't compute num_images correctly with start_image_idx")
+        self.assertEqual(core.max_img_id, 14, "Core didn't compute max_img_id correctly with start_image_idx")
+
+    def test_start_image_idx_with_num_images_max(self):
+        """Test that Core correctly handles both start_image_idx and num_images_max"""
+        load_images()
+
+        # Using start=5, num_images_max=4 (process 4 frames starting at frame 5: frames 5, 6, 7, 8)
+        core = df3d.core.Core(
+            input_folder=TEST_DATA_LOCATION_WORKING,
+            output_folder=TEST_DATA_LOCATION_WORKING_RESULT,
+            num_images_max=4,
+            camera_ordering=[0, 1, 2, 3, 4, 5, 6],
+            start_image_idx=5,
+        )
+
+        self.assertEqual(core.start_image_idx, 5, "Core didn't store start_image_idx correctly")
+        self.assertEqual(core.num_images, 4, "Core didn't compute num_images correctly")
+        self.assertEqual(core.max_img_id, 8, "Core didn't compute max_img_id correctly")
+
+    def test_cli_n_single_value(self):
+        """Test that -n N parses as processing the first N frames"""
+        old_argv = sys.argv
+        try:
+            sys.argv = ["df3d-cli", TEST_DATA_LOCATION_WORKING, "-n", "5"]
+            args = parse_cli_args()
+            self.assertEqual(args.start_image_idx, 0, "-n N should set start_image_idx to 0")
+            self.assertEqual(args.num_images_max, 5, "-n N should set num_images_max to N")
+        finally:
+            sys.argv = old_argv
+
+    def test_cli_n_two_values(self):
+        """Test that -n START END parses as processing frames START to END inclusive"""
+        old_argv = sys.argv
+        try:
+            sys.argv = ["df3d-cli", TEST_DATA_LOCATION_WORKING, "-n", "5", "10"]
+            args = parse_cli_args()
+            self.assertEqual(args.start_image_idx, 5, "-n START END should set start_image_idx to START")
+            self.assertEqual(args.num_images_max, 6, "-n START END should set num_images_max to END - START + 1")
+        finally:
+            sys.argv = old_argv
+
+    def test_cli_n_no_value(self):
+        """Test that omitting -n processes all frames"""
+        old_argv = sys.argv
+        try:
+            sys.argv = ["df3d-cli", TEST_DATA_LOCATION_WORKING]
+            args = parse_cli_args()
+            self.assertEqual(args.start_image_idx, 0, "Omitting -n should set start_image_idx to 0")
+            self.assertEqual(args.num_images_max, 0, "Omitting -n should set num_images_max to 0 (process all)")
+        finally:
+            sys.argv = old_argv
 
 
 if __name__ == "__main__":
