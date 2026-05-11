@@ -311,17 +311,17 @@ class Core:
         """
         from pyba.config import df3d_bones, df3d_colors
 
-        if with_corrections:
-            pts = self.corrected_points2d(cam_id, img_id)
-        else:
-            pts = None
+        if with_corrections and reprojection:
+            raise ValueError("'with_corrections' and 'reprojection' "
+                             "cannot both be set to True")
 
+        cam = self.camNet[cam_id]
         if reprojection:
-            pts = np.copy(self.camNet.points3d)
-
-        return self.camNet[cam_id].plot_2d(
-            img_id, points=pts, bones=df3d_bones, colors=df3d_colors
-        )
+            return cam.plot_reprojections(img_id, self.camNet.points3d,
+                                          bones=df3d_bones, colors=df3d_colors)
+        pts2d = self.corrected_points2d(cam_id, img_id) if with_corrections else None
+        return cam.plot_2d(img_id, points2d=pts2d,
+                           bones=df3d_bones, colors=df3d_colors)
 
     def get_image(self, cam_id, img_id):
         """Returns the img_id image from cam_id camera."""
