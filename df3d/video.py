@@ -9,6 +9,7 @@ import packaging.version
 from tqdm import tqdm
 
 from df3d.config import config
+from df3d.os_util import pick_image_path
 from df3d.plot_util import plot_drosophila_3d
 import df3d.logger as logger
 
@@ -43,7 +44,10 @@ def make_pose2d_video(plot_2d, num_images, input_folder,
 
     video_name = 'video_pose2d_' + input_folder.replace('/', '_') + '.mp4'
     video_path = os.path.join(input_folder, output_folder, video_name)
-    _make_video(video_path, generator, fps=fps)
+    source_extension = pick_image_path(input_folder).rsplit('.', 1)[-1].lower()
+    _make_video(video_path, generator, fps=fps,
+                desc=f'Rendering 2D pose video from {source_extension}',
+                total=num_images)
 
 
 def make_pose3d_video(points3d, plot_2d, num_images, input_folder,
@@ -90,10 +94,13 @@ def make_pose3d_video(points3d, plot_2d, num_images, input_folder,
     generator = imgs_generator()
     video_name = 'video_pose3d_' + input_folder.replace('/', '_') + '.mp4'
     video_path = os.path.join(input_folder, output_folder, video_name)
-    _make_video(video_path, generator, fps=fps)
+    source_extension = pick_image_path(input_folder).rsplit('.', 1)[-1].lower()
+    _make_video(video_path, generator, fps=fps,
+                desc=f'Rendering 3D pose video from {source_extension}',
+                total=num_images)
 
 
-def _make_video(video_path, imgs, fps=default_fps):
+def _make_video(video_path, imgs, fps=default_fps, desc=None, total=None):
     """
     Write `imgs` (an iterable of equal-shape frames already sized to
     `video_width`) to an mp4 at `video_path`. Each frame must be
@@ -114,8 +121,9 @@ def _make_video(video_path, imgs, fps=default_fps):
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     video_writer = cv2.VideoWriter(video_path, fourcc, fps, (width, height))
 
-    progress_bar = tqdm if logger.info_enabled() else lambda x: x
-    for img in progress_bar(imgs):
+    if logger.info_enabled():
+        imgs = tqdm(imgs, desc=desc, total=total)
+    for img in imgs:
         rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         video_writer.write(rgb)
 

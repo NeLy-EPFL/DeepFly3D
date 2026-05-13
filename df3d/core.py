@@ -8,6 +8,7 @@ from typing import *
 
 import matplotlib.pyplot as plt
 import numpy as np
+import cv2
 from df2d.inference import inference_folder
 from pyba.CameraNetwork import CameraNetwork
 from sklearn.neighbors import NearestNeighbors
@@ -15,7 +16,7 @@ from sklearn.neighbors import NearestNeighbors
 from df3d import logger
 from df3d.config import config
 from df3d.db import PoseDB
-from df3d.os_util import get_max_img_id, parse_vid_name
+from df3d.os_util import get_max_img_id, parse_vid_name, pick_image_path
 from df3d.plot_util import normalize_pose_3d
 from df3d.procrustes import procrustes_seperate
 from df3d.body_align import align_to_body_axes
@@ -90,12 +91,22 @@ class Core:
             self.max_img_id = self.start_image_idx + self.num_images - 1
         else:
             self.num_images = self.max_img_id + 1 - self.start_image_idx
-        image_path = os.path.join(self.input_folder, "camera_{cam_id}_img_{img_id}.jpg")
-        image0_path = image_path.format(cam_id=0, img_id=0)
+        image_path = pick_image_path(self.input_folder)
+        if "{img_id}" in image_path:
+            image0_path = image_path.format(cam_id=0, img_id=0)
+        else:
+            image0_path = image_path.format(cam_id=0)
         if "image_shape" in config:
             self.image_shape = config["image_shape"]
         if os.path.exists(image0_path):
-            image0 = plt.imread(image0_path)
+            if image0_path.lower().endswith(('.mp4', '.avi')):
+                cap = cv2.VideoCapture(image0_path)
+                ok, image0 = cap.read()
+                cap.release()
+                if not ok:
+                    raise ValueError(f"Could not read first frame from {image0_path}")
+            else:
+                image0 = plt.imread(image0_path)
             image0_shape = list(image0.shape[:2][::-1])
             if "image_shape" in config and image0_shape != self.image_shape:
                 raise ValueError(f"Actual image shape {image0_shape} does not match"
@@ -314,7 +325,7 @@ class Core:
             cidx: calib[idx] for (idx, cidx) in enumerate(self.camera_ordering)
         }
 
-        image_path = os.path.join(self.input_folder, "camera_{cam_id}_img_{img_id}.jpg")
+        image_path = pick_image_path(self.input_folder)
 
         self.camNet = CameraNetwork(
             self.points2d * self.image_shape[::-1], calib=calib_reordered, image_path=image_path
