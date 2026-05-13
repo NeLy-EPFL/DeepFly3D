@@ -216,9 +216,12 @@ class Core:
         points2d_cp[self.camera_ordering[:3], :, :19] = self.points2d[self.camera_ordering[:3]]
         points2d_cp[self.camera_ordering[4:], :, 19:] = self.points2d[self.camera_ordering[4:]]
 
-        # cameras 0 and 6 cannot see the stripes and antenna
-        points2d_cp[self.camera_ordering[2], :, 15:] = 0
-        points2d_cp[self.camera_ordering[4], :, 19+15:] = 0
+        # antennae not visible from hind corner cameras
+        points2d_cp[self.camera_ordering[0], :, 15] = 0
+        points2d_cp[self.camera_ordering[6], :, 19+15] = 0
+        # stripes not visible from front corner cameras
+        points2d_cp[self.camera_ordering[2], :, 16:19] = 0
+        points2d_cp[self.camera_ordering[4], :, 19+16:19+19] = 0
 
         # flip lr back left-hand-side cameras
         for cidx in [4,5,6]:
