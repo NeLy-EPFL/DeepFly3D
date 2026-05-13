@@ -12,10 +12,7 @@ from df3d.config import config
 from df3d.plot_util import plot_drosophila_3d
 import df3d.logger as logger
 
-img3d_dpi = 100  # this is the dpi for one image on the 3d video's grid
-img3d_aspect = (2, 2)  # this is the aspect ration for one image on the 3d video's grid
-img2d_aspect = (2, 1)  # this is the aspect ration for one image on the 3d video's grid
-video_width = 5000  # total width of the 2d and 3d videos
+video_width = 1920  # px — total width of the 2d and 3d videos (1080p width)
 default_fps = 30
 
 
@@ -33,16 +30,15 @@ def make_pose2d_video(plot_2d, num_images, input_folder,
     # Here we create a generator (keyword "yield")
     def imgs_generator():
         def stack(img_id):
-            plot = lambda c, i: plot_2d(c, i, smooth=True)
-            row1 = np.hstack([plot(cam_id, img_id) for cam_id in [0, 1, 2]])
-            row2 = np.hstack([plot(cam_id, img_id) for cam_id in [4, 5, 6]])
+            row1 = np.hstack([_compute_2d_img(plot_2d, img_id, cam_id, reprojection=False)
+                              for cam_id in (0, 1, 2)])
+            row2 = np.hstack([_compute_2d_img(plot_2d, img_id, cam_id, reprojection=False)
+                              for cam_id in (4, 5, 6)])
             return np.vstack([row1, row2])
 
         for img_id in range(start_image_idx, start_image_idx + num_images):
             yield stack(img_id)
 
-    # We can call next(generator) on this instance to get the images,
-    # just like for an iterator
     generator = imgs_generator()
 
     video_name = 'video_pose2d_' + input_folder.replace('/', '_') + '.mp4'
@@ -98,11 +94,10 @@ def make_pose3d_video(points3d, plot_2d, num_images, input_folder,
 
 
 def _make_video(video_path, imgs, fps=default_fps):
-    """Code used to generate a video using cv2.
-
-    Parameters:
-    video_path: a path ending with .mp4, for instance: "/results/pose2d.mp4"
-    imgs: an iterable or generator with the images to turn into a video
+    """
+    Write `imgs` (an iterable of equal-shape frames already sized to
+    `video_width`) to an mp4 at `video_path`. Each frame must be
+    `video_width` px wide; the height is taken from the first frame.
     """
     if fps is None:
         fps = default_fps
@@ -110,38 +105,38 @@ def _make_video(video_path, imgs, fps=default_fps):
     first_frame = next(imgs)
     imgs = itertools.chain([first_frame], imgs)
 
-    shape = int(first_frame.shape[1]), int(first_frame.shape[0])
+    height, width = first_frame.shape[:2]
+    assert width == video_width, (
+        f'Expected stacked frame width {video_width}, got {width}'
+    )
     logger.debug('Saving video to: ' + video_path)
+    logger.debug(f'Video size is: ({width}, {height})')
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    output_shape = _resize(current_shape=shape, new_width=video_width)
-    logger.debug('Video size is: {}'.format(output_shape))
-    video_writer = cv2.VideoWriter(video_path, fourcc, fps, output_shape)
+    video_writer = cv2.VideoWriter(video_path, fourcc, fps, (width, height))
 
     progress_bar = tqdm if logger.info_enabled() else lambda x: x
     for img in progress_bar(imgs):
-        resized = cv2.resize(img, output_shape)
-        rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+        rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         video_writer.write(rgb)
 
     video_writer.release()
     logger.info('Video created at {}\n'.format(video_path))
 
 
-def _resize(current_shape, new_width):
-    width, height = current_shape
-    ratio = new_width / width
-    return (int(width * ratio), int(height * ratio))
-
-
 def _compute_2d_img(plot_2d, img_id, cam_id, reprojection=True):
-    """Uses plot_2d to generate an image and resizes it using cv2.
-
-    Returns:
-    A numpy array containing the resized image.
+    """
+    Render one 2d camera frame and resize it so 3 cells fit across
+    `video_width`, preserving the source aspect ratio (see issue #69 —
+    the previous code forced a fixed 2:1 cell, stretching non-2:1
+    sources).
     """
     img = plot_2d(cam_id, img_id, smooth=True, reprojection=reprojection)
-    img = cv2.resize(img, (img2d_aspect[0]*img3d_dpi, img2d_aspect[1]*img3d_dpi))
-    return img
+    cell_width = video_width // 3
+    src_h, src_w = img.shape[:2]
+    # Round to an even pixel count so the assembled video has even
+    # height (libx264 requires even dimensions).
+    target_height = 2 * int(round(cell_width * src_h / src_w / 2))
+    return cv2.resize(img, (cell_width, target_height))
 
 
 def _setup_3d_style():
@@ -165,6 +160,18 @@ def _leg_only_draw_joints():
     ])
 
 
+def _make_3d_figure():
+    """
+    Build a square matplotlib figure that rasterizes at exactly one
+    grid cell (`video_width // 3` px) per side. matplotlib pins canvas
+    size at figsize_inches * dpi, so we pick figsize=(2,2) and set dpi
+    accordingly — these inch units are matplotlib's API, not exposed
+    to df3d users.
+    """
+    cell_width = video_width // 3
+    return plt.figure(figsize=(2, 2), dpi=cell_width / 2)
+
+
 def _make_3d_canvas(cam_id, num_joints, lim=2, draw_joints=None):
     """
     Create a figure + axes + per-bone Line3D artists for repeated 3d
@@ -174,7 +181,7 @@ def _make_3d_canvas(cam_id, num_joints, lim=2, draw_joints=None):
     canvas every frame instead of rebuilding it.
     """
     _setup_3d_style()
-    fig = plt.figure(figsize=img3d_aspect, dpi=img3d_dpi)
+    fig = _make_3d_figure()
     ax = fig.add_subplot(111, projection='3d')
     fig.tight_layout(pad=0)
     ax.set_xticklabels([]); ax.set_yticklabels([]); ax.set_zticklabels([])
@@ -210,7 +217,7 @@ def _compute_3d_img(points3d, img_id, cam_id, bone_lines=None, draw_joints=None)
                         dtype=np.uint8)[:, :, :3]
 
     _setup_3d_style()
-    fig = plt.figure(figsize=img3d_aspect, dpi=img3d_dpi)
+    fig = _make_3d_figure()
     ax3d = fig.add_subplot(111, projection='3d')
     fig.tight_layout(pad=0)
     ax3d.set_xticklabels([])
