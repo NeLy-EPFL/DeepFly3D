@@ -8,6 +8,7 @@ import cv2
 import packaging.version
 from tqdm import tqdm
 
+from df3d.config import config
 from df3d.plot_util import plot_drosophila_3d
 import df3d.logger as logger
 
@@ -50,7 +51,8 @@ def make_pose2d_video(plot_2d, num_images, input_folder,
 
 
 def make_pose3d_video(points3d, plot_2d, num_images, input_folder,
-                      output_folder, fps=default_fps, start_image_idx=0):
+                      output_folder, fps=default_fps, start_image_idx=0,
+                      only_render_legs=False):
     """Creates pose3d estimation videos and writes it to output_folder.
 
     Parameters:
@@ -60,11 +62,15 @@ def make_pose3d_video(points3d, plot_2d, num_images, input_folder,
     input_folder: input folder containing the images
     output_folder: output folder where to write the video.
     start_image_idx: the index of the first image to include in the video (default: 0)
+    only_render_legs: if True, omit antenna and stripe joints/bones from the 3D plots.
     """
+    draw_joints = _leg_only_draw_joints() if only_render_legs else None
+
     # Create one figure + per-bone Line3D artists per camera once, then
     # reuse them across frames; per-frame we only update their data.
     cam_ids_3d = (4, 5, 6)
-    bone_lines = {cam_id: _make_3d_canvas(cam_id, num_joints=points3d.shape[1])
+    bone_lines = {cam_id: _make_3d_canvas(cam_id, num_joints=points3d.shape[1],
+                                          draw_joints=draw_joints)
                   for cam_id in cam_ids_3d}
 
     def imgs_generator():
@@ -72,7 +78,8 @@ def make_pose3d_video(points3d, plot_2d, num_images, input_folder,
             row1 = np.hstack([_compute_2d_img(plot_2d, img_id, cam_id) for cam_id in (0, 1, 2)])
             row2 = np.hstack([_compute_2d_img(plot_2d, img_id, cam_id) for cam_id in cam_ids_3d])
             row3 = np.hstack([_compute_3d_img(points3d, img_id, cam_id,
-                                              bone_lines=bone_lines[cam_id])
+                                              bone_lines=bone_lines[cam_id],
+                                              draw_joints=draw_joints)
                               for cam_id in cam_ids_3d])
             return np.vstack([row1, row2, row3])
 
@@ -147,7 +154,18 @@ def _setup_3d_style():
         plt.rcParams['axes3d.automargin'] = True
 
 
-def _make_3d_canvas(cam_id, num_joints, lim=2):
+def _leg_only_draw_joints():
+    """Return joint indices that aren't ANTENNA or STRIPE."""
+    skeleton = config["skeleton"]
+    Tracked = skeleton.Tracked
+    return np.array([
+        j for j in range(skeleton.num_joints)
+        if not (skeleton.is_tracked_point(j, Tracked.ANTENNA)
+                or skeleton.is_tracked_point(j, Tracked.STRIPE))
+    ])
+
+
+def _make_3d_canvas(cam_id, num_joints, lim=2, draw_joints=None):
     """
     Create a figure + axes + per-bone Line3D artists for repeated 3d
     rendering of one camera. Returns the list of Line3D artists; the
@@ -164,10 +182,11 @@ def _make_3d_canvas(cam_id, num_joints, lim=2):
     return plot_drosophila_3d(
         ax, np.zeros((num_joints, 3)), cam_id=cam_id, lim=lim,
         thickness=np.ones(num_joints) * 1.5,
+        draw_joints=draw_joints,
     )
 
 
-def _compute_3d_img(points3d, img_id, cam_id, bone_lines=None):
+def _compute_3d_img(points3d, img_id, cam_id, bone_lines=None, draw_joints=None):
     """Generates the 3D image showing joints positions based on points3d.
 
     Parameters
@@ -184,7 +203,7 @@ def _compute_3d_img(points3d, img_id, cam_id, bone_lines=None):
     """
     if bone_lines is not None:
         plot_drosophila_3d(None, points3d[img_id].copy(), cam_id=cam_id,
-                           bone_lines=bone_lines)
+                           bone_lines=bone_lines, draw_joints=draw_joints)
         fig = bone_lines[0].axes.figure
         fig.canvas.draw()
         return np.array(fig.canvas.renderer.buffer_rgba(),
@@ -206,7 +225,8 @@ def _compute_3d_img(points3d, img_id, cam_id, bone_lines=None):
         points3d[img_id].copy(),
         cam_id=cam_id,
         lim=2,
-        thickness=np.ones((points3d.shape[1])) * 1.5)
+        thickness=np.ones((points3d.shape[1])) * 1.5,
+        draw_joints=draw_joints)
 
     fig.canvas.draw()
     data = np.array(fig.canvas.renderer.buffer_rgba(), dtype=np.uint8)[:, :, :3]

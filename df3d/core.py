@@ -70,7 +70,10 @@ class Core:
         num_images_max: Optional[int] = None,
         camera_ordering: List[int] = [0, 1, 2, 3, 4, 5, 6],
         start_image_idx: int = 0,
+        only_render_legs: Optional[bool] = None,
     ):
+        self.only_render_legs = (config["only_render_legs"]
+                                 if only_render_legs is None else only_render_legs)
         self.input_folder = input_folder
         if output_folder is None:
             self.output_folder = self.input_folder + "_df3d"
@@ -127,6 +130,7 @@ class Core:
                 colors=df3d_colors,
                 bones=df3d_bones,
             )
+            self._apply_only_render_legs_mask()
 
     # -------------------------------------------------------------------------
     # properties
@@ -319,6 +323,25 @@ class Core:
         # camNet built from fresh points2d -> reprojection-error cache stale.
         self._reproj_err_norms_cache = None
         print(f"Reprojection error is {self.camNet.reprojection_error()}")
+        self._apply_only_render_legs_mask()
+
+
+    def _apply_only_render_legs_mask(self):
+        """
+        When `only_render_legs` is set, zero out antenna and stripe joints in
+        each camera's stored 2D points so that pyba's rendering (which gates
+        on `Camera.can_see`) skips drawing them as either circles or bones.
+        Leaves `self.points2d` untouched so the saved pkl is not polluted.
+        """
+        if not self.only_render_legs or self.camNet is None:
+            return
+        skeleton = config["skeleton"]
+        Tracked = skeleton.Tracked
+        hidden_jids = [j for j in range(skeleton.num_joints)
+                       if (skeleton.is_tracked_point(j, Tracked.ANTENNA)
+                           or skeleton.is_tracked_point(j, Tracked.STRIPE))]
+        for cam in self.camNet.cam_list:
+            cam.points2d[:, hidden_jids, :] = 0
 
     def run_belief_propagation(self):
         """Apply pictorial-structures pose correction (Fig. 10 of the 2019 eLife paper).

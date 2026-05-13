@@ -9,6 +9,7 @@ from colorama import init as colorama_init
 
 import df3d.logger as logger
 from df3d import video
+from df3d.config import config
 from df3d.core import Core
 
 
@@ -133,6 +134,13 @@ def parse_cli_args():
     )
     parser.add_argument(
         "--video-3d", help="Generate pose3d videos", action="store_true"
+    )
+    parser.add_argument(
+        "--only-render-legs",
+        help="Render only leg keypoints/bones in output videos; hide antenna and stripe keypoints."
+             f" Defaults to config['only_render_legs'] = {config['only_render_legs']}.",
+        action="store_true",
+        default=config["only_render_legs"],
     )
     parser.add_argument(
         "--skip-pose-estimation",
@@ -331,7 +339,7 @@ def run(args):
 
     core = Core(
         args.input_folder, args.output_folder, args.num_images_max, args.order,
-        args.start_image_idx
+        args.start_image_idx, only_render_legs=args.only_render_legs,
     )
 
     if not args.skip_estimation:
@@ -368,6 +376,7 @@ def run(args):
             core.output_folder,
             fps=fps,
             start_image_idx=core.start_image_idx,
+            only_render_legs=core.only_render_legs,
         )
 
     if args.delete_images:
