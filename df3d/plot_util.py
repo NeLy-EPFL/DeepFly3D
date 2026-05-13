@@ -34,10 +34,68 @@ def plot_drosophila_3d(
     draw_joints=None,
     thickness=None,
     lim=None,
+    bone_lines=None,
 ):
+    """
+    Plot the fly skeleton as 3D bone segments on a matplotlib 3D axes.
+
+    On the first call leave `bone_lines=None`: this configures the axes
+    panes/view/limits and creates one Line3D artist per drawn bone. Pass
+    the returned list back as `bone_lines=` on subsequent frames to
+    update the existing artists via `set_data_3d` instead of rebuilding
+    the figure — much cheaper when rendering many frames in a loop.
+
+    Parameters
+    ----------
+    ax_3d : Axes3D
+        Target 3D axes. Ignored when `bone_lines` is given.
+    points3d : np.ndarray, shape (num_joints, 3)
+    cam_id : int
+        Camera id; controls view azimuth and per-joint zorder. Ignored
+        when `bone_lines` is given.
+    bones : sequence of (int, int)
+    draw_joints : array-like of int, optional
+        Joint indices to draw. None means all joints. Must match the
+        value used at creation time when passing `bone_lines` for update.
+    thickness : np.ndarray, shape (num_joints,), optional
+    lim : float, optional
+        Axis limit; sets ±lim on x, y, z. Ignored when `bone_lines` is
+        given.
+    bone_lines : list of Line3D, optional
+        Pre-existing per-bone artists to update in place.
+
+    Returns
+    -------
+    list of Line3D
+        The Line3D artists drawn (newly created or the ones passed in).
+    """
     points3d = np.array(points3d)
     if draw_joints is None:
         draw_joints = np.arange(config["skeleton"].num_joints)
+
+    # L/R stripe averaging: the abdomen stripe is tracked from both sides;
+    # merging the 3D positions keeps the two bone sets ([16,17][17,18] and
+    # [35,36][36,37]) overlapping into a single visible line.
+    if "fly" in config["name"]:
+        for j in range(config["skeleton"].num_joints):
+            if config["skeleton"].is_tracked_point(
+                j, config["skeleton"].Tracked.STRIPE
+            ) and config["skeleton"].is_joint_visible_left(j):
+                points3d[j] = (
+                    points3d[j] + points3d[j + (config["skeleton"].num_joints // 2)]
+                ) / 2
+                points3d[j + config["skeleton"].num_joints // 2] = points3d[j]
+
+    if bone_lines is not None:
+        line_idx = 0
+        for bone in bones:
+            if bone[0] in draw_joints and bone[1] in draw_joints:
+                bone_lines[line_idx].set_data_3d(
+                    points3d[bone, 0], points3d[bone, 1], points3d[bone, 2]
+                )
+                line_idx += 1
+        return bone_lines
+
     colors = config["skeleton"].colors
     colors_tmp = ["#%02x%02x%02x" % c for c in colors]
     zorder = config["skeleton"].get_zorder(cam_id)
@@ -69,19 +127,10 @@ def plot_drosophila_3d(
         ax_3d.set_ylim(mid_y - max_range, mid_y + max_range)
         ax_3d.set_zlim(mid_z - max_range, mid_z + max_range)
 
-    if "fly" in config["name"]:
-        for j in range(config["skeleton"].num_joints):
-            if config["skeleton"].is_tracked_point(
-                j, config["skeleton"].Tracked.STRIPE
-            ) and config["skeleton"].is_joint_visible_left(j):
-                points3d[j] = (
-                    points3d[j] + points3d[j + (config["skeleton"].num_joints // 2)]
-                ) / 2
-                points3d[j + config["skeleton"].num_joints // 2] = points3d[j]
-
+    bone_lines = []
     for bone in bones:
         if bone[0] in draw_joints and bone[1] in draw_joints:
-            ax_3d.plot(
+            line, = ax_3d.plot(
                 points3d[bone, 0],
                 points3d[bone, 1],
                 points3d[bone, 2],
@@ -89,6 +138,8 @@ def plot_drosophila_3d(
                 linewidth=thickness[config["skeleton"].get_limb_id(bone[0])],
                 zorder=zorder[bone[0]],
             )
+            bone_lines.append(line)
+    return bone_lines
 
 
 def normalize_pose_3d(points3d, normalize_median=True, rotate=False):
