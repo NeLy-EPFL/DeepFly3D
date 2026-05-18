@@ -14,14 +14,7 @@ def main():
     """Main entry point to run the GUI."""
     import sys
 
-    cli_args = parse_cli_args(sys.argv)
-
-    assert len(
-        glob.glob(
-            os.path.join(cli_args["input_folder"], cli_args["output_subfolder"])
-            + "/df3d_result*.pkl"
-        )
-    ), f"Before running the GUI, run df3d-cli on folder {cli_args['input_folder']} first and generate df3d_result file"
+    cli_args = parse_cli_args(sys.argv[1:])
 
     app = QW.QApplication([])
     window = DeepflyGUI()
@@ -32,20 +25,45 @@ def main():
 
 
 def parse_cli_args(argv):
-    """Parses the argument string argv.
+    """Parses the GUI's command-line arguments.
 
-    Returns:
-    A simple namespace with the parsed arguments values.
+    Parameters
+    ----------
+    argv : list of str
+        Argument list, typically `sys.argv[1:]`.
+
+    Returns
+    -------
+    dict
+        Keys: 'input_folder', 'output_folder', 'num_images_max'.
+        Any of them may be None if not provided -- `setup()` will prompt
+        for them as needed.
     """
-    args = {}
-    args["output_subfolder"] = "df3d"
-    try:
-        args["input_folder"] = argv[1]
-        args["num_images_max"] = int(argv[2])
-        args["output_subfolder"] = argv[2]
-    except (IndexError, ValueError):
-        pass
-    return args
+    import argparse
+    parser = argparse.ArgumentParser(
+        prog='df3d',
+        description='Launch the DeepFly3D GUI to view and correct results'
+                    ' from a previous df3d-cli run.',
+    )
+    parser.add_argument(
+        'input_folder', nargs='?', default=None,
+        help='Folder containing the camera_X_img_Y.jpg images.',
+    )
+    parser.add_argument(
+        '--output-folder', default=None,
+        help='Folder where df3d-cli wrote df3d_result*.pkl. Defaults to'
+             ' <input_folder>_df3d, matching df3d-cli\'s default.',
+    )
+    parser.add_argument(
+        '--num-images-max', type=int, default=None,
+        help='Limit how many frames the GUI loads (default: all).',
+    )
+    args = parser.parse_args(argv)
+    return {
+        'input_folder': args.input_folder,
+        'output_folder': args.output_folder,
+        'num_images_max': args.num_images_max,
+    }
 
 
 class DeepflyGUI(QW.QWidget):
@@ -56,16 +74,21 @@ class DeepflyGUI(QW.QWidget):
         self.img_id = 0
         self.core = None
 
-    def setup(self, input_folder=None, output_subfolder=None, num_images_max=None):
+    def setup(self, input_folder=None, output_folder=None, num_images_max=None):
         """Configures the interface and prompts user for missing data."""
 
         if not input_folder:
             input_folder = self.prompt_for_directory()
 
-        if not output_subfolder:
-            output_subfolder = self.prompt_output_subdirectory_name()
+        if not output_folder:
+            output_folder = input_folder.rstrip('/') + '_df3d'
 
-        self.core = Core(input_folder, output_subfolder, num_images_max, None)
+        assert glob.glob(os.path.join(output_folder, 'df3d_result*.pkl')), (
+            f'No df3d_result*.pkl found in {output_folder}.'
+            f' Run df3d-cli on {input_folder} first.'
+        )
+
+        self.core = Core(input_folder, output_folder, num_images_max, None)
         self.setup_layout()
         self.onclick_image_mode()
 
@@ -338,23 +361,6 @@ class DeepflyGUI(QW.QWidget):
                 options=QW.QFileDialog.DontUseNativeDialog,
             )
         )
-
-    def prompt_output_subdirectory_name(self):
-        """Prompts for the ouput subdirectory name.
-
-        Returns:
-        String: the name of the subdirectory in which to write output.
-        """
-        ok_pressed = False
-        while not ok_pressed:
-            text, ok_pressed = QW.QInputDialog.getText(
-                self,
-                "Name of output sub-directory",
-                "Name:",
-                QW.QLineEdit.Normal,
-                "df3d",
-            )
-        return str(text)
 
     def prompt_for_camera_ordering(self):
         """Prompts for a camera ordering.
