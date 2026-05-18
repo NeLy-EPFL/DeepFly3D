@@ -507,15 +507,37 @@ class Core:
     def joint_has_error(self, img_id, joint_id):
         """Indicates whether joint_id was estimated with error or not.
 
+        Compares the reprojection error against the per-joint threshold in
+        config["reproj_thr"]. Pre-refactor, the error was computed separately
+        against `camNetLeft` and `camNetRight` (two halves of the camera ring)
+        and the max was taken; with the current single-camNet pipeline we
+        instead take the max over all cameras that see this joint.
+
         Returns:
         boolean: whether there is a suspected error for joint_id on img_id.
         """
+        err_per_cam = self._reprojection_error_norms()[:, img_id, joint_id]
+        return float(np.max(err_per_cam)) > config["reproj_thr"][joint_id]
 
-        get_error = self.get_joint_reprojection_error
-        err_left = get_error(img_id, joint_id, self.camNetLeft)
-        err_right = get_error(img_id, joint_id, self.camNetRight)
-        err = max(err_left, err_right)
-        return err > config["reproj_thr"][joint_id]
+    def _reprojection_error_norms(self):
+        """Per-camera per-frame per-joint reprojection error magnitudes (pixels).
+
+        Cached on first call. Joints not visible from a given camera have a
+        zero residual (per `pyba.Camera.can_see_mask`). Note: this is computed
+        from `camNet.points2d`, which reflects network predictions but not
+        manual corrections stored in `self.db` — same behaviour as the
+        pre-refactor `get_joint_reprojection_error` helper.
+        """
+        if getattr(self, '_reproj_err_norms_cache', None) is None:
+            if self.camNet is None or not self.camNet.has_calibration():
+                raise RuntimeError(
+                    'Cannot compute reprojection errors before calibration; '
+                    'run Core.calibrate_calc() first.'
+                )
+            self.camNet.triangulate()
+            residuals = self.camNet.reprojection_error(reduce=False)
+            self._reproj_err_norms_cache = np.linalg.norm(residuals, axis=-1)
+        return self._reproj_err_norms_cache
 
     def write_corrections(self, cam_id, img_id, modified_joints, points2d):
         """Saves the provided manual corrections to a file in the output_folder.
