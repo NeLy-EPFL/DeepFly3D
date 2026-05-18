@@ -1,11 +1,32 @@
+"""
+Pictorial-structures pose correction (Figure 10 of the DeepFly3D eLife
+paper). Resurrected from the pre-2021 `deepfly.belief_propagation` module.
+
+Status: imports adapted to the current package layout, but the algorithm
+still depends on three Camera-class facilities that do not exist on
+`pyba.Camera`:
+
+- `cam.cam_id`: the camera index used by
+  `config["skeleton"].camera_see_joint(cam_id, j_id)`.
+- `cam.get_heatmap(img_id, j_id)`: returns the per-joint heatmap for one
+  image; needed to score 2D candidates with `prob_from_heatmap`.
+- `Camera.hm_to_pred(heatmap_2d, num_pred, ...)`: classmethod extracting
+  top-K local maxima from a heatmap.
+
+These will be filled in by a small adapter wrapper around `pyba.Camera`
+once heatmaps are plumbed through `df3d.core.Core.pose2d_estimation`
+(see the top-K-peaks plumbing task). Until then,
+`solve_belief_propagation` cannot be called end-to-end.
+"""
 import itertools
 
 import numpy as np
 
-from deepfly.Config import config
-from deepfly.Camera import Camera
-from deepfly.optim_util import project_on_last, energy_drosoph
-from deepfly import logger
+from pyba.Camera import Camera
+
+from df3d import logger
+from df3d.config import config
+from df3d.optim_util import project_on_last, energy_drosoph
 
 
 def solve_belief_propagation(cam_list, img_id, bone_param, num_peak=10, prior=None):
@@ -17,7 +38,7 @@ def solve_belief_propagation(cam_list, img_id, bone_param, num_peak=10, prior=No
 
         chain_list = list()
         for j_id_l in j_id_list_list:
-            visible = np.zeros(shape=(len(j_id_l),), dtype=np.int)
+            visible = np.zeros(shape=(len(j_id_l),), dtype=int)
             for cam in cam_list:
                 visible += [
                     config["skeleton"].camera_see_joint(cam.cam_id, j_id) for j_id in j_id_l
@@ -67,12 +88,23 @@ class LegBP:
         cam_list,
         img_id,
         j_id_list,
-        bone_param=config["bone_param"],
-        num_peak=config["num_peak"],
+        bone_param=None,
+        num_peak=None,
         prior=None,
-        upper_bound=config["upper_bound"],
-        image_shape=config["image_shape"],
+        upper_bound=None,
+        image_shape=None,
     ):
+        # Resolve defaults lazily; `config["image_shape"]` is only populated
+        # after `df3d.core.Core` reads an image at runtime.
+        if bone_param is None:
+            bone_param = config['bone_param']
+        if num_peak is None:
+            num_peak = config['num_peak']
+        if upper_bound is None:
+            upper_bound = config['upper_bound']
+        if image_shape is None:
+            image_shape = config['image_shape']
+
         self.cam_list = cam_list
         self.img_id = img_id
         self.j_id_list = j_id_list

@@ -1,7 +1,26 @@
+"""
+Helpers used by `df3d.belief_propagation`.
+
+Resurrected verbatim from the pre-2021 `deepfly.optim_util` module and then
+adapted to the current package layout. Several APIs still do not line up
+with the current `pyba.Camera`:
+
+- `cam.get_heatmap(img_id, j_id)` is referenced by `probability_heatmap`
+  but does not exist on `pyba.Camera`. Plumbing heatmaps in from
+  `df2d.inference` is tracked as part of the BP-restoration work.
+- `cam.project(point3d)` used to take a single (3,) point and return a
+  (2,) point. `pyba.Camera.project` requires a (T, J, 3) batch. The
+  wrappers below reshape so both `error_reprojection` and `project_on_last`
+  still work, but downstream callers should migrate to the batched API.
+
+Defaults for `image_shape` / `hm_shape` are resolved lazily inside the
+function bodies because `config["image_shape"]` is populated by
+`df3d.core.Core.__init__` and is therefore not available at import time.
+"""
 import numpy as np
 
-from deepfly.cv_util import triangulate_linear
-from deepfly.Config import  config
+from df3d.cv_util import triangulate_linear
+from df3d.config import config
 
 
 def energy_drosoph(
@@ -11,14 +30,19 @@ def energy_drosoph(
     points2d,
     points3d=None,
     bone_length=None,
-    image_shape=config["image_shape"],
-    hm_shape=config["heatmap_shape"],
+    image_shape=None,
+    hm_shape=None,
 ):
     """
-    calculate energy from 2d observations
+    Calculate energy from 2d observations.
+
     points2d: 2x3 array, observations from three cameras
     points3d: 15x3 array, used only to calculate the bone probability
     """
+    if image_shape is None:
+        image_shape = config['image_shape']
+    if hm_shape is None:
+        hm_shape = config['heatmap_shape']
     points2d_list = [p_.reshape(1, 2) for p_ in points2d * image_shape]
     p3d = triangulate_linear(cam_list, points2d_list)
 
@@ -56,6 +80,16 @@ def probability_heatmap(cam_list, img_id, j_id, points2d, image_shape=(480, 960)
     return prob
 
 
+def _project_single(cam, point3d):
+    """Project one 3D point to 2D using `pyba.Camera`'s batched API.
+
+    `pyba.Camera.project` requires shape (T, J, 3) and returns (T, J, 2);
+    BP works with single points, so we wrap and squeeze.
+    """
+    point3d = np.asarray(point3d).reshape(1, 1, 3)
+    return cam.project(point3d).reshape(2)
+
+
 def error_reprojection(cam_list, points2d):
     """
     points2d: nx2 array containing projections
@@ -65,7 +99,7 @@ def error_reprojection(cam_list, points2d):
 
     err = list()
     for cam, p in zip(cam_list, points2d):
-        err.append(cam.project(point3d) - p)
+        err.append(_project_single(cam, point3d) - p)
     return np.array(err)
 
 
@@ -73,9 +107,7 @@ def project_on_last(cam_list, p):
     p = [p_.reshape(1, 2) for p_ in p]
 
     point3d = triangulate_linear(cam_list[:-1], p)
-    point2d = cam_list[-1].project(point3d)
-    point2d = np.squeeze(point2d)
-    return point2d
+    return _project_single(cam_list[-1], point3d)
 
 
 def calc_bone_length(p):

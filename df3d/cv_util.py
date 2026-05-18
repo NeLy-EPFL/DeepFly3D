@@ -178,7 +178,7 @@ def project_points(
     R,
     t,
     intr,
-    distort=np.array([[[0, 0, 0, 0]], [[0, 0, 0, 0]]], dtype=np.float),
+    distort=np.array([[[0, 0, 0, 0]], [[0, 0, 0, 0]]], dtype=float),
 ):
     if R.ndim == 2:  # then rotation matrix
         R = R_to_rodrigues(R)
