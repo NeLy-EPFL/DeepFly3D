@@ -169,22 +169,39 @@ class Core:
     # -------------------------------------------------------------------------
     # public methods
 
-    def pose2d_estimation(self, batch_size: int = 8, disable_pin_memory: bool = False):
+    def pose2d_estimation(self, batch_size: int = 8, disable_pin_memory: bool = False,
+                          save_top_k_peaks: bool = False):
         """Runs the pose2d estimation on self.input_folder.
 
         Parameters:
         batch_size: Batch size to use when running inference on the images (default: 8)
         disable_pin_memory: Whether to disable the `pin_memory` option for the dataloader (default: False)
+        save_top_k_peaks: If True, also extract the top-K local-maximum peaks per
+            heatmap and store them as `self.top_k_peaks` (shape
+            [n_cameras, n_frames, 38, K, 3]) for later use by the pictorial-
+            structures / belief-propagation pose-correction step. K, the local-
+            max search radius, and the relative threshold come from config keys
+            `num_peak`, plus internal defaults. Default: False.
         """
-        self.points2d, self.conf = inference_folder(
+        inference_kwargs = dict(
             folder=self.input_folder,
             camera_ids_to_flip=[camera_id for index, camera_id in enumerate(self.camera_ordering) if index > 3], # flip the last 3 cameras so all images face to the right
             return_heatmap=False,
             return_confidence=True,
+            return_peaks=save_top_k_peaks,
             max_img_id=self.max_img_id,
             batch_size=batch_size,
-            disable_pin_memory=disable_pin_memory
+            disable_pin_memory=disable_pin_memory,
         )
+        if save_top_k_peaks:
+            inference_kwargs['num_peaks'] = config['num_peak']
+
+        result = inference_folder(**inference_kwargs)
+        if save_top_k_peaks:
+            self.points2d, self.conf, peaks = result
+        else:
+            self.points2d, self.conf = result
+            peaks = None
 
         # 2d pose estimation outputs 19 points, which is what a single camera sees,
         #     however there are 38 joints in total
@@ -203,6 +220,28 @@ class Core:
 
         # fmt:on
         self.points2d = points2d_cp
+
+        if peaks is not None:
+            # Mirror the 19-->38 joint expansion above. peaks has shape
+            # [n_cameras, n_frames, 19, K, 3] with last axis (y, x, score).
+            n_cameras, n_frames, _, K, _ = peaks.shape
+            peaks_cp = np.zeros((n_cameras, n_frames, 38, K, 3), dtype=np.float32)
+            peaks_cp[self.camera_ordering[:3], :, :19] = peaks[self.camera_ordering[:3]]
+            peaks_cp[self.camera_ordering[4:], :, 19:] = peaks[self.camera_ordering[4:]]
+            # cameras 0 and 6 cannot see the stripes and antenna
+            peaks_cp[self.camera_ordering[2], :, 15:] = 0
+            peaks_cp[self.camera_ordering[4], :, 19+15:] = 0
+            # Flip lr for cams 4,5,6 to match points2d, but only on real peaks
+            # (score > 0); padded slots stay (0, 0, 0).
+            for cidx in [4, 5, 6]:
+                cam = self.camera_ordering[cidx]
+                real = peaks_cp[cam, ..., 2] > 0
+                peaks_cp[cam, ..., 1] = np.where(
+                    real, 1 - peaks_cp[cam, ..., 1], peaks_cp[cam, ..., 1]
+                )
+            self.top_k_peaks = peaks_cp
+        else:
+            self.top_k_peaks = None
 
     def next_error(self, img_id):
         """Finds the next image with an error in prediction after img_id.
@@ -371,6 +410,8 @@ class Core:
         dict_merge["camera_ordering"] = self.camera_ordering
         dict_merge["heatmap_confidence"] = self.conf
         dict_merge["image_shape"] = self.image_shape
+        if getattr(self, 'top_k_peaks', None) is not None:
+            dict_merge["top_k_peaks"] = self.top_k_peaks
 
         with open(self.save_path, "wb") as f:
             pickle.dump(dict_merge, f)

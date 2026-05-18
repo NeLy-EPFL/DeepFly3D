@@ -152,6 +152,16 @@ def parse_cli_args():
         action="store_true",
     )
     parser.add_argument(
+        "--save-top-k-peaks",
+        help="Also save the top-K local-maximum heatmap peaks per joint into"
+             " the df3d_result pkl under the key 'top_k_peaks'. K is taken"
+             " from config['num_peak'] (default 10). These peaks are the input"
+             " to the pictorial-structures / belief-propagation pose-correction"
+             " step from the 2019 eLife paper; enabling this flag is the data-"
+             "collection prerequisite for that correction.",
+        action="store_true",
+    )
+    parser.add_argument(
         "--output-fps",
         help="FPS for output videos. If not specified, uses the FPS from the input "
              "videos. If specified, overrides the input video FPS.",
@@ -314,7 +324,8 @@ def run(args):
     )
 
     if not args.skip_estimation:
-        core.pose2d_estimation(args.batch_size, args.pin_memory_disabled)
+        core.pose2d_estimation(args.batch_size, args.pin_memory_disabled,
+                               save_top_k_peaks=args.save_top_k_peaks)
         core.save()
         core.calibrate_calc(0, core.max_img_id)
         core.save()
