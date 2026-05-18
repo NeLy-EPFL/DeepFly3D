@@ -118,8 +118,8 @@ class DeepflyGUI(QW.QWidget):
         self.button_next = mb(">", self.onclick_next_image)
         self.button_last = mb(">>", self.onclick_last_image)
         self.button_first = mb("<<", self.onclick_first_image)
-        #self.button_prev_err = mb("< previous error", self.onclick_prev_error)
-        #self.button_next_err = mb("next error >", self.onclick_next_error)
+        self.button_prev_err = mb("< previous error", self.onclick_prev_error)
+        self.button_next_err = mb("next error >", self.onclick_next_error)
         #self.button_pose_save = mb("Save", self.onclick_save_pose)
         self.button_pose_mode = mb("Pose", self.onclick_pose_mode)
         self.button_image_mode = mb("Image", self.onclick_image_mode)
@@ -197,8 +197,8 @@ class DeepflyGUI(QW.QWidget):
         layout_h_buttons.addWidget(self.textbox_img_id)
         layout_h_buttons.addWidget(button_textbox_img_id_go)
         layout_h_buttons.addStretch()
-        #layout_h_buttons.addWidget(self.button_prev_err)
-        #layout_h_buttons.addWidget(self.button_next_err)
+        layout_h_buttons.addWidget(self.button_prev_err)
+        layout_h_buttons.addWidget(self.button_next_err)
         layout_h_buttons.addStretch()
         # layout_h_buttons.addWidget(self.checkbox_solve_bp)
         layout_h_buttons.addStretch()
@@ -413,9 +413,8 @@ class DeepflyGUI(QW.QWidget):
         self.button_pose_mode.setChecked(False)
 
     def correction_controls_enabled(self, enabled):
-        pass
-        #self.button_next_err.setEnabled(enabled)
-        #self.button_prev_err.setEnabled(enabled)
+        self.button_next_err.setEnabled(enabled)
+        self.button_prev_err.setEnabled(enabled)
         #self.checkbox_solve_bp.setEnabled(enabled)
 
 
