@@ -2,31 +2,47 @@
 Pictorial-structures pose correction (Figure 10 of the DeepFly3D eLife
 paper). Resurrected from the pre-2021 `deepfly.belief_propagation` module.
 
-Status: imports adapted to the current package layout, but the algorithm
-still depends on three Camera-class facilities that do not exist on
-`pyba.Camera`:
+`solve_belief_propagation` expects each `pyba.Camera` in `cam_list` to
+carry both `cam.cam_id` (used by skeleton visibility checks) and
+`cam.heatmaps` (per-joint probability maps as a (n_frames, n_joints,
+H, W) array). `df3d.core.Core.run_belief_propagation` attaches the
+network-produced heatmaps to each camera before invoking this module.
 
-- `cam.cam_id`: the camera index used by
-  `config["skeleton"].camera_see_joint(cam_id, j_id)`.
-- `cam.get_heatmap(img_id, j_id)`: returns the per-joint heatmap for one
-  image; needed to score 2D candidates with `prob_from_heatmap`.
-- `Camera.hm_to_pred(heatmap_2d, num_pred, ...)`: classmethod extracting
-  top-K local maxima from a heatmap.
-
-These will be filled in by a small adapter wrapper around `pyba.Camera`
-once heatmaps are plumbed through `df3d.core.Core.pose2d_estimation`
-(see the top-K-peaks plumbing task). Until then,
-`solve_belief_propagation` cannot be called end-to-end.
+Coordinate convention: 2D points throughout this module are normalized
+to [0, 1] in (x, y) order -- the convention used by `pyba.Camera` and
+`df3d.optim_util.energy_drosoph`. `df2d.util.heatmap_peaks` natively
+returns (y, x); `_top_k_peaks_xy_normalized` below swaps the last axis
+at the boundary.
 """
 import itertools
 
 import numpy as np
 
-from pyba.Camera import Camera
+from df2d.util import heatmap_peaks
 
 from df3d import logger
 from df3d.config import config
 from df3d.optim_util import project_on_last, energy_drosoph
+
+
+def _top_k_peaks_xy_normalized(heatmap_2d, num_peak, min_distance=1,
+                               threshold_rel=0.5):
+    """Extract up to `num_peak` local-maximum peaks from a single heatmap.
+
+    Returns a list of (x_norm, y_norm) arrays, dropping any padded entries.
+    `df2d.util.heatmap_peaks` returns (y, x, score) per peak; this helper
+    wraps it for the (x, y) convention used inside this module.
+    """
+    if heatmap_2d is None:
+        return []
+    peaks = heatmap_peaks(
+        heatmap_2d[np.newaxis, np.newaxis], k=num_peak,
+        min_distance=min_distance, threshold_rel=threshold_rel,
+    )[0, 0]  # (K, 3) = [(y_norm, x_norm, score)]
+    real = peaks[peaks[:, 2] > 0]
+    if real.size == 0:
+        return []
+    return [np.array([row[1], row[0]], dtype=float) for row in real]
 
 
 def solve_belief_propagation(cam_list, img_id, bone_param, num_peak=10, prior=None):
@@ -136,27 +152,16 @@ class LegBP:
             # find 2d proposals for a given joint for each camera, by taking local maximums
             for cam in self.cam_list:
                 min_distance = 1
-                threshold_abs = 0.0
-                '''
-                threshold_rel = (
-                    0.95
-                    if config["skeleton"].is_tracked_point(j.j_id, )
-                       or config["skeleton"].is_coxa_femur(j.j_id)
-                       or config["skeleton"].is_antenna(j.j_id)
-                    else 0.1
-                )
-                '''
                 threshold_rel = 0.5
-
-                p2d_list.append(
-                    Camera.hm_to_pred(
-                        np.squeeze(cam.get_heatmap(self.img_id, j.j_id)),
-                        num_pred=num_peak,
-                        min_distance=min_distance,
-                        threshold_abs=threshold_abs,
-                        threshold_rel=threshold_rel,
-                    )
-                )
+                if cam.heatmaps is None:
+                    p2d_list.append([])
+                    continue
+                hm = cam.heatmaps[self.img_id, j.j_id]
+                p2d_list.append(_top_k_peaks_xy_normalized(
+                    hm, num_peak=num_peak,
+                    min_distance=min_distance,
+                    threshold_rel=threshold_rel,
+                ))
 
             # set the priors (user manual correction)
             cams_with_prior = []
