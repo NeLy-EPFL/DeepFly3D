@@ -71,9 +71,7 @@ def prob_from_heatmap(hm, p, eps=0.1):
     """
     prob = eps
     if not (p[1] >= hm.shape[0] or p[0] >= hm.shape[1] or p[0] < 0 or p[1] < 0):
-        prob += hm[p[1], p[0]]
-    if not isinstance(prob, float):
-        print("not float")
+        prob += float(hm[p[1], p[0]])
     return prob
 
 

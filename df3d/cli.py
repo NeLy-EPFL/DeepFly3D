@@ -162,6 +162,17 @@ def parse_cli_args():
         action="store_true",
     )
     parser.add_argument(
+        "--belief-propagation",
+        help="Apply pictorial-structures pose correction (Fig. 10 of the 2019"
+             " eLife paper) after 2D inference and calibration. BP scores"
+             " cross-camera triangulations of the top-K heatmap peaks against"
+             " bone-length priors and per-view heatmap probabilities, picks"
+             " the MAP configuration per leg, and writes corrected 2D points"
+             " back into the result pkl. Requires keeping the full heatmaps"
+             " in memory during the run (~8.7 GB / 1000 frames).",
+        action="store_true",
+    )
+    parser.add_argument(
         "--output-fps",
         help="FPS for output videos. If not specified, uses the FPS from the input "
              "videos. If specified, overrides the input video FPS.",
@@ -325,12 +336,18 @@ def run(args):
 
     if not args.skip_estimation:
         core.pose2d_estimation(args.batch_size, args.pin_memory_disabled,
-                               save_top_k_peaks=args.save_top_k_peaks)
+                               save_top_k_peaks=args.save_top_k_peaks,
+                               keep_heatmaps=args.belief_propagation)
         core.save()
         core.calibrate_calc(0, core.max_img_id)
+        if args.belief_propagation:
+            core.run_belief_propagation()
         core.save()
     else:
         core.calibrate_calc(0, core.max_img_id)
+        if args.belief_propagation:
+            logger.warning('--belief-propagation requires fresh inference; '
+                           'ignored because --skip-pose-estimation was set.')
         core.save()
 
     # Use output_fps if specified, otherwise use core.fps which comes from the input videos

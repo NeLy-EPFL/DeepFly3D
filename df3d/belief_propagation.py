@@ -149,19 +149,25 @@ class LegBP:
                 if config["skeleton"].camera_see_joint(cam_id, j.j_id)
             ]
             p2d_list = []
-            # find 2d proposals for a given joint for each camera, by taking local maximums
+            # find 2d proposals for a given joint for each camera, by taking
+            # local maximums. For cameras that don't see this joint (or whose
+            # heatmap is all-zero), append a single placeholder peak so that
+            # itertools.product(*p2d_list) stays non-empty; the placeholder is
+            # filtered out downstream via config["skeleton"].camera_see_joint.
+            placeholder = [np.array([0.0, 0.0])]
             for cam in self.cam_list:
-                min_distance = 1
-                threshold_rel = 0.5
+                if not config["skeleton"].camera_see_joint(cam.cam_id, j.j_id):
+                    p2d_list.append(placeholder)
+                    continue
                 if cam.heatmaps is None:
-                    p2d_list.append([])
+                    p2d_list.append(placeholder)
                     continue
                 hm = cam.heatmaps[self.img_id, j.j_id]
-                p2d_list.append(_top_k_peaks_xy_normalized(
+                peaks = _top_k_peaks_xy_normalized(
                     hm, num_peak=num_peak,
-                    min_distance=min_distance,
-                    threshold_rel=threshold_rel,
-                ))
+                    min_distance=1, threshold_rel=0.5,
+                )
+                p2d_list.append(peaks if len(peaks) > 0 else placeholder)
 
             # set the priors (user manual correction)
             cams_with_prior = []

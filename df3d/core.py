@@ -170,7 +170,8 @@ class Core:
     # public methods
 
     def pose2d_estimation(self, batch_size: int = 8, disable_pin_memory: bool = False,
-                          save_top_k_peaks: bool = False):
+                          save_top_k_peaks: bool = False,
+                          keep_heatmaps: bool = False):
         """Runs the pose2d estimation on self.input_folder.
 
         Parameters:
@@ -182,11 +183,16 @@ class Core:
             structures / belief-propagation pose-correction step. K, the local-
             max search radius, and the relative threshold come from config keys
             `num_peak`, plus internal defaults. Default: False.
+        keep_heatmaps: If True, retain the full per-joint heatmaps from the 2D
+            network in `self._heatmaps` (shape [n_cameras, n_frames, 38, H, W],
+            ~8.7 GB / 1000 frames) so that a subsequent call to
+            `run_belief_propagation` can score arbitrary 2D candidates against
+            them. Heatmaps are not written to the result pkl. Default: False.
         """
         inference_kwargs = dict(
             folder=self.input_folder,
             camera_ids_to_flip=[camera_id for index, camera_id in enumerate(self.camera_ordering) if index > 3], # flip the last 3 cameras so all images face to the right
-            return_heatmap=False,
+            return_heatmap=keep_heatmaps,
             return_confidence=True,
             return_peaks=save_top_k_peaks,
             max_img_id=self.max_img_id,
@@ -197,11 +203,11 @@ class Core:
             inference_kwargs['num_peaks'] = config['num_peak']
 
         result = inference_folder(**inference_kwargs)
-        if save_top_k_peaks:
-            self.points2d, self.conf, peaks = result
-        else:
-            self.points2d, self.conf = result
-            peaks = None
+        result = list(result) if isinstance(result, tuple) else [result]
+        self.points2d = result.pop(0)
+        self.conf = result.pop(0)
+        heatmaps = result.pop(0) if keep_heatmaps else None
+        peaks = result.pop(0) if save_top_k_peaks else None
 
         # 2d pose estimation outputs 19 points, which is what a single camera sees,
         #     however there are 38 joints in total
@@ -242,6 +248,24 @@ class Core:
             self.top_k_peaks = peaks_cp
         else:
             self.top_k_peaks = None
+
+        if heatmaps is not None:
+            # Heatmaps shape [n_cameras, n_frames, 19, H, W]. Mirror the
+            # 19->38 joint expansion done for points2d above, including the
+            # horizontal flip of the heatmap's width axis (column) for the
+            # right-side cameras whose images were flipped before inference.
+            n_cameras, n_frames, _, H, W = heatmaps.shape
+            heatmaps_cp = np.zeros((n_cameras, n_frames, 38, H, W), dtype=np.float32)
+            heatmaps_cp[self.camera_ordering[:3], :, :19] = heatmaps[self.camera_ordering[:3]]
+            heatmaps_cp[self.camera_ordering[4:], :, 19:] = heatmaps[self.camera_ordering[4:]]
+            heatmaps_cp[self.camera_ordering[2], :, 15:] = 0
+            heatmaps_cp[self.camera_ordering[4], :, 19+15:] = 0
+            for cidx in [4, 5, 6]:
+                cam = self.camera_ordering[cidx]
+                heatmaps_cp[cam] = heatmaps_cp[cam, :, :, :, ::-1]
+            self._heatmaps = heatmaps_cp
+        else:
+            self._heatmaps = None
 
     def next_error(self, img_id):
         """Finds the next image with an error in prediction after img_id.
@@ -288,8 +312,94 @@ class Core:
             self.points2d * self.image_shape[::-1], calib=calib_reordered, image_path=image_path
         )
         self.camNet.bundle_adjust(update_intrinsic=False, update_distort=False)
+        # camNet built from fresh points2d -> reprojection-error cache stale.
+        self._reproj_err_norms_cache = None
         print(f"Reprojection error is {self.camNet.reprojection_error()}")
 
+    def run_belief_propagation(self):
+        """Apply pictorial-structures pose correction (Fig. 10 of the 2019 eLife paper).
+
+        Requires `pose2d_estimation(keep_heatmaps=True)` to have been called
+        and `calibrate_calc` to have produced a calibrated `self.camNet`.
+
+        For each frame, BP scores cross-camera triangulations of the network's
+        per-camera top-K heatmap peaks against bone-length priors and per-view
+        heatmap probabilities, picks the MAP configuration per leg, and writes
+        the corrected (per-camera, per-joint) 2D points back into both
+        `self.points2d` and the cameras' stored 2D points so that the next
+        `save()` produces a triangulation from the corrected detections.
+        Heatmaps and any cached reprojection-error tensor are released after
+        the run.
+        """
+        from tqdm import tqdm
+        from df3d.belief_propagation import solve_belief_propagation
+
+        if self._heatmaps is None:
+            raise RuntimeError(
+                'Heatmaps not retained from inference; '
+                'call pose2d_estimation(keep_heatmaps=True) first.'
+            )
+        if self.camNet is None or not self.camNet.has_calibration():
+            raise RuntimeError(
+                'BP needs a calibrated camNet; run calibrate_calc first.'
+            )
+
+        # Attach this camera's heatmaps for the duration of the BP run.
+        for cam in self.camNet.cam_list:
+            cam.heatmaps = self._heatmaps[cam.cam_id]
+
+        # The middle camera (camera_ordering[3]) has no per-joint heatmaps
+        # populated by the current pipeline; skip it to keep BP's candidate-
+        # product non-empty.
+        mid_cam_id = int(self.camera_ordering[3])
+        bp_cams = [c for c in self.camNet.cam_list if c.cam_id != mid_cam_id]
+
+        bone_param = config['bone_param']
+        num_peak = config['num_peak']
+
+        # solve_belief_propagation returns a list (len(bp_cams)) of (38, 2)
+        # arrays in (x_norm, y_norm) form. Build corrected per-frame outputs.
+        n_cams = self.camNet.get_ncams()
+        n_frames = self.num_images
+        # Start from a copy of the current points2d so cams not touched by BP
+        # (the middle one) and joints not visible to a given camera keep
+        # their network-predicted values.
+        corrected = np.copy(self.points2d)
+
+        for img_id in tqdm(range(self.start_image_idx,
+                                 self.start_image_idx + n_frames),
+                           desc='BP'):
+            bp_pts = solve_belief_propagation(
+                cam_list=bp_cams, img_id=img_id,
+                bone_param=bone_param, num_peak=num_peak,
+            )
+            # bp_pts[i] is a (38, 2) array in (x_norm, y_norm). Write it back
+            # into corrected[cam.cam_id], swapping to (y_norm, x_norm) to
+            # match the Convention A used by the rest of df3d.
+            for bp_idx, cam in enumerate(bp_cams):
+                pts_xy = bp_pts[bp_idx]
+                pts_yx = pts_xy[:, ::-1]
+                # only overwrite joints visible from this camera so we don't
+                # zero out joints BP left untouched.
+                vis = np.array([
+                    config['skeleton'].camera_see_joint(cam.cam_id, j_id)
+                    for j_id in range(38)
+                ])
+                # also keep zeros where BP returned zero (no candidate)
+                nonzero = np.any(pts_yx != 0, axis=-1)
+                mask = vis & nonzero
+                corrected[cam.cam_id, img_id, mask] = pts_yx[mask]
+
+        self.points2d = corrected
+        # Refresh each camera's stored points2d (in pyba (x_pix, y_pix) form,
+        # which is image_shape * (x_norm, y_norm) = image_shape * points2d_yx[..., ::-1]).
+        scaled_xy = self.points2d[..., ::-1] * self.image_shape
+        for cam in self.camNet.cam_list:
+            cam.points2d = scaled_xy[cam.cam_id]
+            cam.heatmaps = None  # release heatmap reference
+
+        self._heatmaps = None
+        self._reproj_err_norms_cache = None
 
     def nearest_joint(self, cam_id, img_id, x, y):
         """Finds the joint nearest to (x,y) coordinates on the img_id of cam_id.
