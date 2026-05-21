@@ -343,6 +343,17 @@ class Core:
             raise RuntimeError(
                 'BP needs a calibrated camNet; run calibrate_calc first.'
             )
+        # BP addresses cameras and heatmaps by integer cam_id; a None cam_id
+        # (a Camera built outside pyba.CameraNetwork) would silently misindex.
+        cams_lacking_id = [c for c in self.camNet.cam_list
+                           if not isinstance(c.cam_id, (int, np.integer))]
+        if cams_lacking_id:
+            raise RuntimeError(
+                'Belief propagation indexes cameras by integer cam_id, but '
+                f'{len(cams_lacking_id)} camera(s) have non-integer cam_id '
+                f'{[c.cam_id for c in cams_lacking_id]}. Build the camera network '
+                'via pyba.CameraNetwork (which assigns cam_id automatically).'
+            )
 
         # Attach this camera's heatmaps for the duration of the BP run.
         for cam in self.camNet.cam_list:

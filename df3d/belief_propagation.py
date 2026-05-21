@@ -46,6 +46,15 @@ def _top_k_peaks_xy_normalized(heatmap_2d, num_peak, min_distance=1,
 
 
 def solve_belief_propagation(cam_list, img_id, bone_param, num_peak=10, prior=None):
+        # Every camera must carry an integer cam_id: it drives the skeleton
+        # visibility lookups and candidate indexing below.
+        if any(not isinstance(c.cam_id, (int, np.integer)) for c in cam_list):
+            raise ValueError(
+                'solve_belief_propagation requires every camera to have an '
+                'integer cam_id, but got cam_id values '
+                f'{[c.cam_id for c in cam_list]}.'
+            )
+
         # find all the connected parts
         j_id_list_list = [
             [j for j in range(config["skeleton"].num_joints) if config["skeleton"].limb_id[j] == limb_id]
