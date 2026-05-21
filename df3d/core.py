@@ -368,7 +368,7 @@ class Core:
 
         for img_id in tqdm(range(self.start_image_idx,
                                  self.start_image_idx + n_frames),
-                           desc='BP'):
+                           desc='Belief Propagation'):
             bp_pts = solve_belief_propagation(
                 cam_list=bp_cams, img_id=img_id,
                 bone_param=bone_param, num_peak=num_peak,
