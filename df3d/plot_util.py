@@ -8,6 +8,15 @@ def Rt_points3d(R, tvec, points3d):
 
 
 def rotate_points3d(pts_t):
+    """Swap the y and z axes and negate both.
+
+    Despite the name this is NOT a rotation: its determinant is -1, so it is a
+    reflection and it mirrors the fly, exchanging its left and right sides. It
+    was used to make the old, arbitrarily oriented procrustes-template frame
+    display upright. The template is now body-aligned (see df3d.body_align), so
+    nothing in df3d calls this any more. Do not reintroduce it into a pipeline
+    whose axes are supposed to be anatomically meaningful.
+    """
     tmp = pts_t[:, :, 1].copy()
     pts_t[:, :, 1] = pts_t[:, :, 2].copy()
     pts_t[:, :, 2] = tmp

@@ -18,6 +18,7 @@ from df3d.db import PoseDB
 from df3d.os_util import get_max_img_id, parse_vid_name
 from df3d.plot_util import normalize_pose_3d
 from df3d.procrustes import procrustes_seperate
+from df3d.body_align import align_to_body_axes
 from df3d.signal_util import filter_batch, smooth_pose2d
 
 
@@ -501,12 +502,29 @@ class Core:
 
         Indexing is as follows:
         array[image_id][joint_id] = (x, y, z)
+
+        When ``config["align_body_axes"]`` is True (the default) the points are
+        rotated into the fly body frame, so the axes are anatomically
+        meaningful: x = anterior-posterior (+x anterior), y = medial-lateral
+        (+y the fly's left), z = dorsal-ventral (+z dorsal / leg lift). See
+        ``df3d.body_align``. Set the config key to False to keep the raw
+        procrustes-template frame.
         """
 
         points3d = np.copy(self.camNet.points3d)
         points3d = procrustes_seperate(points3d)
-        points3d = normalize_pose_3d(points3d, rotate=True)
+        # This used to be normalize_pose_3d(..., rotate=True), which applies
+        # plot_util.rotate_points3d(): it swaps the y and z axes and negates
+        # both, a transform whose determinant is -1. That is a reflection, not
+        # a rotation, and it existed only to make the arbitrary
+        # procrustes-template frame display upright. The template is now itself
+        # body-aligned, so the points arrive upright and the reflection would
+        # merely mirror the fly -- swapping its left and right, and disagreeing
+        # with the frame save() writes. Dropped.
+        points3d = normalize_pose_3d(points3d)
         points3d = filter_batch(points3d)
+        if config.get("align_body_axes", True):
+            points3d = align_to_body_axes(points3d)
         return points3d
 
     def save_corrections(self):
@@ -523,7 +541,19 @@ class Core:
             pts3d = self.camNet.points3d
             dict_merge["points3d_wo_procrustes"] = pts3d
             pts3d = procrustes_seperate(pts3d)
+            if config.get("align_body_axes", True):
+                # Rotate into the fly body frame: x = anterior-posterior,
+                # y = medial-lateral (+y = fly's left), z = dorsal-ventral
+                # (+z = dorsal / leg lift). See df3d.body_align. This is a rigid
+                # rotation, so it leaves joint angles and all relative geometry
+                # unchanged; points3d_wo_procrustes preserves the raw frame.
+                pts3d = align_to_body_axes(pts3d)
             dict_merge["points3d"] = pts3d
+            # Record whether points3d is in the body frame, so downstream
+            # loaders can align legacy (raw-frame) results without re-rotating
+            # already-aligned ones.
+            dict_merge["body_axis_aligned"] = bool(
+                config.get("align_body_axes", True))
             dict_merge = {**self.camNet.summarize(), **dict_merge}
         else:
             logger.debug("Triangulation skipped.")
