@@ -141,7 +141,6 @@ class Core:
                 colors=df3d_colors,
                 bones=df3d_bones,
             )
-            self._apply_only_render_legs_mask()
 
     # -------------------------------------------------------------------------
     # properties
@@ -334,25 +333,28 @@ class Core:
         # camNet built from fresh points2d -> reprojection-error cache stale.
         self._reproj_err_norms_cache = None
         print(f"Reprojection error is {self.camNet.reprojection_error()}")
-        self._apply_only_render_legs_mask()
 
+    def hidden_joints(self):
+        """
+        Antenna and stripe joint indices, or an empty list when
+        `only_render_legs` is unset.
 
-    def _apply_only_render_legs_mask(self):
+        These are meant for rendering calls only (`plot_2d`'s
+        `hidden_joints=`, or `draw_joints=` in df3d.video/df3d.plot_util) --
+        never for masking `points2d`/`points3d` themselves. Zeroing the
+        underlying data to hide it from a plot corrupts anything computed
+        from it afterward: it used to feed (0, 0, 0) antenna/stripe positions
+        into triangulation, which in turn broke df3d.body_align's
+        dorsal-ventral sign (it disambiguates "up" from the stripe's
+        triangulated position).
         """
-        When `only_render_legs` is set, zero out antenna and stripe joints in
-        each camera's stored 2D points so that pyba's rendering (which gates
-        on `Camera.can_see`) skips drawing them as either circles or bones.
-        Leaves `self.points2d` untouched so the saved pkl is not polluted.
-        """
-        if not self.only_render_legs or self.camNet is None:
-            return
+        if not self.only_render_legs:
+            return []
         skeleton = config["skeleton"]
         Tracked = skeleton.Tracked
-        hidden_jids = [j for j in range(skeleton.num_joints)
-                       if (skeleton.is_tracked_point(j, Tracked.ANTENNA)
-                           or skeleton.is_tracked_point(j, Tracked.STRIPE))]
-        for cam in self.camNet.cam_list:
-            cam.points2d[:, hidden_jids, :] = 0
+        return [j for j in range(skeleton.num_joints)
+                if (skeleton.is_tracked_point(j, Tracked.ANTENNA)
+                    or skeleton.is_tracked_point(j, Tracked.STRIPE))]
 
     def run_belief_propagation(self):
         """Apply pictorial-structures pose correction (Fig. 10 of the 2019 eLife paper).
@@ -516,12 +518,15 @@ class Core:
                              "cannot both be set to True")
 
         cam = self.camNet[cam_id]
+        hidden_joints = self.hidden_joints()
         if reprojection:
             return cam.plot_reprojections(img_id, self.camNet.points3d,
-                                          bones=df3d_bones, colors=df3d_colors)
+                                          bones=df3d_bones, colors=df3d_colors,
+                                          hidden_joints=hidden_joints)
         pts2d = self.corrected_points2d(cam_id, img_id) if with_corrections else None
         return cam.plot_2d(img_id, points2d=pts2d,
-                           bones=df3d_bones, colors=df3d_colors)
+                           bones=df3d_bones, colors=df3d_colors,
+                           hidden_joints=hidden_joints)
 
     def get_image(self, cam_id, img_id):
         """Returns the img_id image from cam_id camera."""
@@ -694,7 +699,7 @@ class Core:
                     os.path.join(self.input_folder, f"camera_{cam_id}_img_000000.jpg")
                 )
             ):
-                command = f"ffmpeg -nostats -loglevel error -i {vid} -qscale:v 2 -start_number 0 {self.input_folder}/camera_{cam_id}_img_%d.jpg  < /dev/null"
+                command = f"ffmpeg -hide_banner -loglevel error -i {vid} -qscale:v 2 -start_number 0 {self.input_folder}/camera_{cam_id}_img_%d.jpg  < /dev/null"
                 subprocess.call(command, shell=True)
 
     def delete_images(self):

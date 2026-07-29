@@ -70,7 +70,7 @@ config_fly = {
         os.path.abspath(os.path.dirname(__file__)), "../data/"
     ),
     # rendering
-    "only_render_legs": False,
+    "only_render_legs": True,
 }
 
 
