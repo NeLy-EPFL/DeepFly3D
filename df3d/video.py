@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import cv2
+import npimage
 import packaging.version
 from tqdm import tqdm
 
@@ -139,16 +140,13 @@ def _make_video(video_path, imgs, fps=default_fps, desc=None, total=None):
     height, width = first_frame.shape[:2]
     logger.debug('Saving video to: ' + video_path)
     logger.debug(f'Video size is: ({width}, {height})')
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    video_writer = cv2.VideoWriter(video_path, fourcc, fps, (width, height))
-
-    if logger.info_enabled():
-        imgs = tqdm(imgs, desc=desc, total=total)
-    for img in imgs:
-        rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        video_writer.write(rgb)
-
-    video_writer.release()
+    with npimage.VideoWriter(video_path, framerate=fps, crf=18,
+                             codec='libx264', compression_speed='veryfast',
+                             overwrite=True) as video_writer:
+        if logger.info_enabled():
+            imgs = tqdm(imgs, desc=desc, total=total)
+        for img in imgs:
+            video_writer.write(img)
     logger.info('Video created at {}\n'.format(video_path))
 
 

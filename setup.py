@@ -23,6 +23,7 @@ setup(
         "colorama",
         "matplotlib",
         "numpy",
+        "numpyimage>=3.0.0",
         "opencv-python-headless>=4.8.1.78", # https://github.com/NeLy-EPFL/DeepFly3D/security/dependabot/4
         "PyQt5",
         "scikit-learn",
