@@ -50,10 +50,24 @@ def constr_img_name(cid, pid, pad=True):
 
 
 def parse_img_name(name):
-    match = re.match("camera_(\d+)_img_(\d+)", name.replace(".jpg", ""))
+    match = re.match(r"camera_(\d+)_img_(\d+)", name.replace(".jpg", ""))
     return int(match[1]), int(match[2])
 
 
 def parse_vid_name(name):
-    match = re.match("camera_(\d+)", name.replace(".mp4", "").replace(".avi", ""))
+    match = re.match(r"camera_(\d+)", name.replace(".mp4", "").replace(".avi", ""))
     return int(match[1])
+
+
+def pick_image_path(input_folder: str) -> str:
+    """
+    Return the image-path template to hand to pyba's CameraNetwork.
+    Prefers the source video file `camera_{cam_id}.mp4` (or `.avi`) when
+    present, since pyba can stream from it via cv2.VideoCapture ~10x
+    faster than per-frame cv2.imread on NFS storage. Falls back to the
+    expanded per-frame jpg template if no source video is found.
+    """
+    for extension in ('mp4', 'avi'):
+        if os.path.exists(os.path.join(input_folder, f"camera_0.{extension}")):
+            return os.path.join(input_folder, "camera_{cam_id}." + extension)
+    return os.path.join(input_folder, "camera_{cam_id}_img_{img_id}.jpg")

@@ -9,6 +9,7 @@ from colorama import init as colorama_init
 
 import df3d.logger as logger
 from df3d import video
+from df3d.config import config
 from df3d.core import Core
 
 
@@ -135,6 +136,13 @@ def parse_cli_args():
         "--video-3d", help="Generate pose3d videos", action="store_true"
     )
     parser.add_argument(
+        "--only-render-legs",
+        help="Render only leg keypoints/bones in output videos; hide antenna and stripe keypoints."
+             f" Defaults to config['only_render_legs'] = {config['only_render_legs']}.",
+        action="store_true",
+        default=config["only_render_legs"],
+    )
+    parser.add_argument(
         "--skip-pose-estimation",
         help="Skip 2D and 3D pose estimation",
         dest="skip_estimation",
@@ -149,6 +157,27 @@ def parse_cli_args():
     parser.add_argument(
         "--pin-memory-disabled",
         help="Whether to disable `pin_memory` in the dataloader. Keeping this enabled usually speeds up the processing, but sometimes leads to memory leaks. See https://github.com/NeLy-EPFL/DeepFly2D/issues/6",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--save-top-k-peaks",
+        help="Also save the top-K local-maximum heatmap peaks per joint into"
+             " the df3d_result pkl under the key 'top_k_peaks'. K is taken"
+             " from config['num_peak'] (default 10). These peaks are the input"
+             " to the pictorial-structures / belief-propagation pose-correction"
+             " step from the 2019 eLife paper; enabling this flag is the data-"
+             "collection prerequisite for that correction.",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--belief-propagation",
+        help="Apply pictorial-structures pose correction (Fig. 10 of the 2019"
+             " eLife paper) after 2D inference and calibration. BP scores"
+             " cross-camera triangulations of the top-K heatmap peaks against"
+             " bone-length priors and per-view heatmap probabilities, picks"
+             " the MAP configuration per leg, and writes corrected 2D points"
+             " back into the result pkl. Requires keeping the full heatmaps"
+             " in memory during the run (~8.7 GB / 1000 frames).",
         action="store_true",
     )
     parser.add_argument(
@@ -310,16 +339,23 @@ def run(args):
 
     core = Core(
         args.input_folder, args.output_folder, args.num_images_max, args.order,
-        args.start_image_idx
+        args.start_image_idx, only_render_legs=args.only_render_legs,
     )
 
     if not args.skip_estimation:
-        core.pose2d_estimation(args.batch_size, args.pin_memory_disabled)
+        core.pose2d_estimation(args.batch_size, args.pin_memory_disabled,
+                               save_top_k_peaks=args.save_top_k_peaks,
+                               keep_heatmaps=args.belief_propagation)
         core.save()
         core.calibrate_calc(0, core.max_img_id)
+        if args.belief_propagation:
+            core.run_belief_propagation()
         core.save()
     else:
         core.calibrate_calc(0, core.max_img_id)
+        if args.belief_propagation:
+            logger.warning('--belief-propagation requires fresh inference; '
+                           'ignored because --skip-pose-estimation was set.')
         core.save()
 
     # Use output_fps if specified, otherwise use core.fps which comes from the input videos
@@ -340,6 +376,7 @@ def run(args):
             core.output_folder,
             fps=fps,
             start_image_idx=core.start_image_idx,
+            only_render_legs=core.only_render_legs,
         )
 
     if args.delete_images:

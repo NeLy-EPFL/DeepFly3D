@@ -10,6 +10,10 @@ default = {
     "alpha_reproj": 30,
     "alpha_heatmap": 600,
     "alpha_bone": 10,
+    # Rotate the saved 3D points into the fly body frame (x = anterior-
+    # posterior, y = medial-lateral / +left, z = dorsal-ventral / +dorsal).
+    # See df3d.body_align. Set False to keep the raw procrustes-template frame.
+    "align_body_axes": True,
 }
 
 config_fly = {
@@ -34,6 +38,8 @@ config_fly = {
     "batch_size": 12,
     "flip_cameras": [4, 5, 6],
     "num_predict": skeleton_fly.num_joints // 2,
+    # 3d body-frame alignment (see the note in `default` above)
+    "align_body_axes": True,
     "mean": os.path.join(
         os.path.abspath(os.path.dirname(__file__)), "../weights/mean.pth.tar"
     ),
@@ -63,6 +69,8 @@ config_fly = {
     "procrustes_template": os.path.join(
         os.path.abspath(os.path.dirname(__file__)), "../data/"
     ),
+    # rendering
+    "only_render_legs": True,
 }
 
 

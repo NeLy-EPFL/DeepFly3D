@@ -8,6 +8,7 @@ from typing import *
 
 import matplotlib.pyplot as plt
 import numpy as np
+import cv2
 from df2d.inference import inference_folder
 from pyba.CameraNetwork import CameraNetwork
 from sklearn.neighbors import NearestNeighbors
@@ -15,9 +16,10 @@ from sklearn.neighbors import NearestNeighbors
 from df3d import logger
 from df3d.config import config
 from df3d.db import PoseDB
-from df3d.os_util import get_max_img_id, parse_vid_name
+from df3d.os_util import get_max_img_id, parse_vid_name, pick_image_path
 from df3d.plot_util import normalize_pose_3d
 from df3d.procrustes import procrustes_seperate
+from df3d.body_align import align_to_body_axes
 from df3d.signal_util import filter_batch, smooth_pose2d
 
 
@@ -69,7 +71,10 @@ class Core:
         num_images_max: Optional[int] = None,
         camera_ordering: List[int] = [0, 1, 2, 3, 4, 5, 6],
         start_image_idx: int = 0,
+        only_render_legs: Optional[bool] = None,
     ):
+        self.only_render_legs = (config["only_render_legs"]
+                                 if only_render_legs is None else only_render_legs)
         self.input_folder = input_folder
         if output_folder is None:
             self.output_folder = self.input_folder + "_df3d"
@@ -86,12 +91,22 @@ class Core:
             self.max_img_id = self.start_image_idx + self.num_images - 1
         else:
             self.num_images = self.max_img_id + 1 - self.start_image_idx
-        image_path = os.path.join(self.input_folder, "camera_{cam_id}_img_{img_id}.jpg")
-        image0_path = image_path.format(cam_id=0, img_id=0)
+        image_path = pick_image_path(self.input_folder)
+        if "{img_id}" in image_path:
+            image0_path = image_path.format(cam_id=0, img_id=0)
+        else:
+            image0_path = image_path.format(cam_id=0)
         if "image_shape" in config:
             self.image_shape = config["image_shape"]
         if os.path.exists(image0_path):
-            image0 = plt.imread(image0_path)
+            if image0_path.lower().endswith(('.mp4', '.avi')):
+                cap = cv2.VideoCapture(image0_path)
+                ok, image0 = cap.read()
+                cap.release()
+                if not ok:
+                    raise ValueError(f"Could not read first frame from {image0_path}")
+            else:
+                image0 = plt.imread(image0_path)
             image0_shape = list(image0.shape[:2][::-1])
             if "image_shape" in config and image0_shape != self.image_shape:
                 raise ValueError(f"Actual image shape {image0_shape} does not match"
@@ -169,22 +184,45 @@ class Core:
     # -------------------------------------------------------------------------
     # public methods
 
-    def pose2d_estimation(self, batch_size: int = 8, disable_pin_memory: bool = False):
+    def pose2d_estimation(self, batch_size: int = 8, disable_pin_memory: bool = False,
+                          save_top_k_peaks: bool = False,
+                          keep_heatmaps: bool = False):
         """Runs the pose2d estimation on self.input_folder.
 
         Parameters:
         batch_size: Batch size to use when running inference on the images (default: 8)
         disable_pin_memory: Whether to disable the `pin_memory` option for the dataloader (default: False)
+        save_top_k_peaks: If True, also extract the top-K local-maximum peaks per
+            heatmap and store them as `self.top_k_peaks` (shape
+            [n_cameras, n_frames, 38, K, 3]) for later use by the pictorial-
+            structures / belief-propagation pose-correction step. K, the local-
+            max search radius, and the relative threshold come from config keys
+            `num_peak`, plus internal defaults. Default: False.
+        keep_heatmaps: If True, retain the full per-joint heatmaps from the 2D
+            network in `self._heatmaps` (shape [n_cameras, n_frames, 38, H, W],
+            ~8.7 GB / 1000 frames) so that a subsequent call to
+            `run_belief_propagation` can score arbitrary 2D candidates against
+            them. Heatmaps are not written to the result pkl. Default: False.
         """
-        self.points2d, self.conf = inference_folder(
+        inference_kwargs = dict(
             folder=self.input_folder,
             camera_ids_to_flip=[camera_id for index, camera_id in enumerate(self.camera_ordering) if index > 3], # flip the last 3 cameras so all images face to the right
-            return_heatmap=False,
+            return_heatmap=keep_heatmaps,
             return_confidence=True,
+            return_peaks=save_top_k_peaks,
             max_img_id=self.max_img_id,
             batch_size=batch_size,
-            disable_pin_memory=disable_pin_memory
+            disable_pin_memory=disable_pin_memory,
         )
+        if save_top_k_peaks:
+            inference_kwargs['num_peaks'] = config['num_peak']
+
+        result = inference_folder(**inference_kwargs)
+        result = list(result) if isinstance(result, tuple) else [result]
+        self.points2d = result.pop(0)
+        self.conf = result.pop(0)
+        heatmaps = result.pop(0) if keep_heatmaps else None
+        peaks = result.pop(0) if save_top_k_peaks else None
 
         # 2d pose estimation outputs 19 points, which is what a single camera sees,
         #     however there are 38 joints in total
@@ -192,9 +230,12 @@ class Core:
         points2d_cp[self.camera_ordering[:3], :, :19] = self.points2d[self.camera_ordering[:3]]
         points2d_cp[self.camera_ordering[4:], :, 19:] = self.points2d[self.camera_ordering[4:]]
 
-        # cameras 0 and 6 cannot see the stripes and antenna
-        points2d_cp[self.camera_ordering[2], :, 15:] = 0
-        points2d_cp[self.camera_ordering[4], :, 19+15:] = 0
+        # antennae not visible from hind corner cameras
+        points2d_cp[self.camera_ordering[0], :, 15] = 0
+        points2d_cp[self.camera_ordering[6], :, 19+15] = 0
+        # stripes not visible from front corner cameras
+        points2d_cp[self.camera_ordering[2], :, 16:19] = 0
+        points2d_cp[self.camera_ordering[4], :, 19+16:19+19] = 0
 
         # flip lr back left-hand-side cameras
         for cidx in [4,5,6]:
@@ -203,6 +244,46 @@ class Core:
 
         # fmt:on
         self.points2d = points2d_cp
+
+        if peaks is not None:
+            # Mirror the 19-->38 joint expansion above. peaks has shape
+            # [n_cameras, n_frames, 19, K, 3] with last axis (y, x, score).
+            n_cameras, n_frames, _, K, _ = peaks.shape
+            peaks_cp = np.zeros((n_cameras, n_frames, 38, K, 3), dtype=np.float32)
+            peaks_cp[self.camera_ordering[:3], :, :19] = peaks[self.camera_ordering[:3]]
+            peaks_cp[self.camera_ordering[4:], :, 19:] = peaks[self.camera_ordering[4:]]
+            # cameras 0 and 6 cannot see the stripes and antenna
+            peaks_cp[self.camera_ordering[2], :, 15:] = 0
+            peaks_cp[self.camera_ordering[4], :, 19+15:] = 0
+            # Flip lr for cams 4,5,6 to match points2d, but only on real peaks
+            # (score > 0); padded slots stay (0, 0, 0).
+            for cidx in [4, 5, 6]:
+                cam = self.camera_ordering[cidx]
+                real = peaks_cp[cam, ..., 2] > 0
+                peaks_cp[cam, ..., 1] = np.where(
+                    real, 1 - peaks_cp[cam, ..., 1], peaks_cp[cam, ..., 1]
+                )
+            self.top_k_peaks = peaks_cp
+        else:
+            self.top_k_peaks = None
+
+        if heatmaps is not None:
+            # Heatmaps shape [n_cameras, n_frames, 19, H, W]. Mirror the
+            # 19->38 joint expansion done for points2d above, including the
+            # horizontal flip of the heatmap's width axis (column) for the
+            # right-side cameras whose images were flipped before inference.
+            n_cameras, n_frames, _, H, W = heatmaps.shape
+            heatmaps_cp = np.zeros((n_cameras, n_frames, 38, H, W), dtype=np.float32)
+            heatmaps_cp[self.camera_ordering[:3], :, :19] = heatmaps[self.camera_ordering[:3]]
+            heatmaps_cp[self.camera_ordering[4:], :, 19:] = heatmaps[self.camera_ordering[4:]]
+            heatmaps_cp[self.camera_ordering[2], :, 15:] = 0
+            heatmaps_cp[self.camera_ordering[4], :, 19+15:] = 0
+            for cidx in [4, 5, 6]:
+                cam = self.camera_ordering[cidx]
+                heatmaps_cp[cam] = heatmaps_cp[cam, :, :, :, ::-1]
+            self._heatmaps = heatmaps_cp
+        else:
+            self._heatmaps = None
 
     def next_error(self, img_id):
         """Finds the next image with an error in prediction after img_id.
@@ -243,14 +324,133 @@ class Core:
             cidx: calib[idx] for (idx, cidx) in enumerate(self.camera_ordering)
         }
 
-        image_path = os.path.join(self.input_folder, "camera_{cam_id}_img_{img_id}.jpg")
+        image_path = pick_image_path(self.input_folder)
 
         self.camNet = CameraNetwork(
             self.points2d * self.image_shape[::-1], calib=calib_reordered, image_path=image_path
         )
         self.camNet.bundle_adjust(update_intrinsic=False, update_distort=False)
+        # camNet built from fresh points2d -> reprojection-error cache stale.
+        self._reproj_err_norms_cache = None
         print(f"Reprojection error is {self.camNet.reprojection_error()}")
 
+    def hidden_joints(self):
+        """
+        Antenna and stripe joint indices, or an empty list when
+        `only_render_legs` is unset.
+
+        These are meant for rendering calls only (`plot_2d`'s
+        `hidden_joints=`, or `draw_joints=` in df3d.video/df3d.plot_util) --
+        never for masking `points2d`/`points3d` themselves. Zeroing the
+        underlying data to hide it from a plot corrupts anything computed
+        from it afterward: it used to feed (0, 0, 0) antenna/stripe positions
+        into triangulation, which in turn broke df3d.body_align's
+        dorsal-ventral sign (it disambiguates "up" from the stripe's
+        triangulated position).
+        """
+        if not self.only_render_legs:
+            return []
+        skeleton = config["skeleton"]
+        Tracked = skeleton.Tracked
+        return [j for j in range(skeleton.num_joints)
+                if (skeleton.is_tracked_point(j, Tracked.ANTENNA)
+                    or skeleton.is_tracked_point(j, Tracked.STRIPE))]
+
+    def run_belief_propagation(self):
+        """Apply pictorial-structures pose correction (Fig. 10 of the 2019 eLife paper).
+
+        Requires `pose2d_estimation(keep_heatmaps=True)` to have been called
+        and `calibrate_calc` to have produced a calibrated `self.camNet`.
+
+        For each frame, BP scores cross-camera triangulations of the network's
+        per-camera top-K heatmap peaks against bone-length priors and per-view
+        heatmap probabilities, picks the MAP configuration per leg, and writes
+        the corrected (per-camera, per-joint) 2D points back into both
+        `self.points2d` and the cameras' stored 2D points so that the next
+        `save()` produces a triangulation from the corrected detections.
+        Heatmaps and any cached reprojection-error tensor are released after
+        the run.
+        """
+        from tqdm import tqdm
+        from df3d.belief_propagation import solve_belief_propagation
+
+        if self._heatmaps is None:
+            raise RuntimeError(
+                'Heatmaps not retained from inference; '
+                'call pose2d_estimation(keep_heatmaps=True) first.'
+            )
+        if self.camNet is None or not self.camNet.has_calibration():
+            raise RuntimeError(
+                'BP needs a calibrated camNet; run calibrate_calc first.'
+            )
+        # BP addresses cameras and heatmaps by integer cam_id; a None cam_id
+        # (a Camera built outside pyba.CameraNetwork) would silently misindex.
+        cams_lacking_id = [c for c in self.camNet.cam_list
+                           if not isinstance(c.cam_id, (int, np.integer))]
+        if cams_lacking_id:
+            raise RuntimeError(
+                'Belief propagation indexes cameras by integer cam_id, but '
+                f'{len(cams_lacking_id)} camera(s) have non-integer cam_id '
+                f'{[c.cam_id for c in cams_lacking_id]}. Build the camera network '
+                'via pyba.CameraNetwork (which assigns cam_id automatically).'
+            )
+
+        # Attach this camera's heatmaps for the duration of the BP run.
+        for cam in self.camNet.cam_list:
+            cam.heatmaps = self._heatmaps[cam.cam_id]
+
+        # The middle camera (camera_ordering[3]) has no per-joint heatmaps
+        # populated by the current pipeline; skip it to keep BP's candidate-
+        # product non-empty.
+        mid_cam_id = int(self.camera_ordering[3])
+        bp_cams = [c for c in self.camNet.cam_list if c.cam_id != mid_cam_id]
+
+        bone_param = config['bone_param']
+        num_peak = config['num_peak']
+
+        # solve_belief_propagation returns a list (len(bp_cams)) of (38, 2)
+        # arrays in (x_norm, y_norm) form. Build corrected per-frame outputs.
+        n_cams = self.camNet.get_ncams()
+        n_frames = self.num_images
+        # Start from a copy of the current points2d so cams not touched by BP
+        # (the middle one) and joints not visible to a given camera keep
+        # their network-predicted values.
+        corrected = np.copy(self.points2d)
+
+        for img_id in tqdm(range(self.start_image_idx,
+                                 self.start_image_idx + n_frames),
+                           desc='Belief Propagation'):
+            bp_pts = solve_belief_propagation(
+                cam_list=bp_cams, img_id=img_id,
+                bone_param=bone_param, num_peak=num_peak,
+            )
+            # bp_pts[i] is a (38, 2) array in (x_norm, y_norm). Write it back
+            # into corrected[cam.cam_id], swapping to (y_norm, x_norm) to
+            # match the Convention A used by the rest of df3d.
+            for bp_idx, cam in enumerate(bp_cams):
+                pts_xy = bp_pts[bp_idx]
+                pts_yx = pts_xy[:, ::-1]
+                # only overwrite joints visible from this camera so we don't
+                # zero out joints BP left untouched.
+                vis = np.array([
+                    config['skeleton'].camera_see_joint(cam.cam_id, j_id)
+                    for j_id in range(38)
+                ])
+                # also keep zeros where BP returned zero (no candidate)
+                nonzero = np.any(pts_yx != 0, axis=-1)
+                mask = vis & nonzero
+                corrected[cam.cam_id, img_id, mask] = pts_yx[mask]
+
+        self.points2d = corrected
+        # Refresh each camera's stored points2d (in pyba (x_pix, y_pix) form,
+        # which is image_shape * (x_norm, y_norm) = image_shape * points2d_yx[..., ::-1]).
+        scaled_xy = self.points2d[..., ::-1] * self.image_shape
+        for cam in self.camNet.cam_list:
+            cam.points2d = scaled_xy[cam.cam_id]
+            cam.heatmaps = None  # release heatmap reference
+
+        self._heatmaps = None
+        self._reproj_err_norms_cache = None
 
     def nearest_joint(self, cam_id, img_id, x, y):
         """Finds the joint nearest to (x,y) coordinates on the img_id of cam_id.
@@ -318,12 +518,15 @@ class Core:
                              "cannot both be set to True")
 
         cam = self.camNet[cam_id]
+        hidden_joints = self.hidden_joints()
         if reprojection:
             return cam.plot_reprojections(img_id, self.camNet.points3d,
-                                          bones=df3d_bones, colors=df3d_colors)
+                                          bones=df3d_bones, colors=df3d_colors,
+                                          hidden_joints=hidden_joints)
         pts2d = self.corrected_points2d(cam_id, img_id) if with_corrections else None
         return cam.plot_2d(img_id, points2d=pts2d,
-                           bones=df3d_bones, colors=df3d_colors)
+                           bones=df3d_bones, colors=df3d_colors,
+                           hidden_joints=hidden_joints)
 
     def get_image(self, cam_id, img_id):
         """Returns the img_id image from cam_id camera."""
@@ -341,12 +544,29 @@ class Core:
 
         Indexing is as follows:
         array[image_id][joint_id] = (x, y, z)
+
+        When ``config["align_body_axes"]`` is True (the default) the points are
+        rotated into the fly body frame, so the axes are anatomically
+        meaningful: x = anterior-posterior (+x anterior), y = medial-lateral
+        (+y the fly's left), z = dorsal-ventral (+z dorsal / leg lift). See
+        ``df3d.body_align``. Set the config key to False to keep the raw
+        procrustes-template frame.
         """
 
         points3d = np.copy(self.camNet.points3d)
         points3d = procrustes_seperate(points3d)
-        points3d = normalize_pose_3d(points3d, rotate=True)
+        # This used to be normalize_pose_3d(..., rotate=True), which applies
+        # plot_util.rotate_points3d(): it swaps the y and z axes and negates
+        # both, a transform whose determinant is -1. That is a reflection, not
+        # a rotation, and it existed only to make the arbitrary
+        # procrustes-template frame display upright. The template is now itself
+        # body-aligned, so the points arrive upright and the reflection would
+        # merely mirror the fly -- swapping its left and right, and disagreeing
+        # with the frame save() writes. Dropped.
+        points3d = normalize_pose_3d(points3d)
         points3d = filter_batch(points3d)
+        if config.get("align_body_axes", True):
+            points3d = align_to_body_axes(points3d)
         return points3d
 
     def save_corrections(self):
@@ -363,7 +583,19 @@ class Core:
             pts3d = self.camNet.points3d
             dict_merge["points3d_wo_procrustes"] = pts3d
             pts3d = procrustes_seperate(pts3d)
+            if config.get("align_body_axes", True):
+                # Rotate into the fly body frame: x = anterior-posterior,
+                # y = medial-lateral (+y = fly's left), z = dorsal-ventral
+                # (+z = dorsal / leg lift). See df3d.body_align. This is a rigid
+                # rotation, so it leaves joint angles and all relative geometry
+                # unchanged; points3d_wo_procrustes preserves the raw frame.
+                pts3d = align_to_body_axes(pts3d)
             dict_merge["points3d"] = pts3d
+            # Record whether points3d is in the body frame, so downstream
+            # loaders can align legacy (raw-frame) results without re-rotating
+            # already-aligned ones.
+            dict_merge["body_axis_aligned"] = bool(
+                config.get("align_body_axes", True))
             dict_merge = {**self.camNet.summarize(), **dict_merge}
         else:
             logger.debug("Triangulation skipped.")
@@ -371,6 +603,8 @@ class Core:
         dict_merge["camera_ordering"] = self.camera_ordering
         dict_merge["heatmap_confidence"] = self.conf
         dict_merge["image_shape"] = self.image_shape
+        if getattr(self, 'top_k_peaks', None) is not None:
+            dict_merge["top_k_peaks"] = self.top_k_peaks
 
         with open(self.save_path, "wb") as f:
             pickle.dump(dict_merge, f)
@@ -465,7 +699,7 @@ class Core:
                     os.path.join(self.input_folder, f"camera_{cam_id}_img_000000.jpg")
                 )
             ):
-                command = f"ffmpeg -nostats -loglevel error -i {vid} -qscale:v 2 -start_number 0 {self.input_folder}/camera_{cam_id}_img_%d.jpg  < /dev/null"
+                command = f"ffmpeg -hide_banner -loglevel error -i {vid} -qscale:v 2 -start_number 0 {self.input_folder}/camera_{cam_id}_img_%d.jpg  < /dev/null"
                 subprocess.call(command, shell=True)
 
     def delete_images(self):
@@ -507,15 +741,37 @@ class Core:
     def joint_has_error(self, img_id, joint_id):
         """Indicates whether joint_id was estimated with error or not.
 
+        Compares the reprojection error against the per-joint threshold in
+        config["reproj_thr"]. Pre-refactor, the error was computed separately
+        against `camNetLeft` and `camNetRight` (two halves of the camera ring)
+        and the max was taken; with the current single-camNet pipeline we
+        instead take the max over all cameras that see this joint.
+
         Returns:
         boolean: whether there is a suspected error for joint_id on img_id.
         """
+        err_per_cam = self._reprojection_error_norms()[:, img_id, joint_id]
+        return float(np.max(err_per_cam)) > config["reproj_thr"][joint_id]
 
-        get_error = self.get_joint_reprojection_error
-        err_left = get_error(img_id, joint_id, self.camNetLeft)
-        err_right = get_error(img_id, joint_id, self.camNetRight)
-        err = max(err_left, err_right)
-        return err > config["reproj_thr"][joint_id]
+    def _reprojection_error_norms(self):
+        """Per-camera per-frame per-joint reprojection error magnitudes (pixels).
+
+        Cached on first call. Joints not visible from a given camera have a
+        zero residual (per `pyba.Camera.can_see_mask`). Note: this is computed
+        from `camNet.points2d`, which reflects network predictions but not
+        manual corrections stored in `self.db` — same behaviour as the
+        pre-refactor `get_joint_reprojection_error` helper.
+        """
+        if getattr(self, '_reproj_err_norms_cache', None) is None:
+            if self.camNet is None or not self.camNet.has_calibration():
+                raise RuntimeError(
+                    'Cannot compute reprojection errors before calibration; '
+                    'run Core.calibrate_calc() first.'
+                )
+            self.camNet.triangulate()
+            residuals = self.camNet.reprojection_error(reduce=False)
+            self._reproj_err_norms_cache = np.linalg.norm(residuals, axis=-1)
+        return self._reproj_err_norms_cache
 
     def write_corrections(self, cam_id, img_id, modified_joints, points2d):
         """Saves the provided manual corrections to a file in the output_folder.
